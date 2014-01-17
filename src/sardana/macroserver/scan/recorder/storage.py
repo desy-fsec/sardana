@@ -38,6 +38,11 @@ import re
 import numpy
 import json
 
+from datetime import datetime
+from pytz import timezone
+import pytz
+import pytz
+
 from datarecorder import DataRecorder, DataFormats, SaveModes
 from taurus.core.tango.sardana import PlotType
 from sardana.macroserver.macro import Type
@@ -351,7 +356,6 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.__nexusconfig_device.Open()
 
 
-
         nexuscomponents = []
         if "NeXusComponents" in self.__vars.keys():
             lst =  self.__vars["NeXusComponents"]
@@ -368,6 +372,16 @@ class NXS_FileRecorder(BaseFileRecorder):
 #         
         print 'SDATA:', envRec.keys()
         print 'SDDATA:', envRec.values()
+        fmt = '%Y-%m-%dT%H:%M:%S.%f%z'
+        
+
+        tzone = self.__vars["timezone"] if "timezone" in self.__vars else 'Europe/Amsterdam'
+        tz = timezone(tzone)
+        fmt = '%Y-%m-%dT%H:%M:%S.%f%z'
+        starttime = tz.localize(envRec['starttime'])
+
+        self.__vars["data"]["start_time"] =   str(starttime.strftime(fmt))
+
         self.__nexuswriter_device.JSONRecord = json.dumps(self.__vars)
         self.__nexuswriter_device.OpenEntry()
         
@@ -454,7 +468,14 @@ class NXS_FileRecorder(BaseFileRecorder):
             return
 
         envRec = recordlist.getEnviron()
-        end_time = envRec['endtime'].ctime()
+
+        tzone = self.__vars["timezone"] if "timezone" in self.__vars else 'Europe/Amsterdam'
+        tz = timezone(tzone)
+        fmt = '%Y-%m-%dT%H:%M:%S.%f%z'
+        starttime = tz.localize(envRec['endtime'])
+
+        self.__vars["data"]["end_time"] =   str(starttime.strftime(fmt))
+
         self.__nexuswriter_device.JSONRecord = json.dumps(self.__vars)
         self.__nexuswriter_device.CloseEntry()
         self.__nexuswriter_device.CloseFile()
