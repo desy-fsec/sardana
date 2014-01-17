@@ -7,6 +7,7 @@
 ## http://www.tango-controls.org/static/sardana/latest/doc/html/index.html
 ##
 ## Copyright 2011 CELLS / ALBA Synchrotron, Bellaterra, Spain
+## Copyright 2014 DESY, Hamburg, Germany
 ## 
 ## Sardana is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU Lesser General Public License as published by
@@ -35,6 +36,7 @@ import itertools
 import re
 
 import numpy
+import json
 
 from datarecorder import DataRecorder, DataFormats, SaveModes
 from taurus.core.tango.sardana import PlotType
@@ -266,6 +268,219 @@ class FIO_FileRecorder(BaseFileRecorder):
             pass
             
         os.chdir( currDir)
+
+
+
+class NXS_FileRecorder(BaseFileRecorder):
+    """ Saves data to a file """
+
+    formats = { DataFormats.nxs : '.nxs' }
+    
+
+    def __init__(self, filename=None, macro=None, **pars):
+        BaseFileRecorder.__init__(self)
+        self.base_filename = filename
+        if macro:
+            self.macro = macro
+        self.db = PyTango.Database()
+
+        self.__nexuswriter_device = None
+        self.__nexusconfig_device = None
+
+        ## device proxy timeout 
+        self.__timeout =  25000
+        ## Custom variables
+        self.__vars = {"data":{}}
+
+    def setFileName(self, filename):
+        if self.fd != None: 
+            self.fd.close()
+   
+        dirname = os.path.dirname(filename)
+        
+        if not os.path.isdir(dirname):
+            try:
+                os.makedirs(dirname)
+            except:
+                self.filename = None
+                return
+        self.currentlist = None
+        #
+        # construct the filename, e.g. : /dir/subdir/etcdir/prefix_00123.nxs
+        #
+        tpl = filename.rpartition('.')
+        serial = self.recordlist.getEnvironValue('serialno')
+        self.filename = "%s_%05d.%s" % (tpl[0], serial, tpl[2])
+
+        
+    def getFormat(self):
+        return DataFormats.whatis(DataFormats.nxs)
+
+
+    
+    def _startRecordList(self, recordlist):
+
+        if self.base_filename is None:
+            return
+
+        self.setFileName(self.base_filename)
+        
+        envRec = recordlist.getEnviron()
+
+#        self.sampleTime = envRec['estimatedtime']/(envRec['total_scan_intervals'] + 1)
+        #datetime object
+#        start_time = envRec['starttime']
+        
+#        self.motorNames = envRec[ 'ref_moveables']
+
+        if "NeXusWriterDevice" in self.__vars.keys():
+            servers = [self.__vars["NeXusWriterDevice"]]
+        else:
+            servers = self.db.get_device_exported_for_class("NXSDataWriter").value_string 
+        if len(servers) > 0:
+            self.__nexuswriter_device = PyTango.DeviceProxy(servers[0])
+            self.__nexuswriter_device.set_timeout_millis(self.__timeout)
+
+        if "NeXusConfigDevice" in self.__vars.keys():
+            servers = [self.__vars["NeXusConfigDevice"]]
+        else:
+            servers = self.db.get_device_exported_for_class("NXSConfigServer").value_string 
+        if len(servers) > 0:
+            self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
+            self.__nexusconfig_device.set_timeout_millis(self.__timeout)
+            self.__nexusconfig_device.Open()
+
+
+
+        nexuscomponents = []
+        if "NeXusComponents" in self.__vars.keys():
+            lst =  self.__vars["NeXusComponents"]
+            if isinstance(lst, (tuple, list)):
+                nexuscomponents.extend(lst)
+        self.__nexusconfig_device.CreateConfiguration(nexuscomponents)
+        cnfxml = self.__nexusconfig_device.XMLString 
+        self.__nexuswriter_device.Init()
+        self.__nexuswriter_device.FileName = self.filename
+        self.__nexuswriter_device.OpenFile()
+
+        self.__nexuswriter_device.XMLSettings=cnfxml
+#
+#         
+        print 'SDATA:', envRec.keys()
+        print 'SDDATA:', envRec.values()
+        self.__nexuswriter_device.JSONRecord = json.dumps(self.__vars)
+        self.__nexuswriter_device.OpenEntry()
+        
+#        serial = self.recordlist.getEnvironValue('serialno')
+
+        # self.names = [ e.name for e in envRec['datadesc'] ]
+        #        self.fd = open( self.filename,'w')
+        #
+        # write the comment section of the header
+        #
+        #        self.fd.write("!\n! Comments\n!\n%%c\n %s\nuser %s Acquisition started at %s\n" % 
+        #                      (envRec['title'], envRec['user'], start_time.ctime()))
+        #        self.fd.flush()
+        #
+        # write the parameter section, including the motor positions, if needed
+        #
+        #        self.fd.write("!\n! Parameter\n!\n%p\n")
+        #        self.fd.flush()
+        #        env = self.macro.getAllEnv()
+        #        if env.has_key( 'FlagFioWriteMotorPositions') and env['FlagFioWriteMotorPositions'] == True:
+        #            all_motors = self.macro.findObjs('.*', type_class=Type.Motor)
+        #            all_motors.sort()
+        #            for mot in all_motors:
+        #                pos = mot.getPosition()
+        #                if pos is None:
+        #                    record = "%s = nan\n" % (mot)
+        #                else:
+        #                    record = "%s = %g\n" % (mot, mot.getPosition())
+        #                    
+        #                self.fd.write( record)
+        #            self.fd.flush()
+        #
+        # write the data section starting with the description of the columns
+        #
+        #        self.fd.write("!\n! Data\n!\n%d\n")
+        #        self.fd.flush()
+        #        i = 1
+        #        for col in envRec[ 'datadesc']:
+        #            if col.name == 'point_nb':
+        #                continue
+#3            if col.name == 'timestamp':
+#3                continue
+# 3           dType = 'FLOAT'
+#            if col.dtype == 'float64':
+#                dType = 'DOUBLE'
+#            outLine = " Col %d %s %s\n" % ( i, col.label, dType)
+#            self.fd.write( outLine)
+#            i += 1
+#        # +++
+#        # 11.9.2012 timestamp to the end
+#        #
+#        outLine = " Col %d %s %s\n" % ( i, 'timestamp', 'DOUBLE')
+#        self.fd.write( outLine)
+#        # +++
+#        self.fd.flush()
+
+    def _writeRecord(self, record):
+        if self.filename is None:
+            return
+#        nan =  float('nan')
+#        nan, ctNames, fd = float('nan'), self.ctNames, self.fd
+#        outstr = ''
+#        for c in ctNames:
+#            outstr += ' ' + str(record.data.get(c, nan))
+        # +++
+        # 11.9.2012 timestamp to the end
+        #
+#        outstr += ' ' + str(record.data.get('timestamp', nan))
+        # +++
+#        outstr += '\n'
+        
+#        fd.write( outstr )
+#        fd.flush()
+
+#        if len( self.mcaNames) > 0:
+#            self._writeMcaFile( record)
+        print 'DATA:', '{"data":%s}' % json.dumps(record.data)
+        jsonString = '{"data":%s}' % json.dumps(record.data)
+        self.__nexuswriter_device.Record(jsonString)
+
+
+    def _endRecordList(self, recordlist):
+        if self.filename is None:
+            return
+
+        envRec = recordlist.getEnviron()
+        end_time = envRec['endtime'].ctime()
+        self.__nexuswriter_device.JSONRecord = json.dumps(self.__vars)
+        self.__nexuswriter_device.CloseEntry()
+        self.__nexuswriter_device.CloseFile()
+
+
+#        self.fd.write("! Acquisition ended at %s\n" % end_time)
+#        self.fd.flush()
+#        self.fd.close()
+
+
+    def _addCustomData(self, value, name, group=None, remove=False, **kwargs):
+                             
+        if group:
+            if group not in self.__vars.keys():
+                self.__vars[group] = { }
+            if not remove:        
+                self.__vars[group][name] = value
+            else:
+                self.__vars[group].pop(name, None)
+        else:
+            if not remove:
+                self.__vars[name] = value
+            else:
+                self.__vars.pop(name, None)
+
+
 
 class SPEC_FileRecorder(BaseFileRecorder):
     """ Saves data to a file """
@@ -1220,6 +1435,11 @@ def FileRecorder(filename, macro, **pars):
         klass = NXscan_FileRecorder
     elif ext in FIO_FileRecorder.formats.values():
         klass = FIO_FileRecorder
+    elif ext in NXS_FileRecorder.formats.values():
+        klass = NXS_FileRecorder
     else:
         klass = SPEC_FileRecorder
     return klass(filename=filename, macro=macro, **pars)
+
+
+
