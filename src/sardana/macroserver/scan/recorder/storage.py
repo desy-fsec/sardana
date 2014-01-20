@@ -287,7 +287,6 @@ class NXS_FileRecorder(BaseFileRecorder):
         if macro:
             self.macro = macro
         self.db = PyTango.Database()
-        env = self.macro.getAllEnv() if self.macro else {}
         
         self.__nexuswriter_device = None
         self.__nexusconfig_device = None
@@ -436,24 +435,31 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__vars["data"]["start_time"] =   str(starttime.strftime(fmt))
         self.__vars["data"]["serialno"] =   envRec["serialno"]
 
+        envrecord = self.__appendRecord(self.__vars, env)
+        self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
+
+        self.__nexuswriter_device.OpenEntry()
+        
+    def __appendRecord(self, var, env):
         nexusrecord = {}
         if "NeXusDataRecord" in env.keys():
             dct = env["NeXusDataRecord"] 
             if isinstance(dct, dict):
                 nexusrecord =  dct
-
-        record = dict(self.__vars)        
-        record["data"] = dict(self.__vars["data"], **nexusrecord)
-        self.__nexuswriter_device.JSONRecord = json.dumps(record)
-        self.__nexuswriter_device.OpenEntry()
-        
+        record = dict(var)        
+        record["data"] = dict(var["data"], **nexusrecord)
+        return record
 
     def _writeRecord(self, record):
         if self.filename is None:
             return
+        env = self.macro.getAllEnv() if self.macro else {}
+        envrecord = self.__appendRecord(self.__vars, env)
+        self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
+
         print 'DATA:', '{"data":%s}' % json.dumps(record.data)
+
         jsonString = '{"data":%s}' % json.dumps(record.data)
-        self.__nexuswriter_device.JSONRecord = json.dumps(self.__vars)
         self.__nexuswriter_device.Record(jsonString)
 
 
@@ -472,7 +478,9 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         self.__vars["data"]["end_time"] =   str(starttime.strftime(fmt))
 
-        self.__nexuswriter_device.JSONRecord = json.dumps(self.__vars)
+        envrecord = self.__appendRecord(self.__vars, env)
+        self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
+
         self.__nexuswriter_device.CloseEntry()
         self.__nexuswriter_device.CloseFile()
 
