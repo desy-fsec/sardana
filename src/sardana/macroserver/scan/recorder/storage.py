@@ -297,6 +297,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__vars = {"data":{}, 
                        "vars":{}}
 
+
     def setFileName(self, filename, number = True):
         if self.fd != None: 
             self.fd.close()
@@ -397,8 +398,6 @@ class NXS_FileRecorder(BaseFileRecorder):
             if isinstance(lst, (tuple, list)):
                 nexuscomponents.extend(lst)
 
-                
-
         nexusvariables = {}
         if "NeXusConfigVariables" in env.keys():
             dct = env["NeXusConfigVariables"] 
@@ -419,27 +418,19 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__nexuswriter_device.FileName = self.filename
         self.__nexuswriter_device.OpenFile()
 
-        self.__nexuswriter_device.XMLSettings=cnfxml
-#
-#         
+        self.__nexuswriter_device.XMLSettings = cnfxml
         
         print 'START_DATA:', str(envRec)
-        fmt = '%Y-%m-%dT%H:%M:%S.%f%z'
-        
 
-        tzone = env["timezone"] if "timezone" in self.__vars else 'Europe/Amsterdam'
-        tz = timezone(tzone)
-        fmt = '%Y-%m-%dT%H:%M:%S.%f%z'
-        starttime = tz.localize(envRec['starttime'])
-
-        self.__vars["data"]["start_time"] =   str(starttime.strftime(fmt))
-        self.__vars["data"]["serialno"] =   envRec["serialno"]
+        self.__vars["data"]["start_time"] = self.__timeToString(envRec['starttime'], env)
+        self.__vars["data"]["serialno"] = envRec["serialno"]
 
         envrecord = self.__appendRecord(self.__vars, env)
         self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
 
         self.__nexuswriter_device.OpenEntry()
         
+
     def __appendRecord(self, var, env):
         nexusrecord = {}
         if "NeXusDataRecord" in env.keys():
@@ -449,6 +440,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         record = dict(var)        
         record["data"] = dict(var["data"], **nexusrecord)
         return record
+
 
     def _writeRecord(self, record):
         if self.filename is None:
@@ -463,20 +455,23 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__nexuswriter_device.Record(jsonString)
 
 
+    def __timeToString(self, time, env):
+        tzone = env["timezone"] if "timezone" in env else 'Europe/Amsterdam'
+        tz = timezone(tzone)
+        fmt = '%Y-%m-%dT%H:%M:%S.%f%z'
+        starttime = tz.localize(time)
+        return str(starttime.strftime(fmt))
+
     def _endRecordList(self, recordlist):
         if self.filename is None:
             return
 
         env = self.macro.getAllEnv() if self.macro else {}
         envRec = recordlist.getEnviron()
-
-        tzone = env["timezone"] if "timezone" in self.__vars else 'Europe/Amsterdam'
-        tz = timezone(tzone)
-        fmt = '%Y-%m-%dT%H:%M:%S.%f%z'
-        starttime = tz.localize(envRec['endtime'])
+        
         print 'END_DATA:', str(envRec)
 
-        self.__vars["data"]["end_time"] =   str(starttime.strftime(fmt))
+        self.__vars["data"]["end_time"] = self.__timeToString(envRec['endtime'], env)
 
         envrecord = self.__appendRecord(self.__vars, env)
         self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
