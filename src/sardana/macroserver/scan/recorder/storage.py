@@ -461,6 +461,10 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         return names
 
+
+    def __createDynamicComponents(self, dss):
+        pass
+
     def __createConfiguration(self, env):
         cfm = env["NeXusComponentsFromMrgGrp"] \
             if "NeXusComponentsFromMrgGrp" in env.keys() else False
@@ -468,58 +472,55 @@ class NXS_FileRecorder(BaseFileRecorder):
             if "NeXusDynamicComponents" in env.keys() else False
 
         envRec = self.recordlist.getEnviron()
-#        print "ENV:", str(envRec)
         self.__collectAliases(env, envRec)
-        
-            
-        dsFound = {}
-        cpReq = {}
-
-        if cfm:    
-            cmps = self.__nexusconfig_device.AvailableComponents()
-            for cp in cmps:
-                dss = self.__nexusconfig_device.ComponentDataSources(cp)
-                cdss = list(set(dss) & set(self.__cutDeviceAliases.values()))
-                csds = self.__checkClientStepDS(cp, cdss)
-                for ds in csds:
-                    print ds, "found in ", cp
-                    if ds not in dsFound.keys():
-                        dsFound[ds] = []
-                    dsFound[ds].append(cp)    
-                    if cp not in cpReq.keys():
-                        cpReq[cp] = []
-                    cpReq[cp].append(ds)    
-
-            for ds in self.__cutDeviceAliases.values():
-                if ds not in dsFound.keys():
-                    ## TODO add dynamic components
-                    print "Warning:", ds, "not found!"
 
         mandatory = self.__nexusconfig_device.MandatoryComponents()                   
-        print "Default Components", mandatory
-        if cfm:
-            print "Sardana Components",cpReq.keys()       
-
-#        for MG in MGs:
-#            if not MG in CPs:
-#                found = False
-#                if cfm:
-#                    if findCP(MG):
-#                        addCP(MG)
-#                        found =True
-#                if not found and dyncp:
-#                    createCP(MG)
-#                else:
-#                    raise "MG not found in components"
-#            
+        self.info("Default Components %s" %  str(mandatory))
 
         nexuscomponents = []
         if "NeXusComponents" in env.keys():
             lst = env["NeXusComponents"] 
             if isinstance(lst, (tuple, list)):
                 nexuscomponents.extend(lst)
-        print "User Components",nexuscomponents
-        nexuscomponents.extend(cpReq.keys())
+        self.info("User Components %s" % str(nexuscomponents))
+        
+            
+        dsFound = {}
+        dsNotFound = []
+        cpReq = {}
+
+        cmps = self.__nexusconfig_device.AvailableComponents()
+        for cp in cmps:
+            dss = self.__nexusconfig_device.ComponentDataSources(cp)
+            cdss = list(set(dss) & set(self.__cutDeviceAliases.values()))
+            csds = self.__checkClientStepDS(cp, cdss)
+            for ds in csds:
+                self.debug("%s found in %s" % (ds, cp))
+                if ds not in dsFound.keys():
+                    dsFound[ds] = []
+                dsFound[ds].append(cp)    
+                if cp not in cpReq.keys():
+                    cpReq[cp] = []
+                cpReq[cp].append(ds)    
+                    
+        ## TODO add dynamic components
+        for ds in self.__cutDeviceAliases.values():
+            if ds not in dsFound.keys():
+                dsNotFound.append(ds)
+                if not dyncp:
+                        self.warning("Warning: %s not found in Components!" %  ds)
+            elif not cfm:
+                if not (set(dsFound[ds]) & set(nexuscomponents)):
+                    dsNotFound.append(ds)
+                    if not dyncp:
+                        self.warning("Warning: %s not found in User Components!" %  ds)
+        if dyncp:
+            self.createDynamicComponents(dsNotFound)
+            
+
+        if cfm:
+            self.info("Sardana Components %s" % cpReq.keys())
+            nexuscomponents.extend(cpReq.keys())
         nexuscomponents = list(set(nexuscomponents))
 
         nexusvariables = {}
@@ -576,7 +577,7 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         self.__nexuswriter_device.XMLSettings = cnfxml
         
-        print 'START_DATA:', str(envRec)
+        self.debug('START_DATA: %s' % str(envRec))
 
         self.__vars["data"]["start_time"] = self.__timeToString(envRec['starttime'], env)
         self.__vars["data"]["serialno"] = envRec["serialno"]
@@ -604,8 +605,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         envrecord = self.__appendRecord(self.__vars, env)
         self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
 
-        print 'DATA:', '{"data":%s}' % json.dumps(
-            self.__replaceAliases(record.data))
+        self.debug('DATA: {"data":%s}' % json.dumps(
+            self.__replaceAliases(record.data)))
 
         jsonString = '{"data":%s}' % json.dumps(
             self.__replaceAliases(record.data))
@@ -627,7 +628,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         env = self.macro.getAllEnv() if self.macro else {}
         envRec = recordlist.getEnviron()
         
-        print 'END_DATA:', str(envRec)
+        self.debug('END_DATA: %s ' % str(envRec))
 
         self.__vars["data"]["end_time"] = self.__timeToString(envRec['endtime'], env)
 
