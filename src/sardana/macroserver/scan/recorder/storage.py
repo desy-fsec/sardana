@@ -46,6 +46,7 @@ from datarecorder import DataRecorder, DataFormats, SaveModes
 from taurus.core.tango.sardana import PlotType
 from sardana.macroserver.macro import Type
 import PyTango
+import xml.dom.minidom 
 
 class BaseFileRecorder(DataRecorder):
     def __init__(self, **pars):
@@ -286,7 +287,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.base_filename = filename
         if macro:
             self.macro = macro
-        self.db = PyTango.Database()
+        self.__db = PyTango.Database()
         
         self.__nexuswriter_device = None
         self.__nexusconfig_device = None
@@ -298,7 +299,15 @@ class NXS_FileRecorder(BaseFileRecorder):
                        "vars":{}}
 
 
-    def setFileName(self, filename, number = True):
+        ## device aliases
+        self.__deviceAliases = {}
+        ## cut device aliases
+        self.__cutDeviceAliases = {}
+        ## dictionary with names to replace
+        self.__toReplace = {}
+
+
+    def __setFileName(self, filename, number = True):
         if self.fd != None: 
             self.fd.close()
    
@@ -327,32 +336,11 @@ class NXS_FileRecorder(BaseFileRecorder):
         return DataFormats.whatis(DataFormats.nxs)
 
 
-    
-    def _startRecordList(self, recordlist):
-
-        env = self.macro.getAllEnv() if self.macro else {}
-        if self.base_filename is None:
-            return
-
-        appendentry = env["NeXusAppendEntry"] \
-            if "NeXusAppendEntry" in env.keys() else False
-
-        self.setFileName(self.base_filename, not appendentry)
-        
-        envRec = recordlist.getEnviron()
-
-
-
-#        self.sampleTime = envRec['estimatedtime']/(envRec['total_scan_intervals'] + 1)
-        #datetime object
-#        start_time = envRec['starttime']
-        
-#        self.motorNames = envRec[ 'ref_moveables']
-
+    def __setNexusDevices(self, env):
         if "NeXusWriterDevice" in env.keys():
             servers = [env["NeXusWriterDevice"]]
         else:
-            servers = self.db.get_device_exported_for_class("NXSDataWriter").value_string 
+            servers = self.__db.get_device_exported_for_class("NXSDataWriter").value_string 
         if len(servers) > 0:
             self.__nexuswriter_device = PyTango.DeviceProxy(servers[0])
             self.__nexuswriter_device.set_timeout_millis(self.__timeout)
@@ -360,25 +348,158 @@ class NXS_FileRecorder(BaseFileRecorder):
         if "NeXusConfigDevice" in env.keys():
             servers = [env["NeXusConfigDevice"]]
         else:
-            servers = self.db.get_device_exported_for_class("NXSConfigServer").value_string 
+            servers = self.__db.get_device_exported_for_class("NXSConfigServer").value_string 
         if len(servers) > 0:
             self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
             self.__nexusconfig_device.set_timeout_millis(self.__timeout)
             self.__nexusconfig_device.Open()
 
 
-        mfc = env["NeXusMrgGrpFromComponents"] \
-            if "NeXusMrgGrpFromComponents" in env.keys() else False
+    ## provides a device alias
+    # \param name device name       
+    # \return device alias 
+    def __get_alias(self, name):
+        # if name does not contain a "/" it's probably an alias
+        if name.find("/") == -1:
+            return name
+
+        # haso107klx:10000/expchan/hasysis3820ctrl/1
+        if name.find(':') >= 0:
+            lst = name.split("/")
+            name = "/".join(lst[1:])
+        return self.__db.get_alias(name)
+
+            
+    def __collectAliases(self, env, envRec):        
+
+        if 'counters' in envRec:     
+            for elm in envRec['counters']:
+                alias = self.__get_alias(str(elm))
+                self.__deviceAliases[alias] = elm
+        if 'ref_moveables' in envRec:     
+            for elm in envRec['ref_moveables']:
+                alias = self.__get_alias(str(elm))
+                self.__deviceAliases[alias] = elm
+
+        if 'column_desc' in envRec:     
+            for elm in envRec['column_desc']:
+                if "name" in elm.keys():
+                    alias = self.__get_alias(str(elm["name"]))
+                    self.__deviceAliases[alias] = elm["name"] 
+        if 'datadesc' in envRec:     
+            for elm in envRec['datadesc']:
+                alias = self.__get_alias(str(elm.name))
+                self.__deviceAliases[alias] = elm.name
+        
+        self.__cutDeviceAliases = {}
+        for alias in self.__deviceAliases.keys():
+            if alias.startswith("sca_exp_mca"):
+                self.__cutDeviceAliases[alias] = "_".join(alias.split("_")[:3])
+                self.__toReplace[alias] = "_".join(alias.split("_")[:3])
+            else:
+                self.__cutDeviceAliases[alias] = alias
+        
+
+    def __checkNode(self, node):
+        label = 'datasources'
+        name = None
+        if node.nodeName == 'datasource':
+            if node.hasAttribute("type") and node.attributes["type"].value == 'CLIENT' \
+                    and node.hasAttribute("name"):
+                name = str(node.attributes["name"].value)
+        elif node.nodeType == node.TEXT_NODE:
+            dstxt = node.data
+            index = dstxt.find("$%s." % label)
+            while index != -1 and not name:
+                try:
+                    subc = re.finditer(
+                        r"[\w]+", 
+                        dstxt[(index+len(label)+2):]).next().group(0)
+                except:
+                    subc = ''
+                name = subc.strip() if subc else ""
+                try:
+                    dsource = self.__nexusconfig_device.DataSources([name])
+                except:
+                    dsource = []
+                if len(dsource)>0:
+                    indom = xml.dom.minidom.parseString(dsource[0])
+                    ds = indom.getElementsByTagName("datasource")
+                    if node.nodeName == 'datasource':
+                        if node.hasAttribute("type") and node.attributes["type"].value == 'CLIENT' \
+                                and node.hasAttribute("name"):
+                            name = strr(node.attributes["name"].value)
+                index = dstxt.find("$%s." % label, index+1)
+        return name
+                
+
+    def __checkClientStepDS(self, cp, dss):         
+        xmlc = self.__nexusconfig_device.Components([cp])
+        names = []
+        if not len(xmlc)>0:
+            return names
+        indom = xml.dom.minidom.parseString(xmlc[0])
+        strategy = indom.getElementsByTagName("strategy")
+        for sg in strategy:
+            if sg.hasAttribute("mode") and sg.attributes["mode"].value == 'STEP':
+                name = None
+                nxt = sg.nextSibling
+                while nxt and not name:
+                    name = self.__checkNode(nxt)
+                    if name and name in dss:
+                        names.append(name)
+                    nxt = nxt.nextSibling    
+
+                prev = sg.previousSibling
+                while prev and not name:
+                    name = self.__checkNode(prev)
+                    if name and name in dss:
+                        names.append(name)
+                    prev = prev.previousSibling  
+                        
+                        
+
+        return names
+
+    def __createConfiguration(self, env):
         cfm = env["NeXusComponentsFromMrgGrp"] \
             if "NeXusComponentsFromMrgGrp" in env.keys() else False
         dyncp = env["NeXusDynamicComponents"] \
             if "NeXusDynamicComponents" in env.keys() else False
 
-#        if mfc:
-#            for ds in CPs:
-#                if ds not in MGs:
-#                    addMG(ds)
+        envRec = self.recordlist.getEnviron()
+#        print "ENV:", str(envRec)
+        self.__collectAliases(env, envRec)
+        
             
+        dsFound = {}
+        cpReq = {}
+
+        if cfm:    
+            cmps = self.__nexusconfig_device.AvailableComponents()
+            for cp in cmps:
+                dss = self.__nexusconfig_device.ComponentDataSources(cp)
+                cdss = list(set(dss) & set(self.__cutDeviceAliases.values()))
+                csds = self.__checkClientStepDS(cp, cdss)
+                for ds in csds:
+                    print ds, "found in ", cp
+                    if ds not in dsFound.keys():
+                        dsFound[ds] = []
+                    dsFound[ds].append(cp)    
+                    if cp not in cpReq.keys():
+                        cpReq[cp] = []
+                    cpReq[cp].append(ds)    
+
+            for ds in self.__cutDeviceAliases.values():
+                if ds not in dsFound.keys():
+                    ## TODO add dynamic components
+                    print "Warning:", ds, "not found!"
+
+        mandatory = self.__nexusconfig_device.MandatoryComponents()                   
+        print "Default Components", mandatory
+        if cfm:
+            print "Sardana Components",cpReq.keys()       
+
 #        for MG in MGs:
 #            if not MG in CPs:
 #                found = False
@@ -397,6 +518,9 @@ class NXS_FileRecorder(BaseFileRecorder):
             lst = env["NeXusComponents"] 
             if isinstance(lst, (tuple, list)):
                 nexuscomponents.extend(lst)
+        print "User Components",nexuscomponents
+        nexuscomponents.extend(cpReq.keys())
+        nexuscomponents = list(set(nexuscomponents))
 
         nexusvariables = {}
         if "NeXusConfigVariables" in env.keys():
@@ -404,15 +528,47 @@ class NXS_FileRecorder(BaseFileRecorder):
             if isinstance(dct, dict):
                 nexusvariables = dct
 
-        if appendentry:         
-            self.__vars["vars"]["serialno"] = envRec["serialno"]
 
         self.__nexusconfig_device.Variables = json.dumps(
             dict(self.__vars["vars"], **nexusvariables))
         self.__nexusconfig_device.CreateConfiguration(nexuscomponents)
         cnfxml = self.__nexusconfig_device.XMLString 
+        return cnfxml
 
+        
+    ## replaces alias but cut aliases according to self.toReplaces
+    # \param text with aliases
+    # \returns text with cut aliases    
+    def __replaceAliases(self, text):
+        res = text
+        if self.__toReplace:
+            for el in self.__toReplace.keys():
+##                TODO check if full name
+                res = res.replace(el, self.__toReplace[el])
+        return res
+    
 
+    def _startRecordList(self, recordlist):
+
+        env = self.macro.getAllEnv() if self.macro else {}
+        if self.base_filename is None:
+            return
+
+        appendentry = env["NeXusAppendEntry"] \
+            if "NeXusAppendEntry" in env.keys() else False
+
+        self.__setFileName(self.base_filename, not appendentry)
+        envRec = recordlist.getEnviron()
+        if appendentry:         
+            self.__vars["vars"]["serialno"] = envRec["serialno"]
+
+        self.__setNexusDevices(env)
+        
+#        self.sampleTime = envRec['estimatedtime']/(envRec['total_scan_intervals'] + 1)
+#        start_time = envRec['starttime']
+#        self.motorNames = envRec[ 'ref_moveables']
+
+        cnfxml = self.__createConfiguration(env)
 
         self.__nexuswriter_device.Init()
         self.__nexuswriter_device.FileName = self.filename
@@ -427,7 +583,6 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         envrecord = self.__appendRecord(self.__vars, env)
         self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
-
         self.__nexuswriter_device.OpenEntry()
         
 
@@ -449,18 +604,21 @@ class NXS_FileRecorder(BaseFileRecorder):
         envrecord = self.__appendRecord(self.__vars, env)
         self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
 
-        print 'DATA:', '{"data":%s}' % json.dumps(record.data)
+        print 'DATA:', '{"data":%s}' % json.dumps(
+            self.__replaceAliases(record.data))
 
-        jsonString = '{"data":%s}' % json.dumps(record.data)
+        jsonString = '{"data":%s}' % json.dumps(
+            self.__replaceAliases(record.data))
         self.__nexuswriter_device.Record(jsonString)
 
 
-    def __timeToString(self, time, env):
-        tzone = env["timezone"] if "timezone" in env else 'Europe/Amsterdam'
+    def __timeToString(self, time, env = None):
+        tzone = env["timezone"] if env and "timezone" in env else 'Europe/Amsterdam'
         tz = timezone(tzone)
         fmt = '%Y-%m-%dT%H:%M:%S.%f%z'
         starttime = tz.localize(time)
         return str(starttime.strftime(fmt))
+
 
     def _endRecordList(self, recordlist):
         if self.filename is None:
