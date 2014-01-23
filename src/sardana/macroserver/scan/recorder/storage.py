@@ -116,7 +116,7 @@ class FIO_FileRecorder(BaseFileRecorder):
         #datetime object
         start_time = envRec['starttime']
         
-        self.motorNames = envRec[ 'ref_moveables']
+        self.motorNames = envRec['ref_moveables']
         self.mcaNames = []
         self.ctNames = []
         for e in envRec['datadesc']:
@@ -277,7 +277,7 @@ class FIO_FileRecorder(BaseFileRecorder):
 
 
 class NXS_FileRecorder(BaseFileRecorder):
-    """ Saves data to a file """
+    """ Saves data to a NeXus file making use of NexDaTaS Writer"""
 
     formats = { DataFormats.nxs : '.nxs' }
     
@@ -491,15 +491,11 @@ class NXS_FileRecorder(BaseFileRecorder):
         else:
             path = "/entry$var.serialno:NXentry/NXinstrument/NXcollection"
 
-
         df = root.createElement("definition")
         root.appendChild(df)
-        
-        
-        spath = path.split('/')
-       
+                
+        spath = path.split('/')       
         entry = None
-        collection = None
         parent = df
         for dr in spath:
             if dr.strip():
@@ -517,7 +513,6 @@ class NXS_FileRecorder(BaseFileRecorder):
                 node.setAttribute("type", w[1])
                 node.setAttribute("name", w[0])
                 parent = node
-
                 
         created = []        
         for dd in envRec['datadesc']:
@@ -595,13 +590,13 @@ class NXS_FileRecorder(BaseFileRecorder):
             if isinstance(lst, (tuple, list)):
                 nexuscomponents.extend(lst)
         self.info("User Components %s" % str(nexuscomponents))
-        
-            
+                    
         dsFound = {}
         dsNotFound = []
         cpReq = {}
 
-        cmps = self.__nexusconfig_device.AvailableComponents()
+       ## check datasources / get require components with give datasources
+       cmps = self.__nexusconfig_device.AvailableComponents()
         for cp in cmps:
             dss = self.__nexusconfig_device.ComponentDataSources(cp)
             cdss = list(set(dss) & set(self.__cutDeviceAliases.values()))
@@ -615,7 +610,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                     cpReq[cp] = []
                 cpReq[cp].append(ds)    
                     
-        ## TODO add dynamic components
+        ## get not found datasources
         for ds in self.__cutDeviceAliases.values():
             if ds not in dsFound.keys():
                 dsNotFound.append(ds)
@@ -626,6 +621,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                     dsNotFound.append(ds)
                     if not dyncp:
                         self.warning("Warning: %s not found in User Components!" %  ds)
+
         if dyncp:
             self.__createDynamicComponent(dsNotFound, env)
             nexuscomponents.append(str(self.__dynamicCP))
@@ -641,7 +637,6 @@ class NXS_FileRecorder(BaseFileRecorder):
             dct = env["NeXusConfigVariables"] 
             if isinstance(dct, dict):
                 nexusvariables = dct
-
 
         self.__nexusconfig_device.Variables = json.dumps(
             dict(self.__vars["vars"], **nexusvariables))
@@ -680,8 +675,6 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__setNexusDevices(env)
         
 #        self.sampleTime = envRec['estimatedtime']/(envRec['total_scan_intervals'] + 1)
-#        start_time = envRec['starttime']
-#        self.motorNames = envRec[ 'ref_moveables']
 
         cnfxml = self.__createConfiguration(env)
 
