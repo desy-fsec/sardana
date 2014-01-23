@@ -281,7 +281,6 @@ class NXS_FileRecorder(BaseFileRecorder):
 
     formats = { DataFormats.nxs : '.nxs' }
     
-        
 
     def __init__(self, filename=None, macro=None, **pars):
         BaseFileRecorder.__init__(self)
@@ -303,7 +302,6 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__vars = {"data":{}, 
                        "vars":{}}
 
-
         ## device aliases
         self.__deviceAliases = {}
         ## cut device aliases
@@ -314,7 +312,6 @@ class NXS_FileRecorder(BaseFileRecorder):
         ## dynamic components
         self.__dynamicCP = "__dynamic_component__"
 
-
         ## map of numpy types : NEXUS
         self.__npTn = {"float32":"NX_FLOAT32", "float64":"NX_FLOAT64", 
                        "float":"NX_FLOAT32", "double":"NX_FLOAT64", 
@@ -324,7 +321,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                        "uint8":"NX_UINT8", "uint":"NX_UINT64",
                        "string":"NX_CHAR", "bool":"NX_BOOLEAN"}
 
-
+        env = self.macro.getAllEnv() if self.macro else {}
         appendentry = env["NeXusAppendEntry"] \
             if "NeXusAppendEntry" in env.keys() else False
 
@@ -336,7 +333,6 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.fd.close()
    
         dirname = os.path.dirname(filename)
-        
         if not os.path.isdir(dirname):
             try:
                 os.makedirs(dirname)
@@ -344,10 +340,9 @@ class NXS_FileRecorder(BaseFileRecorder):
                 self.filename = None
                 return
         self.currentlist = None
-        #
-        # construct the filename, e.g. : /dir/subdir/etcdir/prefix_00123.nxs
-        #
+
         if number:
+            # construct the filename, e.g. : /dir/subdir/etcdir/prefix_00123.nxs
             tpl = filename.rpartition('.')
             serial = self.recordlist.getEnvironValue('serialno')
             self.filename = "%s_%05d.%s" % (tpl[0], serial, tpl[2])
@@ -483,24 +478,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         return names
 
 
-    def __createDynamicComponent(self, dss, env):
-        envRec = self.recordlist.getEnviron()
-        cps =  self.__nexusconfig_device.AvailableComponents()
-        name = "__dynamic_component__"
-        while name in cps:
-            self.warning("Dynamic component %s already exists" % name)
-            name = name + "x"
-        self.__dynamicCP = name
-        self.debug("Creates %s component for %s" % (name, str(dss)))
-
-        root = xml.dom.minidom.Document()
-
-        ## TODO fetch path from env
-        if "NeXusDynamicPath" in env.keys():
-            path = env["NeXusDynamicPath"] 
-        else:
-            path = "/entry$var.serialno:NXentry/NXinstrument/NXcollection"
-
+    def __createGroupTree(self, root, path):
+        # create group tree    
         df = root.createElement("definition")
         root.appendChild(df)
                 
@@ -523,7 +502,28 @@ class NXS_FileRecorder(BaseFileRecorder):
                 node.setAttribute("type", w[1])
                 node.setAttribute("name", w[0])
                 parent = node
-                
+        return parent
+
+
+    def __createDynamicComponent(self, dss, env):
+        envRec = self.recordlist.getEnviron()
+        cps =  self.__nexusconfig_device.AvailableComponents()
+        name = "__dynamic_component__"
+        while name in cps:
+            self.warning("Dynamic component %s already exists" % name)
+            name = name + "x"
+        self.__dynamicCP = name
+        self.debug("Creates %s component for %s" % (name, str(dss)))
+
+
+        if "NeXusDynamicPath" in env.keys():
+            path = env["NeXusDynamicPath"] 
+        else:
+            path = "/entry$var.serialno:NXentry/NXinstrument/NXcollection"
+
+        root = xml.dom.minidom.Document()
+        parent = self.__createGroupTree(root, path)
+            
         created = []        
         for dd in envRec['datadesc']:
             if self.__get_alias(str(dd.name)) in dss:
@@ -581,26 +581,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         if self.__dynamicCP in cps: 
             self.__nexusconfig_device.DeleteComponent(str(self.__dynamicCP))
 
-
-    def __createConfiguration(self, env):
-        cfm = env["NeXusComponentsFromMrgGrp"] \
-            if "NeXusComponentsFromMrgGrp" in env.keys() else False
-        dyncp = env["NeXusDynamicComponents"] \
-            if "NeXusDynamicComponents" in env.keys() else False
-
-        envRec = self.recordlist.getEnviron()
-        self.__collectAliases(env, envRec)
-
-        mandatory = self.__nexusconfig_device.MandatoryComponents()                   
-        self.info("Default Components %s" %  str(mandatory))
-
-        nexuscomponents = []
-        if "NeXusComponents" in env.keys():
-            lst = env["NeXusComponents"] 
-            if isinstance(lst, (tuple, list)):
-                nexuscomponents.extend(lst)
-        self.info("User Components %s" % str(nexuscomponents))
-                    
+    def __searchDataSources(self, nexuscomponents, cfm, dyncp):        
         dsFound = {}
         dsNotFound = []
         cpReq = {}
@@ -631,11 +612,33 @@ class NXS_FileRecorder(BaseFileRecorder):
                     dsNotFound.append(ds)
                     if not dyncp:
                         self.warning("Warning: %s not found in User Components!" %  ds)
+        return (dsFound, dsNotFound, cpReq)
 
+    def __createConfiguration(self, env):
+        cfm = env["NeXusComponentsFromMrgGrp"] \
+            if "NeXusComponentsFromMrgGrp" in env.keys() else False
+        dyncp = env["NeXusDynamicComponents"] \
+            if "NeXusDynamicComponents" in env.keys() else False
+
+        envRec = self.recordlist.getEnviron()
+        self.__collectAliases(env, envRec)
+
+        mandatory = self.__nexusconfig_device.MandatoryComponents()                   
+        self.info("Default Components %s" %  str(mandatory))
+
+        nexuscomponents = []
+        if "NeXusComponents" in env.keys():
+            lst = env["NeXusComponents"] 
+            if isinstance(lst, (tuple, list)):
+                nexuscomponents.extend(lst)
+        self.info("User Components %s" % str(nexuscomponents))
+ 
+        dsFound, dsNotFound, cpReq = self.__searchDataSources(
+            nexuscomponents, cfm, dyncp)
+                   
         if dyncp:
             self.__createDynamicComponent(dsNotFound, env)
             nexuscomponents.append(str(self.__dynamicCP))
-            
 
         if cfm:
             self.info("Sardana Components %s" % cpReq.keys())
@@ -650,7 +653,8 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         self.__nexusconfig_device.Variables = json.dumps(
             dict(self.__vars["vars"], **nexusvariables))
-        self.info("Components %s" % list(set(nexuscomponents) | set(mandatory)) )
+        self.info("Components %s" % list(
+                set(nexuscomponents) | set(mandatory)) )
         self.__nexusconfig_device.CreateConfiguration(nexuscomponents)
         cnfxml = self.__nexusconfig_device.XMLString 
         return cnfxml
