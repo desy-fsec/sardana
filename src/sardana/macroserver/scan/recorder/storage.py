@@ -285,12 +285,16 @@ class NXS_FileRecorder(BaseFileRecorder):
 
     def __init__(self, filename=None, macro=None, **pars):
         BaseFileRecorder.__init__(self)
-        self.base_filename = filename
+        ## base filename
+        self.__base_filename = filename
         if macro:
             self.macro = macro
+        ## tango database    
         self.__db = PyTango.Database()
         
+        ## NXS data writer device
         self.__nexuswriter_device = None
+        ## NXS configuration server device
         self.__nexusconfig_device = None
 
         ## device proxy timeout 
@@ -319,6 +323,12 @@ class NXS_FileRecorder(BaseFileRecorder):
                        "uint64":"NX_UINT64", "uint32":"NX_UINT32", "uint16":"NX_UINT16", 
                        "uint8":"NX_UINT8", "uint":"NX_UINT64",
                        "string":"NX_CHAR", "bool":"NX_BOOLEAN"}
+
+
+        appendentry = env["NeXusAppendEntry"] \
+            if "NeXusAppendEntry" in env.keys() else False
+
+        self.__setFileName(self.__base_filename, not appendentry)
 
 
     def __setFileName(self, filename, number = True):
@@ -595,8 +605,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         dsNotFound = []
         cpReq = {}
 
-       ## check datasources / get require components with give datasources
-       cmps = self.__nexusconfig_device.AvailableComponents()
+        ## check datasources / get require components with give datasources
+        cmps = self.__nexusconfig_device.AvailableComponents()
         for cp in cmps:
             dss = self.__nexusconfig_device.ComponentDataSources(cp)
             cdss = list(set(dss) & set(self.__cutDeviceAliases.values()))
@@ -661,13 +671,13 @@ class NXS_FileRecorder(BaseFileRecorder):
     def _startRecordList(self, recordlist):
 
         env = self.macro.getAllEnv() if self.macro else {}
-        if self.base_filename is None:
+        if self.__base_filename is None:
             return
 
         appendentry = env["NeXusAppendEntry"] \
             if "NeXusAppendEntry" in env.keys() else False
 
-        self.__setFileName(self.base_filename, not appendentry)
+        self.__setFileName(self.__base_filename, not appendentry)
         envRec = self.recordlist.getEnviron()
         if appendentry:         
             self.__vars["vars"]["serialno"] = envRec["serialno"]
