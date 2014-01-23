@@ -281,6 +281,7 @@ class NXS_FileRecorder(BaseFileRecorder):
 
     formats = { DataFormats.nxs : '.nxs' }
     
+        
 
     def __init__(self, filename=None, macro=None, **pars):
         BaseFileRecorder.__init__(self)
@@ -305,6 +306,19 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__cutDeviceAliases = {}
         ## dictionary with names to replace
         self.__toReplace = {}
+
+        ## dynamic components
+        self.__dynamicCP = "__dynamic_component__"
+
+
+        ## map of numpy types : NEXUS
+        self.__npTn = {"float32":"NX_FLOAT32", "float64":"NX_FLOAT64", 
+                       "float":"NX_FLOAT32", "double":"NX_FLOAT64", 
+                       "int":"NX_INT", "int64":"NX_INT64",
+                       "int32":"NX_INT32", "int16":"NX_INT16", "int8":"NX_INT8", 
+                       "uint64":"NX_UINT64", "uint32":"NX_UINT32", "uint16":"NX_UINT16", 
+                       "uint8":"NX_UINT8", "uint":"NX_UINT64",
+                       "string":"NX_CHAR", "bool":"NX_BOOLEAN"}
 
 
     def __setFileName(self, filename, number = True):
@@ -456,14 +470,112 @@ class NXS_FileRecorder(BaseFileRecorder):
                     if name and name in dss:
                         names.append(name)
                     prev = prev.previousSibling  
-                        
-                        
-
         return names
 
 
-    def __createDynamicComponents(self, dss):
-        pass
+    def __createDynamicComponent(self, dss, env):
+        envRec = self.recordlist.getEnviron()
+        cps =  self.__nexusconfig_device.AvailableComponents()
+        name = "__dynamic_component__"
+        while name in cps:
+            self.warning("Dynamic component %s already exists" % name)
+            name = name + "x"
+        self.__dynamicCP = name
+        self.debug("Creates %s component for %s" % (name, str(dss)))
+
+        root = xml.dom.minidom.Document()
+
+        ## TODO fetch path from env
+        if "NeXusDynamicPath" in env.keys():
+            path = env["NeXusDynamicPath"] 
+        else:
+            path = "/entry$var.serialno:NXentry/NXinstrument/NXcollection"
+
+
+        df = root.createElement("definition")
+        root.appendChild(df)
+        
+        
+        spath = path.split('/')
+       
+        entry = None
+        collection = None
+        parent = df
+        for dr in spath:
+            if dr.strip():
+                node = root.createElement("group")     
+                parent.appendChild(node)
+                if not entry:
+                    entry = node
+
+                w = dr.split(':')
+                if len(w) == 1:
+                    if len(w[0])>2  and w[0][:2] =='NX':
+                        w.insert(0,w[0][2:])
+                    else:
+                        w.append("NX"+ w[0])
+                node.setAttribute("type", w[1])
+                node.setAttribute("name", w[0])
+                parent = node
+
+                
+        created = []        
+        for dd in envRec['datadesc']:
+            if self.__get_alias(str(dd.name)) in dss:
+                alias = self.__get_alias(str(dd.name))
+                self.debug("DC: %s, %s, %s, %s :  %s" % (
+                        dd.name, dd.dtype, dd.label, str(dd.shape), 
+                        alias))
+                created.append(alias) 
+                nxtype = self.__npTn[dd.dtype] \
+                    if dd.dtype in self.__npTn.keys() else 'NX_CHAR'
+                self.__createField(root, parent, nxtype, alias, dd.name, dd.shape)
+                
+        for ds in dss:
+            if ds not in created:
+                self.__createField(root, parent, 'NX_CHAR', ds, ds)
+                
+        self.__nexusconfig_device.XMLString = str(root.toprettyxml(indent=""))
+        self.__nexusconfig_device.StoreComponent(str(self.__dynamicCP))
+
+        self.debug("Dynamic Component:\n%s" % root.toprettyxml(indent="  "))
+
+
+
+    def __createField(self, root, parent, nxtype, name, record, shape = None):
+        field = root.createElement("field")     
+        parent.appendChild(field)
+        field.setAttribute("type", nxtype)
+        field.setAttribute("name", name)
+        
+        strategy = root.createElement("strategy")     
+        field.appendChild(strategy)
+        strategy.setAttribute("mode", "STEP")
+
+        dsource = root.createElement("datasource")     
+        field.appendChild(dsource)
+        dsource.setAttribute("name", name)
+        dsource.setAttribute("type", "CLIENT")
+        rec = root.createElement("record")     
+        dsource.appendChild(rec)
+        rec.setAttribute("name", record)
+        if shape:
+            dm= root.createElement("dimension")     
+            field.appendChild(dm)
+            for i in range(len(shape)):
+                dim= root.createElement("dim")     
+                dm.appendChild(dim)
+                dm.setAttribute("index", str(i+1))
+                dm.setAttribute("value", str(shape[i]))
+            
+        
+
+
+    def __removeDynamicComponent(self):
+        cps =  self.__nexusconfig_device.AvailableComponents()
+        if self.__dynamicCP in cps: 
+            self.__nexusconfig_device.DeleteComponent(str(self.__dynamicCP))
+
 
     def __createConfiguration(self, env):
         cfm = env["NeXusComponentsFromMrgGrp"] \
@@ -515,7 +627,8 @@ class NXS_FileRecorder(BaseFileRecorder):
                     if not dyncp:
                         self.warning("Warning: %s not found in User Components!" %  ds)
         if dyncp:
-            self.createDynamicComponents(dsNotFound)
+            self.__createDynamicComponent(dsNotFound, env)
+            nexuscomponents.append(str(self.__dynamicCP))
             
 
         if cfm:
@@ -532,6 +645,7 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         self.__nexusconfig_device.Variables = json.dumps(
             dict(self.__vars["vars"], **nexusvariables))
+        self.info("Components %s" % list(set(nexuscomponents) | set(mandatory)) )
         self.__nexusconfig_device.CreateConfiguration(nexuscomponents)
         cnfxml = self.__nexusconfig_device.XMLString 
         return cnfxml
@@ -559,7 +673,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             if "NeXusAppendEntry" in env.keys() else False
 
         self.__setFileName(self.base_filename, not appendentry)
-        envRec = recordlist.getEnviron()
+        envRec = self.recordlist.getEnviron()
         if appendentry:         
             self.__vars["vars"]["serialno"] = envRec["serialno"]
 
@@ -638,6 +752,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__nexuswriter_device.CloseEntry()
         self.__nexuswriter_device.CloseFile()
 
+        self.__removeDynamicComponent()
 
 
     def _addCustomData(self, value, name, group=None, remove=False, **kwargs):
