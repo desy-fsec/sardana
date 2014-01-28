@@ -328,6 +328,9 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__setFileName(self.__base_filename, not appendentry)
 
 
+        ## available components
+        self.__availableComps = []
+
     def __setFileName(self, filename, number = True):
         if self.fd != None: 
             self.fd.close()
@@ -572,8 +575,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                 dm.appendChild(dim)
                 dm.setAttribute("index", str(i+1))
                 dm.setAttribute("value", str(shape[i]))
-            
-        
+                    
 
 
     def __removeDynamicComponent(self):
@@ -581,13 +583,22 @@ class NXS_FileRecorder(BaseFileRecorder):
         if self.__dynamicCP in cps: 
             self.__nexusconfig_device.DeleteComponent(str(self.__dynamicCP))
 
+
+    def __availableComponents(self):
+        cmps = self.__nexusconfig_device.AvailableComponents()
+        if self.__availableComps:
+            return list(set(cmps) & set(self.__availableComps))
+        else:
+            return cmps
+
+
     def __searchDataSources(self, nexuscomponents, cfm, dyncp):        
         dsFound = {}
         dsNotFound = []
         cpReq = {}
 
         ## check datasources / get require components with give datasources
-        cmps = self.__nexusconfig_device.AvailableComponents()
+        cmps = self.__availableComponents()
         for cp in cmps:
             dss = self.__nexusconfig_device.ComponentDataSources(cp)
             cdss = list(set(dss) & set(self.__cutDeviceAliases.values()))
@@ -614,6 +625,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                         self.warning("Warning: %s not found in User Components!" %  ds)
         return (dsFound, dsNotFound, cpReq)
 
+
     def __createConfiguration(self, env):
         cfm = env["NeXusComponentsFromMrgGrp"] \
             if "NeXusComponentsFromMrgGrp" in env.keys() else False
@@ -632,6 +644,13 @@ class NXS_FileRecorder(BaseFileRecorder):
             if isinstance(lst, (tuple, list)):
                 nexuscomponents.extend(lst)
         self.info("User Components %s" % str(nexuscomponents))
+
+        self.__availableComps = []
+        if "NeXusAvailableComponents" in env.keys():
+            lst = env["NeXusAvailableComponents"] 
+            if isinstance(lst, (tuple, list)):
+                self.__availableComps.extend(lst)
+        self.info("Available Components %s" % str(self.__availableComponents()))
  
         dsFound, dsNotFound, cpReq = self.__searchDataSources(
             nexuscomponents, cfm, dyncp)
