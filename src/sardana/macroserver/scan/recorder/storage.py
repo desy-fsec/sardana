@@ -324,14 +324,18 @@ class NXS_FileRecorder(BaseFileRecorder):
         env = self.macro.getAllEnv() if self.macro else {}
         appendentry = env["NeXusAppendEntry"] \
             if "NeXusAppendEntry" in env.keys() else False
+        scanID = env["ScanID"] \
+            if "ScanID" in env.keys() else -1
 
-        self.__setFileName(self.__base_filename, not appendentry)
+        self.__setFileName(self.__base_filename, not appendentry, scanID)
 
 
         ## available components
         self.__availableComps = []
 
-    def __setFileName(self, filename, number = True):
+    def __setFileName(self, filename, number = True, scanID = None):
+        if scanID is not None and scanID < 0 :
+            return
         if self.fd != None: 
             self.fd.close()
    
@@ -347,7 +351,10 @@ class NXS_FileRecorder(BaseFileRecorder):
         if number:
             # construct the filename, e.g. : /dir/subdir/etcdir/prefix_00123.nxs
             tpl = filename.rpartition('.')
-            serial = self.recordlist.getEnvironValue('serialno')
+            if scanID is None:
+                serial = self.recordlist.getEnvironValue('serialno')
+            elif scanID >= 0:
+                serial = scanID + 1
             self.filename = "%s_%05d.%s" % (tpl[0], serial, tpl[2])
         else:
             self.filename = filename
@@ -650,6 +657,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             lst = env["NeXusAvailableComponents"] 
             if isinstance(lst, (tuple, list)):
                 self.__availableComps.extend(lst)
+            self.__availableComps = list(set(self.__availableComps) | set(nexuscomponents))
         self.info("Available Components %s" % str(self.__availableComponents()))
  
         dsFound, dsNotFound, cpReq = self.__searchDataSources(
