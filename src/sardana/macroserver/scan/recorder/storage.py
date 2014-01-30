@@ -635,7 +635,7 @@ class NXS_FileRecorder(BaseFileRecorder):
 
     def __createConfiguration(self, env):
         cfm = env["NeXusComponentsFromMntGrp"] \
-            if "NeXusComponentsFromMntGrp" in env.keys() else True
+            if "NeXusComponentsFromMntGrp" in env.keys() else False
         dyncp = env["NeXusDynamicComponents"] \
             if "NeXusDynamicComponents" in env.keys() else True
 
