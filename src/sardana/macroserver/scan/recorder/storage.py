@@ -520,10 +520,10 @@ class NXS_FileRecorder(BaseFileRecorder):
         cps =  self.__nexusconfig_device.AvailableComponents()
         name = "__dynamic_component__"
         while name in cps:
-            self.warning("Dynamic component %s already exists" % name)
+            self.warning("Dynamic component '%s' already exists" % name)
             name = name + "x"
         self.__dynamicCP = name
-        self.debug("Creates %s component for %s" % (name, str(dss)))
+        self.debug("Creates '%s' component for '%s'" % (name, str(dss)))
 
 
         if "NeXusDynamicPath" in env.keys():
@@ -610,12 +610,13 @@ class NXS_FileRecorder(BaseFileRecorder):
             try:
                 dss = self.__nexusconfig_device.ComponentDataSources(cp)
             except:
+                self.warning("Component '%s' wrongly defined in DB!" %  cp)
                 dss = []
             if dss:
                 cdss = list(set(dss) & set(self.__cutDeviceAliases.values()))
                 csds = self.__checkClientStepDS(cp, cdss)
                 for ds in csds:
-                    self.debug("%s found in %s" % (ds, cp))
+                    self.debug("'%s' found in '%s'" % (ds, cp))
                     if ds not in dsFound.keys():
                         dsFound[ds] = []
                     dsFound[ds].append(cp)    
@@ -628,12 +629,12 @@ class NXS_FileRecorder(BaseFileRecorder):
             if ds not in dsFound.keys():
                 dsNotFound.append(ds)
                 if not dyncp:
-                        self.warning("Warning: %s not found in Components!" %  ds)
+                        self.warning("Warning: '%s' not found in Components!" %  ds)
             elif not cfm:
                 if not (set(dsFound[ds]) & set(nexuscomponents)):
                     dsNotFound.append(ds)
                     if not dyncp:
-                        self.warning("Warning: %s not found in User Components!" %  ds)
+                        self.warning("Warning: '%s' not found in User Components!" %  ds)
         return (dsFound, dsNotFound, cpReq)
 
 
