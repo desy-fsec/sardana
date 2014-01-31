@@ -607,17 +607,21 @@ class NXS_FileRecorder(BaseFileRecorder):
         ## check datasources / get require components with give datasources
         cmps = self.__availableComponents()
         for cp in cmps:
-            dss = self.__nexusconfig_device.ComponentDataSources(cp)
-            cdss = list(set(dss) & set(self.__cutDeviceAliases.values()))
-            csds = self.__checkClientStepDS(cp, cdss)
-            for ds in csds:
-                self.debug("%s found in %s" % (ds, cp))
-                if ds not in dsFound.keys():
-                    dsFound[ds] = []
-                dsFound[ds].append(cp)    
-                if cp not in cpReq.keys():
-                    cpReq[cp] = []
-                cpReq[cp].append(ds)    
+            try:
+                dss = self.__nexusconfig_device.ComponentDataSources(cp)
+            except:
+                dss = []
+            if dss:
+                cdss = list(set(dss) & set(self.__cutDeviceAliases.values()))
+                csds = self.__checkClientStepDS(cp, cdss)
+                for ds in csds:
+                    self.debug("%s found in %s" % (ds, cp))
+                    if ds not in dsFound.keys():
+                        dsFound[ds] = []
+                    dsFound[ds].append(cp)    
+                    if cp not in cpReq.keys():
+                        cpReq[cp] = []
+                    cpReq[cp].append(ds)    
                     
         ## get not found datasources
         for ds in self.__cutDeviceAliases.values():
