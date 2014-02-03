@@ -488,7 +488,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         return names
 
 
-    def __createGroupTree(self, root, path):
+    def __createGroupTree(self, root, path, links = False):
         # create group tree    
         df = root.createElement("definition")
         root.appendChild(df)
@@ -512,7 +512,12 @@ class NXS_FileRecorder(BaseFileRecorder):
                 node.setAttribute("type", w[1])
                 node.setAttribute("name", w[0])
                 parent = node
-        return parent
+        if links:
+            nxdata = root.createElement("group")     
+            entry.appendChild(nxdata)
+            nxdata.setAttribute("type", "NXdata")
+            nxdata.setAttribute("name", "data")
+        return parent, nxdata
 
 
     def __createDynamicComponent(self, dss, env):
@@ -525,6 +530,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__dynamicCP = name
         self.debug("Creates '%s' component for '%s'" % (name, str(dss)))
 
+        links = env["NeXusDynamicLinks"] \
+            if "NeXusDynamicLinks" in env.keys() else True
 
         if "NeXusDynamicPath" in env.keys():
             path = env["NeXusDynamicPath"] 
@@ -532,7 +539,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             path = "/entry$var.serialno:NXentry/NXinstrument/NXcollection"
 
         root = xml.dom.minidom.Document()
-        parent = self.__createGroupTree(root, path)
+        (parent, nxdata) = self.__createGroupTree(root, path, links)
             
         created = []        
         for dd in envRec['datadesc']:
@@ -545,23 +552,36 @@ class NXS_FileRecorder(BaseFileRecorder):
                 nxtype = self.__npTn[dd.dtype] \
                     if dd.dtype in self.__npTn.keys() else 'NX_CHAR'
                 self.__createField(root, parent, nxtype, alias, dd.name, dd.shape)
-                
+                if links:
+                    self.__createLink(root, nxdata, path, alias)
+                    
         for ds in dss:
             if ds not in created:
                 self.__createField(root, parent, 'NX_CHAR', ds, ds)
-                
+                if links:
+                    self.__createLink(root, nxdata, path, ds)
+
         self.__nexusconfig_device.XMLString = str(root.toprettyxml(indent=""))
         self.__nexusconfig_device.StoreComponent(str(self.__dynamicCP))
 
         self.debug("Dynamic Component:\n%s" % root.toprettyxml(indent="  "))
 
 
+    def __createLink(self, root, entry, path, name):
+        if name and entry:
+            link = root.createElement("link")     
+            entry.appendChild(link)
+            link.setAttribute("target", "%s/%s" % (path, name))
+            link.setAttribute("name", name)
+
+
 
     def __createField(self, root, parent, nxtype, name, record, shape = None):
         field = root.createElement("field")     
-        parent.appendChild(field)
+        parent.appendChild(field) 
         field.setAttribute("type", nxtype)
         field.setAttribute("name", name)
+
         
         strategy = root.createElement("strategy")     
         field.appendChild(strategy)
