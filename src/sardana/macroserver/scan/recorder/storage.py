@@ -277,11 +277,11 @@ class FIO_FileRecorder(BaseFileRecorder):
 
 
 class NXS_FileRecorder(BaseFileRecorder):
-    """ Saves data to a NeXus file making use of NexDaTaS Writer"""
+    """ This recorder saves data to a NeXus file making use of NexDaTaS Writer """
 
     formats = { DataFormats.nxs : '.nxs' }
-    
 
+    
     def __init__(self, filename=None, macro=None, **pars):
         BaseFileRecorder.__init__(self)
         ## base filename
@@ -332,11 +332,11 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         self.__setFileName(self.__base_filename, not appendentry, scanID)
 
-
         ## available components
         self.__availableComps = []
 
-    def __setFileName(self, filename, number = True, scanID = None):
+
+    def __setFileName(self, filename, number=True, scanID=None):
         if scanID is not None and scanID < 0 :
             return
         if self.fd != None: 
@@ -361,9 +361,8 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.filename = "%s_%05d.%s" % (tpl[0], serial, tpl[2])
         else:
             self.filename = filename
-            
+                    
 
-        
     def getFormat(self):
         return DataFormats.whatis(DataFormats.nxs)
 
@@ -491,7 +490,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         return names
 
 
-    def __createGroupTree(self, root, path, links = False):
+    def __createGroupTree(self, root, path, links=False):
         # create group tree    
         df = root.createElement("definition")
         root.appendChild(df)
@@ -579,7 +578,7 @@ class NXS_FileRecorder(BaseFileRecorder):
 
 
 
-    def __createField(self, root, parent, nxtype, name, record, shape = None):
+    def __createField(self, root, parent, nxtype, name, record, shape=None):
         field = root.createElement("field")     
         parent.appendChild(field) 
         field.setAttribute("type", nxtype)
@@ -763,7 +762,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__nexuswriter_device.OpenEntry()
         
 
-    def __appendRecord(self, var, env, mode = None):
+    def __appendRecord(self, var, env, mode=None):
         nexusrecord = {}
         if "NeXusDataRecord" in env.keys():
             dct = env["NeXusDataRecord"] 
@@ -799,7 +798,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__nexuswriter_device.Record(jsonString)
 
 
-    def __timeToString(self, time, env = None):
+    def __timeToString(self, time, env=None):
         tzone = env["timezone"] if env and "timezone" in env else 'Europe/Amsterdam'
         tz = timezone(tzone)
         fmt = '%Y-%m-%dT%H:%M:%S.%f%z'
@@ -827,8 +826,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__removeDynamicComponent()
 
 
-    def _addCustomData(self, value, name, group=None, remove=False, **kwargs):
-                             
+    def _addCustomData(self, value, name, group="data", remove=False, **kwargs):
         if group:
             if group not in self.__vars.keys():
                 self.__vars[group] = { }
