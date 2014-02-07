@@ -300,7 +300,10 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__timeout =  25000
         ## Custom variables
         self.__vars = {"data":{}, 
-                       "vars":{}}
+                       "datasources":{}, 
+                       "decoders":{}, 
+                       "vars":{},
+                       "triggers":[]} 
 
         ## device aliases
         self.__deviceAliases = {}
@@ -755,12 +758,12 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__vars["data"]["start_time"] = self.__timeToString(envRec['starttime'], env)
         self.__vars["data"]["serialno"] = envRec["serialno"]
 
-        envrecord = self.__appendRecord(self.__vars, env)
+        envrecord = self.__appendRecord(self.__vars, env, 'INIT')
         self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
         self.__nexuswriter_device.OpenEntry()
         
 
-    def __appendRecord(self, var, env):
+    def __appendRecord(self, var, env, mode = None):
         nexusrecord = {}
         if "NeXusDataRecord" in env.keys():
             dct = env["NeXusDataRecord"] 
@@ -768,6 +771,16 @@ class NXS_FileRecorder(BaseFileRecorder):
                 nexusrecord =  dct
         record = dict(var)        
         record["data"] = dict(var["data"], **nexusrecord)
+        if mode == 'INIT':
+            if var["datasources"]:
+                record["datasources"] = dict(var["datasources"])
+            if var["decoders"]:
+                record["decoders"] = dict(var["decoders"])
+        elif mode == 'FINAL':
+            pass
+        else:
+            if var["triggers"]:
+                record["triggers"] = list(var["triggers"])
         return record
 
 
@@ -775,7 +788,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         if self.filename is None:
             return
         env = self.macro.getAllEnv() if self.macro else {}
-        envrecord = self.__appendRecord(self.__vars, env)
+        envrecord = self.__appendRecord(self.__vars, env, 'STEP')
         self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
 
         self.debug('DATA: {"data":%s}' % json.dumps(
@@ -805,7 +818,7 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         self.__vars["data"]["end_time"] = self.__timeToString(envRec['endtime'], env)
 
-        envrecord = self.__appendRecord(self.__vars, env)
+        envrecord = self.__appendRecord(self.__vars, env, 'FINAL')
         self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
 
         self.__nexuswriter_device.CloseEntry()
