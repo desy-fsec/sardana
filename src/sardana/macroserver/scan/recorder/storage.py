@@ -663,17 +663,26 @@ class NXS_FileRecorder(BaseFileRecorder):
             if ds not in dsFound.keys():
                 dsNotFound.append(ds)
                 if not dyncp:
-                    self.warning("Warning: '%s' not found in Components!" %  ds)
+                    self.warning(
+                        "Warning: '%s' will not be stored. " % ds 
+                        +  "It was not found in Components!"
+                        + " Consider setting: NeXusDynamicComponents=True")
                     self.macro.warning(
-                        "Warning: '%s' not found in Components!" %  ds)
+                        "Warning: '%s' will not be stored. " % ds 
+                        + "It was not found in Components!"
+                        + " Consider setting: NeXusDynamicComponents=True")
             elif not cfm:
                 if not (set(dsFound[ds]) & set(nexuscomponents)):
                     dsNotFound.append(ds)
                     if not dyncp:
                         self.warning(
-                            "Warning: '%s' not found in User Components!" %  ds)
+                            "Warning: '%s' will not be stored. " % ds 
+                            +  "It was not found in User Components!"
+                            + " Consider setting: NeXusDynamicComponents=True")
                         self.macro.warning(
-                            "Warning: '%s' not found in User Components!" %  ds)
+                            "Warning: '%s' will not be stored. " % ds 
+                            + "It was not found in User Components!"
+                            + " Consider setting: NeXusDynamicComponents=True")
         return (dsNotFound, cpReq)
 
 
