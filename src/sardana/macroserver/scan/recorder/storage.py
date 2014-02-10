@@ -535,6 +535,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         name = "__dynamic_component__"
         while name in cps:
             self.warning("Dynamic component '%s' already exists" % name)
+            self.macro.warning("Dynamic component '%s' already exists" % name)
             name = name + "x"
         self.__dynamicCP = name
         self.debug("Creates '%s' component for '%s'" % (name, str(dss)))
@@ -643,6 +644,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                 dss = self.__nexusconfig_device.ComponentDataSources(cp)
             except:
                 self.warning("Component '%s' wrongly defined in DB!" %  cp)
+                self.macro.warning("Component '%s' wrongly defined in DB!" % cp)
                 dss = []
             if dss:
                 cdss = list(set(dss) & set(self.__cutDeviceAliases.values()))
@@ -662,11 +664,15 @@ class NXS_FileRecorder(BaseFileRecorder):
                 dsNotFound.append(ds)
                 if not dyncp:
                     self.warning("Warning: '%s' not found in Components!" %  ds)
+                    self.macro.warning(
+                        "Warning: '%s' not found in Components!" %  ds)
             elif not cfm:
                 if not (set(dsFound[ds]) & set(nexuscomponents)):
                     dsNotFound.append(ds)
                     if not dyncp:
                         self.warning(
+                            "Warning: '%s' not found in User Components!" %  ds)
+                        self.macro.warning(
                             "Warning: '%s' not found in User Components!" %  ds)
         return (dsNotFound, cpReq)
 
