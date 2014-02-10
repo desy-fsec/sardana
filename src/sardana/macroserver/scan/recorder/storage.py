@@ -277,7 +277,8 @@ class FIO_FileRecorder(BaseFileRecorder):
 
 
 class NXS_FileRecorder(BaseFileRecorder):
-    """ This recorder saves data to a NeXus file making use of NexDaTaS Writer """
+    """ This recorder saves data to a NeXus file making use of NexDaTaS Writer
+"""
 
     formats = { DataFormats.nxs : '.nxs' }
 
@@ -319,8 +320,9 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__npTn = {"float32":"NX_FLOAT32", "float64":"NX_FLOAT64", 
                        "float":"NX_FLOAT32", "double":"NX_FLOAT64", 
                        "int":"NX_INT", "int64":"NX_INT64",
-                       "int32":"NX_INT32", "int16":"NX_INT16", "int8":"NX_INT8", 
-                       "uint64":"NX_UINT64", "uint32":"NX_UINT32", "uint16":"NX_UINT16", 
+                       "int32":"NX_INT32", "int16":"NX_INT16", 
+                       "int8":"NX_INT8", "uint64":"NX_UINT64", 
+                       "uint32":"NX_UINT32", "uint16":"NX_UINT16", 
                        "uint8":"NX_UINT8", "uint":"NX_UINT64",
                        "string":"NX_CHAR", "bool":"NX_BOOLEAN"}
 
@@ -349,7 +351,6 @@ class NXS_FileRecorder(BaseFileRecorder):
             except:
                 self.filename = None
                 return
-        self.currentlist = None
 
         if number:
             # construct the filename, e.g. : /dir/subdir/etcdir/prefix_00123.nxs
@@ -371,7 +372,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         if "NeXusWriterDevice" in env.keys():
             servers = [env["NeXusWriterDevice"]]
         else:
-            servers = self.__db.get_device_exported_for_class("NXSDataWriter").value_string 
+            servers = self.__db.get_device_exported_for_class(
+                "NXSDataWriter").value_string 
         if len(servers) > 0:
             self.__nexuswriter_device = PyTango.DeviceProxy(servers[0])
             self.__nexuswriter_device.set_timeout_millis(self.__timeout)
@@ -379,7 +381,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         if "NeXusConfigDevice" in env.keys():
             servers = [env["NeXusConfigDevice"]]
         else:
-            servers = self.__db.get_device_exported_for_class("NXSConfigServer").value_string 
+            servers = self.__db.get_device_exported_for_class(
+                "NXSConfigServer").value_string 
         if len(servers) > 0:
             self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
             self.__nexusconfig_device.set_timeout_millis(self.__timeout)
@@ -401,7 +404,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         return self.__db.get_alias(name)
 
             
-    def __collectAliases(self, env, envRec):        
+    def __collectAliases(self, envRec):        
 
         if 'counters' in envRec:     
             for elm in envRec['counters']:
@@ -435,7 +438,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         label = 'datasources'
         name = None
         if node.nodeName == 'datasource':
-            if node.hasAttribute("type") and node.attributes["type"].value == 'CLIENT' \
+            if node.hasAttribute("type") \
+                    and node.attributes["type"].value == 'CLIENT' \
                     and node.hasAttribute("name"):
                 name = str(node.attributes["name"].value)
         elif node.nodeType == node.TEXT_NODE:
@@ -456,10 +460,11 @@ class NXS_FileRecorder(BaseFileRecorder):
                 if len(dsource)>0:
                     indom = xml.dom.minidom.parseString(dsource[0])
                     ds = indom.getElementsByTagName("datasource")
-                    if node.nodeName == 'datasource':
-                        if node.hasAttribute("type") and node.attributes["type"].value == 'CLIENT' \
-                                and node.hasAttribute("name"):
-                            name = strr(node.attributes["name"].value)
+                    if ds and ds[0].nodeName == 'datasource':
+                        if ds[0].hasAttribute("type") \
+                                and ds[0].attributes["type"].value == 'CLIENT' \
+                                and ds[0].hasAttribute("name"):
+                            name = str(ds[0].attributes["name"].value)
                 index = dstxt.find("$%s." % label, index+1)
         return name
                 
@@ -472,7 +477,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         indom = xml.dom.minidom.parseString(xmlc[0])
         strategy = indom.getElementsByTagName("strategy")
         for sg in strategy:
-            if sg.hasAttribute("mode") and sg.attributes["mode"].value == 'STEP':
+            if sg.hasAttribute("mode") \
+                    and sg.attributes["mode"].value == 'STEP':
                 name = None
                 nxt = sg.nextSibling
                 while nxt and not name:
@@ -490,7 +496,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         return names
 
 
-    def __createGroupTree(self, root, path, links=False):
+    @classmethod
+    def __createGroupTree(cls, root, path, links=False):
         # create group tree    
         df = root.createElement("definition")
         root.appendChild(df)
@@ -508,7 +515,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                 w = dr.split(':')
                 if len(w) == 1:
                     if len(w[0])>2  and w[0][:2] =='NX':
-                        w.insert(0,w[0][2:])
+                        w.insert(0, w[0][2:])
                     else:
                         w.append("NX"+ w[0])
                 node.setAttribute("type", w[1])
@@ -553,7 +560,8 @@ class NXS_FileRecorder(BaseFileRecorder):
                 created.append(alias) 
                 nxtype = self.__npTn[dd.dtype] \
                     if dd.dtype in self.__npTn.keys() else 'NX_CHAR'
-                self.__createField(root, parent, nxtype, alias, dd.name, dd.shape)
+                self.__createField(
+                    root, parent, nxtype, alias, dd.name, dd.shape)
                 if links:
                     self.__createLink(root, nxdata, path, alias)
                     
@@ -569,7 +577,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.debug("Dynamic Component:\n%s" % root.toprettyxml(indent="  "))
 
 
-    def __createLink(self, root, entry, path, name):
+    @classmethod    
+    def __createLink(cls, root, entry, path, name):
         if name and entry:
             link = root.createElement("link")     
             entry.appendChild(link)
@@ -578,7 +587,8 @@ class NXS_FileRecorder(BaseFileRecorder):
 
 
 
-    def __createField(self, root, parent, nxtype, name, record, shape=None):
+    @classmethod    
+    def __createField(cls, root, parent, nxtype, name, record, shape=None):
         field = root.createElement("field")     
         parent.appendChild(field) 
         field.setAttribute("type", nxtype)
@@ -597,10 +607,10 @@ class NXS_FileRecorder(BaseFileRecorder):
         dsource.appendChild(rec)
         rec.setAttribute("name", record)
         if shape:
-            dm= root.createElement("dimension")     
+            dm = root.createElement("dimension")     
             field.appendChild(dm)
             for i in range(len(shape)):
-                dim= root.createElement("dim")     
+                dim = root.createElement("dim")     
                 dm.appendChild(dim)
                 dm.setAttribute("index", str(i+1))
                 dm.setAttribute("value", str(shape[i]))
@@ -651,13 +661,14 @@ class NXS_FileRecorder(BaseFileRecorder):
             if ds not in dsFound.keys():
                 dsNotFound.append(ds)
                 if not dyncp:
-                        self.warning("Warning: '%s' not found in Components!" %  ds)
+                    self.warning("Warning: '%s' not found in Components!" %  ds)
             elif not cfm:
                 if not (set(dsFound[ds]) & set(nexuscomponents)):
                     dsNotFound.append(ds)
                     if not dyncp:
-                        self.warning("Warning: '%s' not found in User Components!" %  ds)
-        return (dsFound, dsNotFound, cpReq)
+                        self.warning(
+                            "Warning: '%s' not found in User Components!" %  ds)
+        return (dsNotFound, cpReq)
 
 
     def __createConfiguration(self, env):
@@ -667,9 +678,9 @@ class NXS_FileRecorder(BaseFileRecorder):
             if "NeXusDynamicComponents" in env.keys() else True
 
         envRec = self.recordlist.getEnviron()
-        self.__collectAliases(env, envRec)
+        self.__collectAliases(envRec)
 
-        mandatory = self.__nexusconfig_device.MandatoryComponents()                   
+        mandatory = self.__nexusconfig_device.MandatoryComponents()
         self.info("Default Components %s" %  str(mandatory))
 
         nexuscomponents = []
@@ -684,10 +695,12 @@ class NXS_FileRecorder(BaseFileRecorder):
             lst = env["NeXusAvailableComponents"] 
             if isinstance(lst, (tuple, list)):
                 self.__availableComps.extend(lst)
-            self.__availableComps = list(set(self.__availableComps) | set(nexuscomponents))
-        self.info("Available Components %s" % str(self.__availableComponents()))
+            self.__availableComps = list(set(
+                    self.__availableComps) | set(nexuscomponents))
+        self.info("Available Components %s" % str(
+                self.__availableComponents()))
  
-        dsFound, dsNotFound, cpReq = self.__searchDataSources(
+        dsNotFound, cpReq = self.__searchDataSources(
             nexuscomponents, cfm, dyncp)
                    
         if dyncp:
@@ -742,7 +755,8 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         self.__setNexusDevices(env)
         
-#        self.sampleTime = envRec['estimatedtime']/(envRec['total_scan_intervals'] + 1)
+#        self.sampleTime = envRec['estimatedtime']  \
+#                     /(envRec['total_scan_intervals'] + 1)
 
         cnfxml = self.__createConfiguration(env)
 
@@ -754,7 +768,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         
         self.debug('START_DATA: %s' % str(envRec))
 
-        self.__vars["data"]["start_time"] = self.__timeToString(envRec['starttime'], env)
+        self.__vars["data"]["start_time"] = \
+            self.__timeToString(envRec['starttime'], env)
         self.__vars["data"]["serialno"] = envRec["serialno"]
 
         envrecord = self.__appendRecord(self.__vars, env, 'INIT')
@@ -762,7 +777,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__nexuswriter_device.OpenEntry()
         
 
-    def __appendRecord(self, var, env, mode=None):
+    @classmethod    
+    def __appendRecord(cls, var, env, mode=None):
         nexusrecord = {}
         if "NeXusDataRecord" in env.keys():
             dct = env["NeXusDataRecord"] 
@@ -798,11 +814,13 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__nexuswriter_device.Record(jsonString)
 
 
-    def __timeToString(self, time, env=None):
-        tzone = env["timezone"] if env and "timezone" in env else 'Europe/Amsterdam'
+    @classmethod    
+    def __timeToString(cls, mtime, env=None):
+        tzone = env["timezone"] \
+            if env and "timezone" in env else 'Europe/Amsterdam'
         tz = timezone(tzone)
         fmt = '%Y-%m-%dT%H:%M:%S.%f%z'
-        starttime = tz.localize(time)
+        starttime = tz.localize(mtime)
         return str(starttime.strftime(fmt))
 
 
@@ -815,7 +833,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         
         self.debug('END_DATA: %s ' % str(envRec))
 
-        self.__vars["data"]["end_time"] = self.__timeToString(envRec['endtime'], env)
+        self.__vars["data"]["end_time"] = \
+            self.__timeToString(envRec['endtime'], env)
 
         envrecord = self.__appendRecord(self.__vars, env, 'FINAL')
         self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
