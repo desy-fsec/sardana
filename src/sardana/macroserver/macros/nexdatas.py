@@ -51,7 +51,7 @@ class nxs_datasources(Macro):
 
 
 
-class nxs_describe_component(Macro):
+class nxs_component_describe(Macro):
     """ Lists datasources of given component"""
 
     param_def = [
@@ -147,7 +147,7 @@ class nxs_datasource_xml(Macro):
 
 
 
-class nxs_describe_component_full(Macro):
+class nxs_component_describe_full(Macro):
     """ Lists datasources of available components """
 
     
