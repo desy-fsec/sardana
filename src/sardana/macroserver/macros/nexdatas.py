@@ -73,6 +73,8 @@ class nxs_list_settings(Macro):
         self.__printString("ScanID")
         self.output("")
         self.__printString("ActiveMntGrp")
+        self.output("")
+        self.__printString("timezone",'[Europe/Amsterdam]')
 
 
 class nxs_components(Macro):
