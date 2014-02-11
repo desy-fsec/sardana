@@ -12,7 +12,7 @@ class nxs_list_settings(Macro):
     """ Lists avaliable components """
 
     def __printDict(self, name):
-        self.output("\n%s:" % name)
+        self.output("%s:" % name)
         try:
             data = dict(self.getEnv(name))
             for dt in data:
@@ -22,7 +22,7 @@ class nxs_list_settings(Macro):
 
 
     def __printList(self, name):
-        self.output("\n%s:" % name)
+        self.output("%s:" % name)
         try:
             data = list(self.getEnv(name))
             self.output("  %s" % str(data))
@@ -51,7 +51,9 @@ class nxs_list_settings(Macro):
                            db.get_device_exported_for_class(
                 "NXSDataWriter").value_string )
 
+        self.output("")
         self.__printList("NeXusComponents")
+        self.output("")
         self.__printDict("NeXusDataRecord")
         
         self.output("")
@@ -64,6 +66,7 @@ class nxs_list_settings(Macro):
         self.__printString(
             "NeXusDynamicPath", 
             '[/entry$var.serialno:NXentry/NXinstrument/NXcollection]')
+        self.output("")
         self.__printDict("NeXusConfigVariables")
 
 
