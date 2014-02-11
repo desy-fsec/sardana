@@ -172,8 +172,8 @@ class nxs_describe_components_full(Macro):
         ['component', Type.String, '', 'component name'],
         ['strategy', Type.String, '', 'strategy mode (\'\' for all)'],
         ['dstype', Type.String, '', 'datasource type (\'\' for all)'],  
-        ['silence', Type.Boolean, False, 'silence mode'],  
         ['env_components', Type.Boolean, False, 'environment components'],  
+        ['silence', Type.Boolean, False, 'silence mode']
         ]
 
     
@@ -265,7 +265,7 @@ class nxs_describe_components_full(Macro):
 
 
 
-    def run(self, component, strategy, dstype, silence, env_components):
+    def run(self, component, strategy, dstype, env_components, silence):
         self.__result = [{}, {}]
         db = PyTango.Database()
         try:
