@@ -8,6 +8,72 @@ import xml.dom.minidom
 from sardana.macroserver.macro import Macro, Type
 
 
+class nxs_list_settings(Macro):
+    """ Lists avaliable components """
+
+    def __printDict(self, name):
+        self.output("\n%s:" % name)
+        try:
+            data = dict(self.getEnv(name))
+            for dt in data:
+                self.output("  '%s': %s" % (dt, data[dt]))
+        except:
+            pass
+
+
+    def __printList(self, name):
+        self.output("\n%s:" % name)
+        try:
+            data = list(self.getEnv(name))
+            self.output("  %s" % str(data))
+        except:
+            pass
+
+    def __printString(self, name, default = ""):
+        try:
+            string = self.getEnv(name)
+            de = ''
+        except:
+            de = default
+            string = None
+        self.output("%s: %s %s" % (name, string, str(de)))
+        
+
+    def run(self):
+        db = PyTango.Database()
+
+        self.output("")
+        self.__printString("NeXusConfigDevice",
+                           db.get_device_exported_for_class(
+                "NXSConfigServer").value_string )
+
+        self.__printString("NeXusWriterDevice",
+                           db.get_device_exported_for_class(
+                "NXSDataWriter").value_string )
+
+        self.__printList("NeXusComponents")
+        self.__printDict("NeXusDataRecord")
+        
+        self.output("")
+        self.__printString("NeXusAppendEntry", '[False]')
+        self.__printString("NeXusComponentsFromMntGrp", '[False]')
+
+        self.output("")
+        self.__printString("NeXusDynamicComponents", '[True]') 
+        self.__printString("NeXusDynamicLinks", '[True]')
+        self.__printString(
+            "NeXusDynamicPath", 
+            '[/entry$var.serialno:NXentry/NXinstrument/NXcollection]')
+        self.__printDict("NeXusConfigVariables")
+
+
+        self.output("")
+        self.__printString("ScanFile")
+        self.__printString("ScanDir")
+        self.__printString("ScanID")
+        self.output("")
+        self.__printString("ActiveMntGrp")
+
 
 class nxs_components(Macro):
     """ Lists avaliable components """
@@ -516,6 +582,9 @@ class nxs_set_mntgrp_from_components(Macro):
             dct[ u'source'] = dct['full_name'] + "/value"
             ctrlChannels[self.__findFullDeviceName( device)] = dct
             
+
+
+
 
 
 
