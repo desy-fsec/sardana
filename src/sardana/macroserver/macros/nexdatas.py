@@ -148,15 +148,21 @@ class nxs_datasource_xml(Macro):
 
 
 class nxs_component_describe_full(Macro):
-    """ Lists datasources of available components """
+    """ Lists datasources, strategy and dstype of given component """
 
     
     param_def = [
-        ['component', Type.String, '', 'component name (\'\' for all)'],
-        ['strategy', Type.String, '', 'strategy mode (\'\' for all)'],
-        ['dstype', Type.String, '', 'datasource type (\'\' for all)'],  
-        ['env_components', Type.Boolean, False, 'environment components'],  
-        ['silence', Type.Boolean, False, 'silence mode']
+        ['component', Type.String, '', 
+         'component name [default \'\' for all]'],
+        ['strategy', Type.String, '', 
+         'strategy mode filter [default \'\' for all]'],
+        ['dstype', Type.String, '', 
+         'datasource type filter [default \'\' for all]'],  
+        ['env_components', Type.Boolean, False, 
+         'lists components from the NeXusComponents '\
+             +'environment variable [default False]'],  
+        ['silence', Type.Boolean, False, 
+         'silence mode [default False]']
         ]
 
     
