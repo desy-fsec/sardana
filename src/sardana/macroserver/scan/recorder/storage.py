@@ -832,7 +832,7 @@ class NXS_FileRecorder(BaseFileRecorder):
     @classmethod    
     def __timeToString(cls, mtime, env=None):
         tzone = env["timezone"] \
-            if env and "timezone" in env else 'Europe/Amsterdam'
+            if env and "timezone" in env else 'Europe/Berlin'
         tz = timezone(tzone)
         fmt = '%Y-%m-%dT%H:%M:%S.%f%z'
         starttime = tz.localize(mtime)

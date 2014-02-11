@@ -74,7 +74,7 @@ class nxs_list_settings(Macro):
         self.output("")
         self.__printString("ActiveMntGrp")
         self.output("")
-        self.__printString("timezone",'[Europe/Amsterdam]')
+        self.__printString("timezone",'[Europe/Berlin]')
 
 
 class nxs_components(Macro):
