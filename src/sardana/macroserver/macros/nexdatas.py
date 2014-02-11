@@ -51,9 +51,14 @@ class nxs_datasources(Macro):
 
 
 
-class nxs_describe_components(Macro):
-    """ Lists datasources of available components """
-    def run (self):
+class nxs_describe_component(Macro):
+    """ Lists datasources of given component"""
+
+    param_def = [
+        ['component', Type.String, '', 'component name']  
+        ]
+
+    def run (self, component):
         db = PyTango.Database()
         try:
             servers = [self.getEnv("NeXusConfigDevice")]
@@ -64,20 +69,28 @@ class nxs_describe_components(Macro):
             nexusconfig_device = PyTango.DeviceProxy(servers[0])
             nexusconfig_device.Open()
             cps = nexusconfig_device.AvailableComponents()  
-            mand = nexusconfig_device.MandatoryComponents()
-            nomand = list(set(cps)- set(mand))
-        
             self.output("Configuration Server: %s" % servers[0])
 
-            self.output("Mandatory Components:")
-            for cp in mand:
-                dss = nexusconfig_device.ComponentDataSources(cp)  
-                self.output("%s: %s" % (cp, str(dss)))
+            if component:
+                self.output("Component:")
+                if component in cps:
+                    dss = nexusconfig_device.ComponentDataSources(component)  
+                    self.output("%s: %s" % (component, str(dss)))
+            else:
+                mand = nexusconfig_device.MandatoryComponents()
+                nomand = list(set(cps)- set(mand))
+        
+                self.output("Mandatory Components:")
+                for cp in mand:
+                    dss = nexusconfig_device.ComponentDataSources(cp)  
+                    self.output("%s: %s" % (cp, str(dss)))
 
-            self.output("Other Components:")
-            for cp in nomand:
-                dss = nexusconfig_device.ComponentDataSources(cp)  
-                self.output("%s: %s" % (cp, str(dss)))
+                self.output("Other Components:")
+                for cp in nomand:
+                    dss = nexusconfig_device.ComponentDataSources(cp)  
+                    self.output("%s: %s" % (cp, str(dss)))
+
+
 
 
 class nxs_component_xml(Macro):
@@ -133,43 +146,13 @@ class nxs_datasource_xml(Macro):
                 self.output("DataSource:\n%s" % str(xmls[0]))
 
 
-class nxs_describe_component(Macro):
-    """ Lists datasources of given component"""
 
-    param_def = [
-        ['component', Type.String, '', 'component name']  
-        ]
-
-    def run (self, component):
-        db = PyTango.Database()
-        try:
-            servers = [self.getEnv("NeXusConfigDevice")]
-        except:   
-            servers = db.get_device_exported_for_class(
-                "NXSConfigServer").value_string 
-        if len(servers) > 0:
-            nexusconfig_device = PyTango.DeviceProxy(servers[0])
-            nexusconfig_device.Open()
-            cps = nexusconfig_device.AvailableComponents()  
-        
-            self.output("Configuration Server: %s" % servers[0])
-
-            self.output("Component:")
-            if component in cps:
-                dss = nexusconfig_device.ComponentDataSources(component)  
-                self.output("%s: %s" % (component, str(dss)))
-
-
-
-
-    
-
-class nxs_describe_components_full(Macro):
+class nxs_describe_component_full(Macro):
     """ Lists datasources of available components """
 
     
     param_def = [
-        ['component', Type.String, '', 'component name'],
+        ['component', Type.String, '', 'component name (\'\' for all)'],
         ['strategy', Type.String, '', 'strategy mode (\'\' for all)'],
         ['dstype', Type.String, '', 'datasource type (\'\' for all)'],  
         ['env_components', Type.Boolean, False, 'environment components'],  
