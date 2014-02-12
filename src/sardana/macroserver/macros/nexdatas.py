@@ -407,15 +407,51 @@ class nxs_datasource_components(Macro):
 
 
     def run (self, datasource, strategy, dstype, silent):
+        db = PyTango.Database()
+        try:
+            servers = [self.getEnv("NeXusConfigDevice")]
+        except:   
+            servers = db.get_device_exported_for_class(
+                "NXSConfigServer").value_string 
+        if len(servers) > 0:
+            self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
+            self.__nexusconfig_device.Open()
+            envcps = self.getEnv("NeXusComponents")
+            avlcps = self.__nexusconfig_device.AvailableComponents()  
+            mancps = self.__nexusconfig_device.MandatoryComponents()  
+            avldss = self.__nexusconfig_device.AvailableDataSources()  
+            if datasource:
+                mydss = [datasource]
+            else:
+                mydss = avldss
+                
+               
 
-        res = self.nxs_component_describe_full('',
-            '', '', False, True).data
-    
-        for grp in res:
-            for cp, dss in grp.items():
-                for ds,prop in dss.items():
-                    self.output("%s: %s - %s" %(cp, str(ds), str(prop)))
+            res = self.nxs_component_describe_full(
+                '','', '', False, True).data
 
+            nfds = []
+            for mds  in mydss:
+                found = False
+                for grp in res:
+                    for cp, dss in grp.items():
+                        for ds,props in dss.items():
+                            if mds == ds:
+#                                self.output("df: %s : %s" % (strategy, props))
+                                for prop in props:
+                                    if (not strategy or \
+                                            strategy == prop[0]) \
+                                            and (not dstype or \
+                                                     dstype == prop[1]) :
+                                        found = True
+                                        if not silent:
+                                            self.output(
+                                                "'%s' found in '%s' : %s" % (
+                                                    mds, cp, prop))
+                if not found:
+                    nfds.append(mds) 
+            if not datasource and not silent:        
+                self.output("Lonely Datasources: %s" % str(nfds))
 
 class nxs_set_mntgrp_from_components(Macro):
     """Macro nxs_set_mntgrp_from_components"""
