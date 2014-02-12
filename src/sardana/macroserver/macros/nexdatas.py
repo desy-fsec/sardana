@@ -232,8 +232,8 @@ class nxs_component_describe_full(Macro):
         ['env_components', Type.Boolean, False, 
          'lists components from the NeXusComponents '\
              +'environment variable [default False]'],  
-        ['silence', Type.Boolean, False, 
-         'silence mode [default False]']
+        ['silent', Type.Boolean, False, 
+         'silent mode [default False]']
         ]
 
     
@@ -250,6 +250,7 @@ class nxs_component_describe_full(Macro):
 
         elif node.nodeType == node.TEXT_NODE:
             dstxt = node.data
+#            self.output("TXT: '%s'" % dstxt)
             index = dstxt.find("$%s." % label)
 #            self.output("dstxt:\n  %s"  % (dstxt))
 #            self.output("DS0: %s %s"  % (name,index))
@@ -282,18 +283,20 @@ class nxs_component_describe_full(Macro):
                 
 
     def __appendNode(self, node, dss, mode, counter): 
+#        self.output("NODE: %s" % node.nodeName)
         prefix = '__unnamed__'
         name, dstype = self.__checkNode(node)
         if name:
             if name not in dss:
                 dss[name] = [] 
-        else:
+            dss[name].append((str(mode), str(dstype) if dstype else None))
+        elif node.nodeName == 'datasource':
             name = prefix + str(counter) 
             while name in dss.keys():
                 name = prefix + str(counter) 
                 counter = counter + 1
             dss[name] = [] 
-        dss[name].append((str(mode), str(dstype) if dstype else None))
+            dss[name].append((str(mode), str(dstype) if dstype else None))
         
         counter = counter +1
         return (name, counter)
@@ -325,7 +328,7 @@ class nxs_component_describe_full(Macro):
 
 
 
-    def run(self, component, strategy, dstype, env_components, silence):
+    def run(self, component, strategy, dstype, env_components, silent):
         self.__result = [{}, {}]
         db = PyTango.Database()
         try:
@@ -348,11 +351,11 @@ class nxs_component_describe_full(Macro):
                 mand = self.__nexusconfig_device.MandatoryComponents()
                 cps = list(set(cps)- set(mand))
 
-            if not silence:
+            if not silent:
                 self.output("Configuration Server: %s" % servers[0])
 
             if not component:
-                if not silence:
+                if not silent:
                     self.output("\nMandatory Components: %s" %  mand)
                 for cp in mand:
                     dss = self.__getDataSourceAttributes(cp)  
@@ -364,11 +367,11 @@ class nxs_component_describe_full(Macro):
                                 if ds not in tr:
                                     tr[ds] = []
                                 tr[ds].append(vds)
-                    if not silence:
+                    if not silent:
                         self.output("%s: %s" % (cp, str(tr)))
                     self.__result[0][cp] = tr
 
-            if not silence and not component:
+            if not silent and not component:
                 self.output("\nOther Components: %s" % (str(cps)))
             for cp in cps:
                 dss = self.__getDataSourceAttributes(cp)  
@@ -380,7 +383,7 @@ class nxs_component_describe_full(Macro):
                             if ds not in tr:
                                 tr[ds] = []
                             tr[ds].append(vds)
-                if not silence:
+                if not silent:
                     self.output("%s: %s" % (cp, str(tr)))
                 self.__result[1][cp] = tr
      
@@ -388,6 +391,30 @@ class nxs_component_describe_full(Macro):
     def data(self):
         return self.__result
 
+
+class nxs_datasource_components(Macro):
+    """Macro nxs_datasource_components"""
+    
+
+    param_def = [
+        ['datasource', Type.String, '', 'datasource name'],
+        ['strategy', Type.String, '', 
+         'strategy mode filter [default \'\' for all]'],
+        ['dstype', Type.String, '', 
+         'datasource type filter [default \'\' for all]'],  
+        ['silent', Type.Boolean, False, 'silent mode']
+        ]
+
+
+    def run (self, datasource, strategy, dstype, silent):
+
+        res = self.nxs_component_describe_full('',
+            '', '', False, True).data
+    
+        for grp in res:
+            for cp, dss in grp.items():
+                for ds,prop in dss.items():
+                    self.output("%s: %s - %s" %(cp, str(ds), str(prop)))
 
 
 class nxs_set_mntgrp_from_components(Macro):
@@ -448,7 +475,14 @@ class nxs_set_mntgrp_from_components(Macro):
     def run (self, timer, flagClear):
         aliases = []
         self.__setpools()
-        res = self.nxs_describe_components_full('',
+
+##       DOES NOT WORK        
+#        dt =  self.createMacro(
+#            "nxs_component_describe_full",
+#            '', 'STEP', 'CLIENT', True, True)
+#        self.runMacro(dt)
+#        res = dt.data
+        res = self.nxs_component_describe_full('',
             'STEP', 'CLIENT', True, True).data
         for grp in res:
             for dss in grp.values():
@@ -587,7 +621,6 @@ class nxs_set_mntgrp_from_components(Macro):
             dct[ u'source'] = dct['full_name'] + "/value"
             ctrlChannels[self.__findFullDeviceName( device)] = dct
             
-
 
 
 
