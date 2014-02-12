@@ -5,7 +5,7 @@ import PyTango
 import re
 import json
 import xml.dom.minidom
-from sardana.macroserver.macro import Macro, Type
+from sardana.macroserver.macro import Macro, Type, imacro , macro
 
 
 class nxs_list_settings(Macro):
@@ -82,7 +82,7 @@ class nxs_list_settings(Macro):
 
 class nxs_components(Macro):
     """ Lists avaliable components """
-    def run (self):
+    def run(self):
         db = PyTango.Database()
         try:
             servers = [self.getEnv("NeXusConfigDevice")]
@@ -104,7 +104,7 @@ class nxs_components(Macro):
 
 class nxs_datasources(Macro):
     """ Lists avaliable datasources """
-    def run (self):
+    def run(self):
         db = PyTango.Database()
         try:
             servers = [self.getEnv("NeXusConfigDevice")]
@@ -129,7 +129,7 @@ class nxs_component_describe(Macro):
         ['component', Type.String, '', 'component name']  
         ]
 
-    def run (self, component):
+    def run(self, component):
         db = PyTango.Database()
         try:
             servers = [self.getEnv("NeXusConfigDevice")]
@@ -171,7 +171,7 @@ class nxs_component_xml(Macro):
         ['component', Type.String, '', 'component name']  
         ]
 
-    def run (self, component):
+    def run(self, component):
         db = PyTango.Database()
         try:
             servers = [self.getEnv("NeXusConfigDevice")]
@@ -198,7 +198,7 @@ class nxs_datasource_xml(Macro):
         ['datasource', Type.String, '', 'datasource name']  
         ]
 
-    def run (self, datasource):
+    def run(self, datasource):
         db = PyTango.Database()
         try:
             servers = [self.getEnv("NeXusConfigDevice")]
@@ -392,9 +392,62 @@ class nxs_component_describe_full(Macro):
         return self.__result
 
 
+@imacro()
+def nxs_select_components(self):
+    """Macro nxs_datasource_components"""
+    db = PyTango.Database()
+    try:
+        servers = [self.getEnv("NeXusConfigDevice")]
+    except:   
+        servers = db.get_device_exported_for_class(
+            "NXSConfigServer").value_string 
+    if len(servers) > 0:
+        self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
+        self.__nexusconfig_device.Open()
+        envcps = self.getEnv("NeXusComponents")
+        mancps = self.__nexusconfig_device.MandatoryComponents()  
+        
+        res = self.nxs_datasource_components(
+            '','', '', True).data
+        
+        loop  = True
+        while loop:
+            envcps = set(self.getEnv("NeXusComponents"))
+            
+            self.output("Mandatory Components: %s" % mancps)
+            self.output("Selected Components: %s" % list(envcps))
+            
+            others = list(set(res[0]) - set(mancps) - envcps)
+            self.output("Other Components: %s" % others)
+            cmd = 'n'
+#            cmd = self.input(
+#                "Would you like to [A]dd or [R]emove components? [A/R/N]")
+            if cmd.lower() == 'a':
+                mcps = self.input("Components to remove: ")
+                lcps = mcps.strip().split(' ')
+                for lcp in lcps:
+                    try:
+                        envcps.remove(lcp)
+                    except:
+                        self.warning("'%s' not in %s" % (lcp, envcps))
+                self.setEnv("NeXusComponents", list(envcps))
+            elif cmd.lower() == 'r':
+                mcps = self.input("Components to add: ")
+                lcps = mcps.strip().split(' ')
+                for lcp in lcps:
+                    if lcp in res[0]:
+                        envcps.add(lcp)
+                    else:
+                        self.warning("'%s' not in %s" % (lcp, res[0]))
+                self.setEnv("NeXusComponents", list(envcps))
+            elif cmd.lower() == 'n':
+                loop = False
+
+#            self.output("Non-selected Datasources: %s" % res[1])
+
 class nxs_datasource_components(Macro):
     """Macro nxs_datasource_components"""
-    
+
 
     param_def = [
         ['datasource', Type.String, '', 'datasource name'],
@@ -402,11 +455,12 @@ class nxs_datasource_components(Macro):
          'strategy mode filter [default \'\' for all]'],
         ['dstype', Type.String, '', 
          'datasource type filter [default \'\' for all]'],  
-        ['silent', Type.Boolean, False, 'silent mode']
+        ['silent', Type.Boolean, False, 'silent mode [default True]']
         ]
 
 
-    def run (self, datasource, strategy, dstype, silent):
+    def run(self, datasource, strategy, dstype, silent):
+        self.__result = [[], [], []]
         db = PyTango.Database()
         try:
             servers = [self.getEnv("NeXusConfigDevice")]
@@ -417,8 +471,7 @@ class nxs_datasource_components(Macro):
             self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
             self.__nexusconfig_device.Open()
             envcps = self.getEnv("NeXusComponents")
-            avlcps = self.__nexusconfig_device.AvailableComponents()  
-            mancps = self.__nexusconfig_device.MandatoryComponents()  
+            self.__result[0] = self.__nexusconfig_device.AvailableComponents()  
             avldss = self.__nexusconfig_device.AvailableDataSources()  
             if datasource:
                 mydss = [datasource]
@@ -429,8 +482,6 @@ class nxs_datasource_components(Macro):
 
             res = self.nxs_component_describe_full(
                 '','', '', False, True).data
-
-            nfds = []
             for mds  in mydss:
                 found = False
                 for grp in res:
@@ -444,14 +495,20 @@ class nxs_datasource_components(Macro):
                                             and (not dstype or \
                                                      dstype == prop[1]) :
                                         found = True
+                                        self.__result[2].append((mds, cp, prop))
                                         if not silent:
                                             self.output(
                                                 "'%s' found in '%s' : %s" % (
                                                     mds, cp, prop))
                 if not found:
-                    nfds.append(mds) 
+                    self.__result[1].append(mds) 
             if not datasource and not silent:        
-                self.output("Lonely Datasources: %s" % str(nfds))
+                self.output("Lonely Datasources: %s" % str(self.__result[1]))
+                
+
+    @property
+    def data(self):
+        return self.__result
 
 class nxs_set_mntgrp_from_components(Macro):
     """Macro nxs_set_mntgrp_from_components"""
@@ -508,7 +565,7 @@ class nxs_set_mntgrp_from_components(Macro):
             except:
                 pass
 
-    def run (self, timer, flagClear):
+    def run(self, timer, flagClear):
         aliases = []
         self.__setpools()
 
@@ -657,11 +714,4 @@ class nxs_set_mntgrp_from_components(Macro):
             dct[ u'source'] = dct['full_name'] + "/value"
             ctrlChannels[self.__findFullDeviceName( device)] = dct
             
-
-
-
-
-
-
-
 
