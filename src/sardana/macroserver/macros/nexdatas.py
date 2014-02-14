@@ -393,7 +393,7 @@ class nxs_component_describe_full(Macro):
 
 @imacro()
 def nxs_select_components(self):
-    """Macro nxs_datasource_components"""
+    """Macro nxs_select_components"""
     db = PyTango.Database()
     try:
         servers = [self.getEnv("NeXusConfigDevice")]
@@ -406,8 +406,12 @@ def nxs_select_components(self):
         envcps = self.getEnv("NeXusComponents")
         mancps = self.__nexusconfig_device.MandatoryComponents()  
         
-        res = self.nxs_datasource_components(
-            '','', '', True).data
+        dt =  self.createMacro("nxs_datasource_components", 
+                               '', 'STEP', '')
+        dt[0].silent = True
+        self.runMacro(dt[0])
+        res = dt[0].data
+
         
         loop  = True
         while loop:
@@ -418,6 +422,7 @@ def nxs_select_components(self):
             
             others = list(set(res[0]) - set(mancps) - envcps)
             self.output("Other Components: %s" % others)
+            self.output("Non-selected Datasources: %s" % res[1])
             cmd = 'n'
 #            cmd = self.input(
 #                "Would you like to [A]dd or [R]emove components? [A/R/N]")
