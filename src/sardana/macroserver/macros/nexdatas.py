@@ -423,9 +423,9 @@ def nxs_select_components(self):
             others = list(set(res[0]) - set(mancps) - envcps)
             self.output("Other Components: %s" % others)
             self.output("Non-selected Datasources: %s" % res[1])
-            cmd = 'n'
-#            cmd = self.input(
-#                "Would you like to [A]dd or [R]emove components? [A/R/N]")
+#            cmd = 'n'
+            cmd = self.input(
+                "Would you like to [A]dd or [R]emove components? [A/R/N]")
             if cmd.lower() == 'a':
                 mcps = self.input("Components to remove: ")
                 lcps = mcps.strip().split(' ')
