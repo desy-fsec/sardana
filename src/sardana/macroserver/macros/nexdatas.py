@@ -231,9 +231,7 @@ class nxs_component_describe_full(Macro):
          'datasource type filter [default \'\' for all]'],  
         ['env_components', Type.Boolean, False, 
          'lists components from the NeXusComponents '\
-             +'environment variable [default False]'],  
-        ['silent', Type.Boolean, False, 
-         'silent mode [default False]']
+             +'environment variable [default False]']
         ]
 
     
@@ -326,10 +324,11 @@ class nxs_component_describe_full(Macro):
                     prev = prev.previousSibling  
         return dss
 
-
-
-    def run(self, component, strategy, dstype, env_components, silent):
+    def prepare(self, component, strategy, dstype, env_components):
         self.__result = [{}, {}]
+        self.silent = False
+
+    def run(self, component, strategy, dstype, env_components):
         db = PyTango.Database()
         try:
             servers = [self.getEnv("NeXusConfigDevice")]
@@ -351,11 +350,11 @@ class nxs_component_describe_full(Macro):
                 mand = self.__nexusconfig_device.MandatoryComponents()
                 cps = list(set(cps)- set(mand))
 
-            if not silent:
+            if not self.silent:
                 self.output("Configuration Server: %s" % servers[0])
 
             if not component:
-                if not silent:
+                if not self.silent:
                     self.output("\nMandatory Components: %s" %  mand)
                 for cp in mand:
                     dss = self.__getDataSourceAttributes(cp)  
@@ -367,11 +366,11 @@ class nxs_component_describe_full(Macro):
                                 if ds not in tr:
                                     tr[ds] = []
                                 tr[ds].append(vds)
-                    if not silent:
+                    if not self.silent:
                         self.output("%s: %s" % (cp, str(tr)))
                     self.__result[0][cp] = tr
 
-            if not silent and not component:
+            if not self.silent and not component:
                 self.output("\nOther Components: %s" % (str(cps)))
             for cp in cps:
                 dss = self.__getDataSourceAttributes(cp)  
@@ -383,7 +382,7 @@ class nxs_component_describe_full(Macro):
                             if ds not in tr:
                                 tr[ds] = []
                             tr[ds].append(vds)
-                if not silent:
+                if not self.silent:
                     self.output("%s: %s" % (cp, str(tr)))
                 self.__result[1][cp] = tr
      
@@ -454,13 +453,12 @@ class nxs_datasource_components(Macro):
         ['strategy', Type.String, '', 
          'strategy mode filter [default \'\' for all]'],
         ['dstype', Type.String, '', 
-         'datasource type filter [default \'\' for all]'],  
-        ['silent', Type.Boolean, False, 'silent mode [default True]']
+         'datasource type filter [default \'\' for all]']
         ]
-
-
-    def run(self, datasource, strategy, dstype, silent):
+    
+    def prepare(self, datasource, strategy, dstype):
         self.__result = [[], [], []]
+
         db = PyTango.Database()
         try:
             servers = [self.getEnv("NeXusConfigDevice")]
@@ -470,40 +468,49 @@ class nxs_datasource_components(Macro):
         if len(servers) > 0:
             self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
             self.__nexusconfig_device.Open()
-            envcps = self.getEnv("NeXusComponents")
-            self.__result[0] = self.__nexusconfig_device.AvailableComponents()  
-            avldss = self.__nexusconfig_device.AvailableDataSources()  
-            if datasource:
-                mydss = [datasource]
-            else:
-                mydss = avldss
-                
-               
+        else:
+            self.error("Please select the NeXusConfigDevice")
 
-            res = self.nxs_component_describe_full(
-                '','', '', False, True).data
-            for mds  in mydss:
-                found = False
-                for grp in res:
-                    for cp, dss in grp.items():
-                        for ds,props in dss.items():
-                            if mds == ds:
-#                                self.output("df: %s : %s" % (strategy, props))
-                                for prop in props:
-                                    if (not strategy or \
-                                            strategy == prop[0]) \
-                                            and (not dstype or \
-                                                     dstype == prop[1]) :
-                                        found = True
-                                        self.__result[2].append((mds, cp, prop))
-                                        if not silent:
-                                            self.output(
-                                                "'%s' found in '%s' : %s" % (
-                                                    mds, cp, prop))
-                if not found:
-                    self.__result[1].append(mds) 
-            if not datasource and not silent:        
-                self.output("Lonely Datasources: %s" % str(self.__result[1]))
+        self.silent = False
+        
+    def run(self, datasource, strategy, dstype):
+
+        envcps = self.getEnv("NeXusComponents")
+        self.__result[0] = self.__nexusconfig_device.AvailableComponents()  
+        avldss = self.__nexusconfig_device.AvailableDataSources()  
+        if datasource:
+            mydss = [datasource]
+        else:
+            mydss = avldss
+                
+
+        dt =  self.createMacro("nxs_component_describe_full", 
+                               '', '', '', False)
+        dt[0].silent = True
+        self.runMacro(dt[0])
+        res = dt[0].data
+        for mds  in mydss:
+            found = False
+            for grp in res:
+                for cp, dss in grp.items():
+                    for ds,props in dss.items():
+                        if mds == ds:
+                            #                                self.output("df: %s : %s" % (strategy, props))
+                            for prop in props:
+                                if (not strategy or \
+                                        strategy == prop[0]) \
+                                        and (not dstype or \
+                                                 dstype == prop[1]) :
+                                    found = True
+                                    self.__result[2].append((mds, cp, prop))
+                                    if not self.silent:
+                                        self.output(
+                                            "'%s' found in '%s' : %s" % (
+                                                mds, cp, prop))
+            if not found:
+                self.__result[1].append(mds) 
+        if not datasource and not self.silent:        
+            self.output("Lonely Datasources: %s" % str(self.__result[1]))
                 
 
     @property
@@ -569,14 +576,11 @@ class nxs_set_mntgrp_from_components(Macro):
         aliases = []
         self.__setpools()
 
-##       DOES NOT WORK        
-#        dt =  self.createMacro(
-#            "nxs_component_describe_full",
-#            '', 'STEP', 'CLIENT', True, True)
-#        self.runMacro(dt)
-#        res = dt.data
-        res = self.nxs_component_describe_full('',
-            'STEP', 'CLIENT', True, True).data
+        dt =  self.createMacro("nxs_component_describe_full",
+                               '', 'STEP', 'CLIENT', True)
+        dt[0].silent = True
+        self.runMacro(dt[0])
+        res = dt[0].data
         for grp in res:
             for dss in grp.values():
                 for ds in dss.keys():
@@ -714,4 +718,23 @@ class nxs_set_mntgrp_from_components(Macro):
             dct[ u'source'] = dct['full_name'] + "/value"
             ctrlChannels[self.__findFullDeviceName( device)] = dct
             
+
+
+
+
+@macro()
+def ask_name(self):
+    """Macro ask_name"""
+    self.output("Running ask_name...")
+
+@macro()
+def ask_name2(self):
+    """Macro ask_name2"""
+    dt = self.createMacro('ask_name')
+    self.runMacro(dt[0])
+    self.output("Running ask_name2...")
+
+
+
+
 
