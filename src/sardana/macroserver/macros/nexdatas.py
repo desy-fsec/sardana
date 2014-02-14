@@ -5,7 +5,7 @@ import PyTango
 import re
 import json
 import xml.dom.minidom
-from sardana.macroserver.macro import Macro, Type, imacro , macro
+from sardana.macroserver.macro import iMacro, Macro, Type, imacro, macro
 
 
 class nxs_list_settings(Macro):
@@ -55,6 +55,9 @@ class nxs_list_settings(Macro):
         self.__printList("NeXusComponents")
         self.output("")
         self.__printDict("NeXusDataRecord")
+
+        self.output("")
+        self.__printList("NeXusDataSources")
         
         self.output("")
         self.__printString("NeXusAppendEntry", '[False]')
@@ -403,7 +406,6 @@ def nxs_select_components(self):
     if len(servers) > 0:
         self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
         self.__nexusconfig_device.Open()
-        envcps = self.getEnv("NeXusComponents")
         mancps = self.__nexusconfig_device.MandatoryComponents()  
         
         dt =  self.createMacro("nxs_datasource_components", 
@@ -413,9 +415,12 @@ def nxs_select_components(self):
         res = dt[0].data
 
         
-        loop  = True
+        loop = True
         while loop:
-            envcps = set(self.getEnv("NeXusComponents"))
+            try:
+                envcps = set(self.getEnv("NeXusComponents"))
+            except:
+                envcps = set()
             
             self.output("Mandatory Components: %s" % mancps)
             self.output("Selected Components: %s" % list(envcps))
@@ -426,7 +431,7 @@ def nxs_select_components(self):
 #            cmd = 'n'
             cmd = self.input(
                 "Would you like to [A]dd or [R]emove components? [A/R/N]")
-            if cmd.lower() == 'a':
+            if cmd.lower() == 'r':
                 mcps = self.input("Components to remove: ")
                 lcps = mcps.strip().split(' ')
                 for lcp in lcps:
@@ -435,7 +440,7 @@ def nxs_select_components(self):
                     except:
                         self.warning("'%s' not in %s" % (lcp, envcps))
                 self.setEnv("NeXusComponents", list(envcps))
-            elif cmd.lower() == 'r':
+            elif cmd.lower() == 'a':
                 mcps = self.input("Components to add: ")
                 lcps = mcps.strip().split(' ')
                 for lcp in lcps:
@@ -448,6 +453,102 @@ def nxs_select_components(self):
                 loop = False
 
 #            self.output("Non-selected Datasources: %s" % res[1])
+
+
+
+class nxs_select_elements(iMacro):
+    """Macro nxs_select_elements"""
+
+    def __selectComponents(self, mancps):
+        try:
+            envcps = set(self.getEnv("NeXusComponents"))
+        except:
+            envcps = set()
+
+        dt =  self.createMacro("nxs_datasource_components", 
+                               '', 'STEP', '')
+        dt[0].silent = True
+        self.runMacro(dt[0])
+        res = dt[0].data
+
+        self.output("Mandatory Components: %s" % mancps)
+            
+        nav = []
+        for el in envcps:
+            if el not in res[0]:
+                nav.append(el)
+                self.warning(
+                    "Component %s not available. It will be deselected." % el)
+        for el in nav:
+            envcps.pop(el)
+
+        sel = self.input("Select Components", 
+                         data_type=tuple(sorted(set(res[0]) - set(mancps))), 
+                         allow_multiple=True,
+                         default_value=tuple(envcps))
+            
+        self.setEnv("NeXusComponents", list(sel))
+        return sel
+
+
+    def __selectDataSources(self):
+        try:
+            envdss = set(self.getEnv("NeXusDataSources"))
+        except:
+            envdss = set()
+
+        dt =  self.createMacro("nxs_datasource_components", 
+                               '', 'STEP', '')
+        dt[0].silent = True
+        self.runMacro(dt[0])
+        res = dt[0].data
+
+        nav = []
+        for el in envdss:
+            if el not in res[1]:
+                nav.append(el)
+                self.warning(
+                    "Component %s not available. It will be deselected." % el)
+        for el in nav:
+            envdss.pop(el)
+
+        sel = self.input("Select Additional Devices" , 
+                         data_type=tuple(sorted(set(res[1]))), 
+                         allow_multiple=True,
+                         default_value=tuple(envdss))
+            
+        self.setEnv("NeXusDataSources", list(sel))
+        return sel
+
+    def run(self):
+        db = PyTango.Database()
+        try:
+            servers = [self.getEnv("NeXusConfigDevice")]
+        except:   
+            servers = db.get_device_exported_for_class(
+                "NXSConfigServer").value_string 
+        ready = False    
+        while len(servers) > 0 and not ready:
+            self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
+            self.__nexusconfig_device.Open()
+            mancps = self.__nexusconfig_device.MandatoryComponents()  
+            cpsel = self.__selectComponents(mancps)
+            self.output("Selected Components: %s" % list(cpsel))
+            dssel = self.__selectDataSources()
+            self.output("Selected DataSources: %s" % list(dssel))
+            try:
+                self.__nexusconfig_device.CreateConfiguration(list(cpsel))
+                ready = True
+            except:
+                self.warning(
+                    "Selected components are not compatible. Please reselect them.")
+            
+            
+        
+
+        
+
+
 
 class nxs_datasource_components(Macro):
     """Macro nxs_datasource_components"""
@@ -480,7 +581,6 @@ class nxs_datasource_components(Macro):
         
     def run(self, datasource, strategy, dstype):
 
-        envcps = self.getEnv("NeXusComponents")
         self.__result[0] = self.__nexusconfig_device.AvailableComponents()  
         avldss = self.__nexusconfig_device.AvailableDataSources()  
         if datasource:
@@ -738,6 +838,16 @@ def ask_name2(self):
     dt = self.createMacro('ask_name')
     self.runMacro(dt[0])
     self.output("Running ask_name2...")
+
+
+
+
+
+
+
+
+
+
 
 
 
