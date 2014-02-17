@@ -717,7 +717,7 @@ class NXS_FileRecorder(BaseFileRecorder):
  
         dsNotFound, cpReq = self.__searchDataSources(
             nexuscomponents, cfm, dyncp)
-                   
+
         if dyncp:
             self.__createDynamicComponent(dsNotFound, env)
             nexuscomponents.append(str(self.__dynamicCP))
@@ -755,41 +755,44 @@ class NXS_FileRecorder(BaseFileRecorder):
     
 
     def _startRecordList(self, recordlist):
+        try:
+            env = self.macro.getAllEnv() if self.macro else {}
+            if self.__base_filename is None:
+                return
 
-        env = self.macro.getAllEnv() if self.macro else {}
-        if self.__base_filename is None:
-            return
+            appendentry = env["NeXusAppendEntry"] \
+                if "NeXusAppendEntry" in env.keys() else False
 
-        appendentry = env["NeXusAppendEntry"] \
-            if "NeXusAppendEntry" in env.keys() else False
+            self.__setFileName(self.__base_filename, not appendentry)
+            envRec = self.recordlist.getEnviron()
+            if appendentry:         
+                self.__vars["vars"]["serialno"] = envRec["serialno"]
 
-        self.__setFileName(self.__base_filename, not appendentry)
-        envRec = self.recordlist.getEnviron()
-        if appendentry:         
-            self.__vars["vars"]["serialno"] = envRec["serialno"]
-
-        self.__setNexusDevices(env)
+            self.__setNexusDevices(env)
         
 #        self.sampleTime = envRec['estimatedtime']  \
 #                     /(envRec['total_scan_intervals'] + 1)
+            
+            cnfxml = self.__createConfiguration(env)
 
-        cnfxml = self.__createConfiguration(env)
-
-        self.__nexuswriter_device.Init()
-        self.__nexuswriter_device.FileName = self.filename
-        self.__nexuswriter_device.OpenFile()
-
-        self.__nexuswriter_device.XMLSettings = cnfxml
+            self.__nexuswriter_device.Init()
+            self.__nexuswriter_device.FileName = self.filename
+            self.__nexuswriter_device.OpenFile()
+            
+            self.__nexuswriter_device.XMLSettings = cnfxml
         
-        self.debug('START_DATA: %s' % str(envRec))
+            self.debug('START_DATA: %s' % str(envRec))
 
-        self.__vars["data"]["start_time"] = \
-            self.__timeToString(envRec['starttime'], env)
-        self.__vars["data"]["serialno"] = envRec["serialno"]
+            self.__vars["data"]["start_time"] = \
+                self.__timeToString(envRec['starttime'], env)
+            self.__vars["data"]["serialno"] = envRec["serialno"]
 
-        envrecord = self.__appendRecord(self.__vars, env, 'INIT')
-        self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
-        self.__nexuswriter_device.OpenEntry()
+            envrecord = self.__appendRecord(self.__vars, env, 'INIT')
+            self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
+            self.__nexuswriter_device.OpenEntry()
+        except:
+            self.__removeDynamicComponent()
+            raise
         
 
     @classmethod    
@@ -815,18 +818,22 @@ class NXS_FileRecorder(BaseFileRecorder):
 
 
     def _writeRecord(self, record):
-        if self.filename is None:
-            return
-        env = self.macro.getAllEnv() if self.macro else {}
-        envrecord = self.__appendRecord(self.__vars, env, 'STEP')
-        self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
+        try:
+            if self.filename is None:
+                return
+            env = self.macro.getAllEnv() if self.macro else {}
+            envrecord = self.__appendRecord(self.__vars, env, 'STEP')
+            self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
 
-        self.debug('DATA: {"data":%s}' % json.dumps(
-            self.__replaceAliases(record.data)))
+            self.debug('DATA: {"data":%s}' % json.dumps(
+                    self.__replaceAliases(record.data)))
 
-        jsonString = '{"data":%s}' % json.dumps(
-            self.__replaceAliases(record.data))
-        self.__nexuswriter_device.Record(jsonString)
+            jsonString = '{"data":%s}' % json.dumps(
+                self.__replaceAliases(record.data))
+            self.__nexuswriter_device.Record(jsonString)
+        except:
+            self.__removeDynamicComponent()
+            raise
 
 
     @classmethod    
@@ -840,24 +847,25 @@ class NXS_FileRecorder(BaseFileRecorder):
 
 
     def _endRecordList(self, recordlist):
-        if self.filename is None:
-            return
+        try:
+            if self.filename is None:
+                return
 
-        env = self.macro.getAllEnv() if self.macro else {}
-        envRec = recordlist.getEnviron()
+            env = self.macro.getAllEnv() if self.macro else {}
+            envRec = recordlist.getEnviron()
         
-        self.debug('END_DATA: %s ' % str(envRec))
+            self.debug('END_DATA: %s ' % str(envRec))
 
-        self.__vars["data"]["end_time"] = \
-            self.__timeToString(envRec['endtime'], env)
+            self.__vars["data"]["end_time"] = \
+                self.__timeToString(envRec['endtime'], env)
 
-        envrecord = self.__appendRecord(self.__vars, env, 'FINAL')
-        self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
+            envrecord = self.__appendRecord(self.__vars, env, 'FINAL')
+            self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
 
-        self.__nexuswriter_device.CloseEntry()
-        self.__nexuswriter_device.CloseFile()
-
-        self.__removeDynamicComponent()
+            self.__nexuswriter_device.CloseEntry()
+            self.__nexuswriter_device.CloseFile()
+        finally:
+            self.__removeDynamicComponent()
 
 
     def _addCustomData(self, value, name, group="data", remove=False, **kwargs):
