@@ -825,31 +825,3 @@ class nxs_set_mntgrp_from_components(Macro):
             
 
 
-
-
-@macro()
-def ask_name(self):
-    """Macro ask_name"""
-    self.output("Running ask_name...")
-
-@macro()
-def ask_name2(self):
-    """Macro ask_name2"""
-    dt = self.createMacro('ask_name')
-    self.runMacro(dt[0])
-    self.output("Running ask_name2...")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
