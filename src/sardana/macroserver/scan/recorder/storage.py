@@ -282,6 +282,14 @@ class NXS_FileRecorder(BaseFileRecorder):
 
     formats = { DataFormats.nxs : '.nxs' }
 
+    class numpyEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, numpy.ndarray) and obj.ndim == 1:
+                return list(obj.tolist())
+#            elif isinstance(obj, numpy.generic):
+#                return obj.item()
+            return json.JSONEncoder.default(self, obj)
+
     
     def __init__(self, filename=None, macro=None, **pars):
         BaseFileRecorder.__init__(self)
@@ -608,13 +616,13 @@ class NXS_FileRecorder(BaseFileRecorder):
         dsource.appendChild(rec)
         rec.setAttribute("name", record)
         if shape:
-            dm = root.createElement("dimension")     
+            dm = root.createElement("dimensions")     
             field.appendChild(dm)
             for i in range(len(shape)):
                 dim = root.createElement("dim")     
                 dm.appendChild(dim)
-                dm.setAttribute("index", str(i+1))
-                dm.setAttribute("value", str(shape[i]))
+                dim.setAttribute("index", str(i+1))
+                dim.setAttribute("value", str(shape[i]))
                     
 
 
@@ -734,7 +742,8 @@ class NXS_FileRecorder(BaseFileRecorder):
                 nexusvariables = dct
 
         self.__nexusconfig_device.Variables = json.dumps(
-            dict(self.__vars["vars"], **nexusvariables))
+            dict(self.__vars["vars"], **nexusvariables),
+            cls=NXS_FileRecorder.numpyEncoder)
         self.info("Components %s" % list(
                 set(nexuscomponents) | set(mandatory)) )
         self.__nexusconfig_device.CreateConfiguration(nexuscomponents)
@@ -788,7 +797,8 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.__vars["data"]["serialno"] = envRec["serialno"]
 
             envrecord = self.__appendRecord(self.__vars, env, 'INIT')
-            self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
+            self.__nexuswriter_device.JSONRecord = json.dumps(
+                envrecord, cls=NXS_FileRecorder.numpyEncoder)
             self.__nexuswriter_device.OpenEntry()
         except:
             self.__removeDynamicComponent()
@@ -823,13 +833,17 @@ class NXS_FileRecorder(BaseFileRecorder):
                 return
             env = self.macro.getAllEnv() if self.macro else {}
             envrecord = self.__appendRecord(self.__vars, env, 'STEP')
-            self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
+            self.__nexuswriter_device.JSONRecord = json.dumps(
+                envrecord, cls=NXS_FileRecorder.numpyEncoder)
 
             self.debug('DATA: {"data":%s}' % json.dumps(
-                    self.__replaceAliases(record.data)))
+                    self.__replaceAliases(record.data),
+                    cls=NXS_FileRecorder.numpyEncoder))
 
             jsonString = '{"data":%s}' % json.dumps(
-                self.__replaceAliases(record.data))
+                self.__replaceAliases(record.data),
+                cls=NXS_FileRecorder.numpyEncoder)
+            self.debug("JSON!!: %s" % jsonString)
             self.__nexuswriter_device.Record(jsonString)
         except:
             self.__removeDynamicComponent()
@@ -860,7 +874,8 @@ class NXS_FileRecorder(BaseFileRecorder):
                 self.__timeToString(envRec['endtime'], env)
 
             envrecord = self.__appendRecord(self.__vars, env, 'FINAL')
-            self.__nexuswriter_device.JSONRecord = json.dumps(envrecord)
+            self.__nexuswriter_device.JSONRecord = json.dumps(
+                envrecord, cls=NXS_FileRecorder.numpyEncoder)
 
             self.__nexuswriter_device.CloseEntry()
             self.__nexuswriter_device.CloseFile()
