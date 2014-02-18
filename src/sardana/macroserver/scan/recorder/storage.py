@@ -284,10 +284,8 @@ class NXS_FileRecorder(BaseFileRecorder):
 
     class numpyEncoder(json.JSONEncoder):
         def default(self, obj):
-            if isinstance(obj, numpy.ndarray) and obj.ndim == 1:
-                return list(obj.tolist())
-#            elif isinstance(obj, numpy.generic):
-#                return obj.item()
+            if isinstance(obj, numpy.ndarray) and obj.ndim > 0 :
+                return obj.tolist()
             return json.JSONEncoder.default(self, obj)
 
     

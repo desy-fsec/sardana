@@ -643,6 +643,8 @@ class nxs_set_mntgrp_from_components(Macro):
         self.__hsh['label'] = "" 
         self.__masterTimer = 'exp_t01'
 
+        self.silent = False
+
     def __getDeviceNamesByClass(self, className):
         srvs = self.__getServerNameByClass(className)
         argout = []
@@ -673,7 +675,8 @@ class nxs_set_mntgrp_from_components(Macro):
             try:
                 dp.ping()
                 self.__pools.append(dp)    
-                self.output("APOOL: %s" % pool)
+                if not self.silent:
+                    self.output("APOOL: %s" % pool)
             except:
                 pass
 
@@ -690,12 +693,14 @@ class nxs_set_mntgrp_from_components(Macro):
             for dss in grp.values():
                 for ds in dss.keys():
                     aliases.append(str(ds))
-        self.output("devices:\n %s" % (str(aliases)))
+        if not self.silent:
+            self.output("devices:\n %s" % (str(aliases)))
 
         mntGrpName = self.getEnv('ActiveMntGrp')
         self.__mg = self.getObj(mntGrpName, type_class=Type.MeasurementGroup)
         cfg = self.__mg.Configuration
-        self.output("CONF:\n%s" % str(cfg))
+        if not self.silent:
+            self.output("CONF:\n%s" % str(cfg))
         if flagClear:
             self.__hsh['label'] = mntGrpName
             self.index = len(self.__mg.ElementList)
@@ -707,21 +712,25 @@ class nxs_set_mntgrp_from_components(Macro):
         elif not flagClear:
             self.__masterTimer = self.__db.get_alias(str(
                     "/".join((self.__hsh['timer'].split("/"))[1:])))
-        self.output("TIMER: %s" % self.__masterTimer)    
+        if not self.silent:
+            self.output("TIMER: %s" % self.__masterTimer)    
         self.__hsh[ u'monitor'] = self.__findFullDeviceName(self.__masterTimer)
         self.__hsh[ u'timer'] = self.__findFullDeviceName(self.__masterTimer)
             
             
         pool = self.__mg.getPoolObj()
-        self.output("POOL:\n%s" % str(pool))
+        if not self.silent:
+            self.output("POOL:\n%s" % str(pool))
         ctrls = pool.read_attribute("ControllerList").value
-        self.output("CTRLS:\n%s" % str(ctrls))
+        if not self.silent:
+            self.output("CTRLS:\n%s" % str(ctrls))
 
         for alias in aliases:
             self.__addDevice(alias)
-        self.output("RESULT:\n%s" % str(self.__hsh))
+        if not self.silent:
+            self.output("RESULT:\n%s" % str(self.__hsh))
             
-#        self.__updateConfiguration()
+        self.__updateConfiguration()
 
         
     def __findDeviceController( self, device):
@@ -772,7 +781,7 @@ class nxs_set_mntgrp_from_components(Macro):
         """
         json-dump the dictionary self.__hsh to the Mg configuration
         """
-        self.__mg.Configuration = json.dumps( self.__hsh)
+        self.__mg.Configuration = json.dumps(self.__hsh)
 
     def __addDevice( self, device):
         ctrl = self.__findDeviceController( device)
