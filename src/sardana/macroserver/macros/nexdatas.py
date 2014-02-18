@@ -706,7 +706,10 @@ class nxs_set_mntgrp_from_components(Macro):
             self.index = 0
         else:
             self.__hsh = json.loads(self.__mg.Configuration)
-            self.index = len(self.__mg.ElementList)
+            if u'controllers' in self.__hsh.keys():
+                self.index = len(self.__hsh[ u'controllers'].keys())
+            else:
+                self.index = 0 
         if timer:
             self.__masterTimer = timer
         elif not flagClear:
