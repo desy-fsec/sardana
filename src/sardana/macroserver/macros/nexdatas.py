@@ -697,16 +697,16 @@ class nxs_set_mntgrp_from_components(Macro):
             self.output("devices:\n %s" % (str(aliases)))
 
         mntGrpName = self.getEnv('ActiveMntGrp')
-        self.__mg = self.getObj(mntGrpName, type_class=Type.MeasurementGroup)
+        self.__mg = self.getObj(mntGrpName, type_class=Type.MeasurementGroup).getObj()
         cfg = self.__mg.Configuration
         if not self.silent:
             self.output("CONF:\n%s" % str(cfg))
         if flagClear:
             self.__hsh['label'] = mntGrpName
-            self.index = len(self.__mg.ElementList)
+            self.index = 0
         else:
             self.__hsh = json.loads(self.__mg.Configuration)
-            self.index = 0
+            self.index = len(self.__mg.ElementList)
         if timer:
             self.__masterTimer = timer
         elif not flagClear:
@@ -781,7 +781,7 @@ class nxs_set_mntgrp_from_components(Macro):
         """
         json-dump the dictionary self.__hsh to the Mg configuration
         """
-        self.__mg.Configuration = json.dumps(self.__hsh)
+        self.__mg.setConfiguration(self.__hsh)
 
     def __addDevice( self, device):
         ctrl = self.__findDeviceController( device)
@@ -832,5 +832,7 @@ class nxs_set_mntgrp_from_components(Macro):
             dct[ u'source'] = dct['full_name'] + "/value"
             ctrlChannels[self.__findFullDeviceName( device)] = dct
             
+
+
 
 
