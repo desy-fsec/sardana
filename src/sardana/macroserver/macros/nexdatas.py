@@ -542,7 +542,22 @@ class nxs_select_elements(iMacro):
             except:
                 self.warning(
                     "Selected components are not compatible. Please reselect them.")
-            
+        ready = False    
+        while len(servers) > 0 and not ready:
+            timer = self.input(
+                "Please provide the timer\n"
+                "(otherwise Measurement Group will not be updated)")
+            if timer.lower() == '':
+                ready = True
+            else:
+                try:
+                    dt =  self.createMacro("nxs_set_mntgrp_from_components",
+                                           timer,  True)
+#                    dt[0].silent = True
+                    self.runMacro(dt[0])
+                    ready = True
+                except Exception as e:
+                    self.warning("Warning: %s" % str(e))
             
         
 
@@ -693,8 +708,10 @@ class nxs_set_mntgrp_from_components(Macro):
             for dss in grp.values():
                 for ds in dss.keys():
                     aliases.append(str(ds))
+        if timer:
+            aliases.append(timer)
         if not self.silent:
-            self.output("devices:\n %s" % (str(aliases)))
+            self.output("devices:\n %s" % (str(set(aliases))))
 
         mntGrpName = self.getEnv('ActiveMntGrp')
         self.__mg = self.getObj(mntGrpName, type_class=Type.MeasurementGroup).getObj()
@@ -788,6 +805,7 @@ class nxs_set_mntgrp_from_components(Macro):
 
     def __addDevice( self, device):
         ctrl = self.__findDeviceController( device)
+        self.output("DEVCTRL: %s -> %s" % (ctrl, device))
         if not ctrl:
             return
         if not self.__hsh[ u'controllers'].has_key( ctrl):
