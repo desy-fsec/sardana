@@ -547,13 +547,13 @@ class nxs_select_elements(iMacro):
             timer = self.input(
                 "Please provide the timer\n"
                 "(otherwise Measurement Group will not be updated)")
-            if timer.lower() == '':
+            if timer.strip() == '':
                 ready = True
             else:
                 try:
                     dt =  self.createMacro("nxs_set_mntgrp_from_components",
                                            timer,  True)
-#                    dt[0].silent = True
+                    dt[0].silent = True
                     self.runMacro(dt[0])
                     ready = True
                 except Exception as e:
@@ -696,7 +696,7 @@ class nxs_set_mntgrp_from_components(Macro):
                 pass
 
     def run(self, timer, flagClear):
-        aliases = []
+        aliases = [timer] if timer else []
         self.__setpools()
 
         dt =  self.createMacro("nxs_component_describe_full",
@@ -708,8 +708,6 @@ class nxs_set_mntgrp_from_components(Macro):
             for dss in grp.values():
                 for ds in dss.keys():
                     aliases.append(str(ds))
-        if timer:
-            aliases.append(timer)
         if not self.silent:
             self.output("devices:\n %s" % (str(set(aliases))))
 
@@ -805,7 +803,7 @@ class nxs_set_mntgrp_from_components(Macro):
 
     def __addDevice( self, device):
         ctrl = self.__findDeviceController( device)
-        self.output("DEVCTRL: %s -> %s" % (ctrl, device))
+        self.debug("DEVCTRL: %s -> %s" % (ctrl, device))
         if not ctrl:
             return
         if not self.__hsh[ u'controllers'].has_key( ctrl):
@@ -829,7 +827,7 @@ class nxs_set_mntgrp_from_components(Macro):
             u'channels']
         
         if not self.__findFullDeviceName( device) in ctrlChannels.keys():
-            self.output("adding index %s %s" % (self.index, device))
+            self.debug("adding index %s %s" % (self.index, device))
             dct = {}
             dct[ u'_controller_name'] = unicode(ctrl)
             dct[ u'_unit_id'] = u'0'
