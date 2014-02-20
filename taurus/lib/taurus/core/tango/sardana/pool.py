@@ -1349,7 +1349,6 @@ class MeasurementGroup(PoolElement):
     def setConfiguration(self, configuration):
         codec = CodecFactory().getCodec('json')
         f, data = codec.encode(('json', configuration))
-        self.debug("MYRESULT: %s" % data)
         self.write_attribute('configuration', data)
 
     def _setConfiguration(self, data):
