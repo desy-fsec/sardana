@@ -479,8 +479,7 @@ class nxs_select_elements(iMacro):
                 nav.append(el)
                 self.warning(
                     "Component %s not available. It will be deselected." % el)
-        for el in nav:
-            envcps.pop(el)
+        envcps = list(set(envcps) - set(nav))
 
         sel = self.input("Select Components", 
                          data_type=tuple(sorted(set(res[0]) - set(mancps))), 
@@ -509,8 +508,7 @@ class nxs_select_elements(iMacro):
                 nav.append(el)
                 self.warning(
                     "DataSource %s will be deselected." % el)
-        for el in nav:
-            envdss.pop(el)
+        envdss = list(set(envdss) - set(nav))
 
         sel = self.input("Select Additional Devices" , 
                          data_type=tuple(sorted(set(res[1]))), 
