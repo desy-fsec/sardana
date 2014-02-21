@@ -97,7 +97,7 @@ class nxs_components(Macro):
             nexusconfig_device.Open()
             cps = nexusconfig_device.AvailableComponents()  
             mand = nexusconfig_device.MandatoryComponents()
-            nomand = list(set(cps)- set(mand))
+            nomand = list(set(cps) - set(mand))
         
             self.output("Configuration Server: %s" % servers[0])
             self.output("Mandatory Components: %s" % str(mand))
@@ -498,7 +498,7 @@ class nxs_select_elements(iMacro):
             envdss = set()
 
         dt =  self.createMacro("nxs_datasource_components", 
-                               '', 'STEP', '')
+                               '', 'STEP', '', True)
         dt[0].silent = True
         self.runMacro(dt[0])
         res = dt[0].data
@@ -508,7 +508,7 @@ class nxs_select_elements(iMacro):
             if el not in res[1]:
                 nav.append(el)
                 self.warning(
-                    "Component %s not available. It will be deselected." % el)
+                    "DataSource %s will be deselected." % el)
         for el in nav:
             envdss.pop(el)
 
@@ -556,6 +556,7 @@ class nxs_select_elements(iMacro):
                     dt[0].silent = True
                     self.runMacro(dt[0])
                     ready = True
+                    self.output("Selected Timer: %s" % timer)
                 except Exception as e:
                     self.warning("Warning: %s" % str(e))
             
@@ -574,10 +575,14 @@ class nxs_datasource_components(Macro):
         ['strategy', Type.String, '', 
          'strategy mode filter [default \'\' for all]'],
         ['dstype', Type.String, '', 
-         'datasource type filter [default \'\' for all]']
+         'datasource type filter [default \'\' for all]'],
+        ['env_components', Type.Boolean, False, 
+         'lists components from the NeXusComponents '\
+             +'environment variable [default False]']
         ]
-    
-    def prepare(self, datasource, strategy, dstype):
+
+
+    def prepare(self, datasource, strategy, dstype, env_components):
         self.__result = [[], [], []]
 
         db = PyTango.Database()
@@ -594,7 +599,7 @@ class nxs_datasource_components(Macro):
 
         self.silent = False
         
-    def run(self, datasource, strategy, dstype):
+    def run(self, datasource, strategy, dstype, env_components):
 
         self.__result[0] = self.__nexusconfig_device.AvailableComponents()  
         avldss = self.__nexusconfig_device.AvailableDataSources()  
@@ -605,7 +610,7 @@ class nxs_datasource_components(Macro):
                 
 
         dt =  self.createMacro("nxs_component_describe_full", 
-                               '', '', '', False)
+                               '', '', '', env_components)
         dt[0].silent = True
         self.runMacro(dt[0])
         res = dt[0].data
@@ -862,6 +867,9 @@ class nxs_set_mntgrp_from_components(Macro):
             dct[ u'source'] = dct['full_name'] + "/value"
             ctrlChannels[full_name] = dct
             
+
+
+
 
 
 
