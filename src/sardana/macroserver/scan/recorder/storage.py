@@ -615,6 +615,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         rec.setAttribute("name", record)
         if shape:
             dm = root.createElement("dimensions")     
+            dm.setAttribute("rank", str(len(shape)))
             field.appendChild(dm)
             for i in range(len(shape)):
                 dim = root.createElement("dim")     

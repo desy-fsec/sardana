@@ -732,8 +732,11 @@ class nxs_set_mntgrp_from_components(Macro):
                     "/".join((self.__hsh['timer'].split("/"))[1:])))
         if not self.silent:
             self.output("TIMER: %s" % self.__masterTimer)    
-        self.__hsh[ u'monitor'] = self.__findFullDeviceName(self.__masterTimer)
-        self.__hsh[ u'timer'] = self.__findFullDeviceName(self.__masterTimer)
+        fullname = self.__findFullDeviceName(self.__masterTimer)
+        if not fullname:
+            raise Exception("Timer or Monitor cannot be found amount the servers")
+        self.__hsh[ u'monitor'] = fullname
+        self.__hsh[ u'timer'] = fullname
             
             
         pool = self.__mg.getPoolObj()
@@ -826,7 +829,10 @@ class nxs_set_mntgrp_from_components(Macro):
         ctrlChannels = self.__hsh[ u'controllers'][ctrl][ u'units'][ u'0'][
             u'channels']
         
-        if not self.__findFullDeviceName( device) in ctrlChannels.keys():
+        full_name = self.__findFullDeviceName( device) 
+        if not full_name in ctrlChannels.keys():
+            dp  = PyTango.DeviceProxy(full_name.encode())
+            da =  dp.read_attribute('value')
             self.debug("adding index %s %s" % (self.index, device))
             dct = {}
             dct[ u'_controller_name'] = unicode(ctrl)
@@ -835,7 +841,7 @@ class nxs_set_mntgrp_from_components(Macro):
             dct[ u'data_type'] = u'float64'
             dct[ u'data_units'] = u'No unit'
             dct[ u'enabled'] = True
-            dct[ u'full_name'] = self.__findFullDeviceName( device)
+            dct[ u'full_name'] = full_name
             dct[ u'index'] = self.index
             self.index += 1
             dct[ u'instrument'] = None
@@ -847,9 +853,14 @@ class nxs_set_mntgrp_from_components(Macro):
             dct[ u'output'] = True
             dct[ u'plot_axes'] = []
             dct[ u'plot_type'] = 0
-            dct[ u'shape'] = []
+            if da.dim_x and da.dim_x > 1 :
+                dct[ u'shape'] = [da.dim_y, da.dim_x] \
+                    if da.dim_y \
+                    else [da.dim_x]
+            else:
+                dct[ u'shape'] = [] 
             dct[ u'source'] = dct['full_name'] + "/value"
-            ctrlChannels[self.__findFullDeviceName( device)] = dct
+            ctrlChannels[full_name] = dct
             
 
 
