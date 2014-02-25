@@ -303,6 +303,9 @@ class NXS_FileRecorder(BaseFileRecorder):
         ## NXS configuration server device
         self.__nexusconfig_device = None
 
+        ## NXS settings server device
+        self.__nexussettings_device = None
+
         ## device proxy timeout 
         self.__timeout =  25000
         ## Custom variables
@@ -332,17 +335,36 @@ class NXS_FileRecorder(BaseFileRecorder):
                        "uint8":"NX_UINT8", "uint":"NX_UINT64",
                        "string":"NX_CHAR", "bool":"NX_BOOLEAN"}
 
-        env = self.macro.getAllEnv() if self.macro else {}
-        appendentry = env["NeXusAppendEntry"] \
-            if "NeXusAppendEntry" in env.keys() else False
-        scanID = env["ScanID"] \
-            if "ScanID" in env.keys() else -1
+        self.__env = self.macro.getAllEnv() if self.macro else {}
+
+        self.__setNexusDevices()
+        
+        appendentry = self.__getVar("AppendEntry", "NeXusAppendEntry", False)
+        scanID = self.__env["ScanID"] \
+            if "ScanID" in self.__env.keys() else -1
 
         self.__setFileName(self.__base_filename, not appendentry, scanID)
 
         ## available components
         self.__availableComps = []
 
+
+    def __getVar(self, attr, var, default, decode = False):
+        if self.__nexussettings_device:
+            res = getattr(self.__nexussettings_device, attr)
+            if decode:
+                try:
+                    dec = json.loads(res)                
+                except: 
+                    self.warning("%s = '%s' cannot be decoded" %  (attr, res))
+                    self.macro.warning("%s = '%s' cannot be decoded" %  (attr, res))
+                    return default
+            else:
+                return res 
+        else:
+            return self.__env[var] \
+                if var in self.__env.keys() else default
+        
 
     def __setFileName(self, filename, number=True, scanID=None):
         if scanID is not None and scanID < 0 :
@@ -374,9 +396,20 @@ class NXS_FileRecorder(BaseFileRecorder):
         return DataFormats.whatis(DataFormats.nxs)
 
 
-    def __setNexusDevices(self, env):
-        if "NeXusWriterDevice" in env.keys():
-            servers = [env["NeXusWriterDevice"]]
+    def __setNexusDevices(self):
+        if "NeXusSettingsDevice" in self.__env.keys():
+            servers = [self.__env["NeXusSettingsDevice"]]
+        else:
+            servers = self.__db.get_device_exported_for_class(
+                "NXSRecSettings").value_string 
+        if len(servers) > 0:
+            self.__nexussettings_device = PyTango.DeviceProxy(servers[0])
+            self.__nexussettings_device.set_timeout_millis(self.__timeout)
+
+        if self.__nexussettings_device:
+            servers = [self.__nexussettings_device.writerDevice]
+        elif "NeXusWriterDevice" in self.__env.keys():
+            servers = [self.__env["NeXusWriterDevice"]]
         else:
             servers = self.__db.get_device_exported_for_class(
                 "NXSDataWriter").value_string 
@@ -384,8 +417,10 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.__nexuswriter_device = PyTango.DeviceProxy(servers[0])
             self.__nexuswriter_device.set_timeout_millis(self.__timeout)
 
-        if "NeXusConfigDevice" in env.keys():
-            servers = [env["NeXusConfigDevice"]]
+        if self.__nexussettings_device:
+            servers = [self.__nexussettings_device.configDevice]
+        if "NeXusConfigDevice" in self.__env.keys():
+            servers = [self.__env["NeXusConfigDevice"]]
         else:
             servers = self.__db.get_device_exported_for_class(
                 "NXSConfigServer").value_string 
@@ -393,6 +428,8 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
             self.__nexusconfig_device.set_timeout_millis(self.__timeout)
             self.__nexusconfig_device.Open()
+
+
 
 
     ## provides a device alias
@@ -535,7 +572,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         return parent, nxdata
 
 
-    def __createDynamicComponent(self, dss, env):
+    def __createDynamicComponent(self, dss):
         envRec = self.recordlist.getEnviron()
         cps =  self.__nexusconfig_device.AvailableComponents()
         name = "__dynamic_component__"
@@ -546,13 +583,12 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__dynamicCP = name
         self.debug("Creates '%s' component for '%s'" % (name, str(dss)))
 
-        links = env["NeXusDynamicLinks"] \
-            if "NeXusDynamicLinks" in env.keys() else True
 
-        if "NeXusDynamicPath" in env.keys():
-            path = env["NeXusDynamicPath"] 
-        else:
-            path = "/entry$var.serialno:NXentry/NXinstrument/NXcollection"
+        links = self.__getVar("DynamicLinks", "NeXusDynamicLinks", True)
+        
+        path = self.__getVar(
+            "DynamicPath", "NeXusDynamicPath", 
+            "/entry$var.serialno:NXentry/NXinstrument/NXcollection")
 
         root = xml.dom.minidom.Document()
         (parent, nxdata) = self.__createGroupTree(root, path, links)
@@ -693,11 +729,11 @@ class NXS_FileRecorder(BaseFileRecorder):
         return (dsNotFound, cpReq)
 
 
-    def __createConfiguration(self, env):
-        cfm = env["NeXusComponentsFromMntGrp"] \
-            if "NeXusComponentsFromMntGrp" in env.keys() else False
-        dyncp = env["NeXusDynamicComponents"] \
-            if "NeXusDynamicComponents" in env.keys() else True
+    def __createConfiguration(self):
+        cfm = self.__getVar("ComponentsFromMntGrp", "NeXusComponentsFromMntGrp",
+                            False)
+        dyncp = self.__getVar("DynamicComponents","NeXusDynamicComponents",
+                              True)
 
         envRec = self.recordlist.getEnviron()
         self.__collectAliases(envRec)
@@ -706,19 +742,17 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.info("Default Components %s" %  str(mandatory))
 
         nexuscomponents = []
-        if "NeXusComponents" in env.keys():
-            lst = env["NeXusComponents"] 
-            if isinstance(lst, (tuple, list)):
-                nexuscomponents.extend(lst)
+        lst = self.__getVar("Components", "NeXusComponents", None, True)
+        if isinstance(lst, (tuple, list)):
+            nexuscomponents.extend(lst)
         self.info("User Components %s" % str(nexuscomponents))
 
         self.__availableComps = []
-        if "NeXusAvailableComponents" in env.keys():
-            lst = env["NeXusAvailableComponents"] 
-            if isinstance(lst, (tuple, list)):
-                self.__availableComps.extend(lst)
-            self.__availableComps = list(set(
-                    self.__availableComps) | set(nexuscomponents))
+        lst = self.__getVar("SpecifiedComponents", "NeXusSpecifiedComponents", None, True)
+        if isinstance(lst, (tuple, list)):
+            self.__availableComps.extend(lst)
+        self.__availableComps = list(set(
+                self.__availableComps) | set(nexuscomponents))
         self.info("Available Components %s" % str(
                 self.__availableComponents()))
  
@@ -726,7 +760,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             nexuscomponents, cfm, dyncp)
 
         if dyncp:
-            self.__createDynamicComponent(dsNotFound, env)
+            self.__createDynamicComponent(dsNotFound)
             nexuscomponents.append(str(self.__dynamicCP))
 
         if cfm:
@@ -735,10 +769,9 @@ class NXS_FileRecorder(BaseFileRecorder):
         nexuscomponents = list(set(nexuscomponents))
 
         nexusvariables = {}
-        if "NeXusConfigVariables" in env.keys():
-            dct = env["NeXusConfigVariables"] 
-            if isinstance(dct, dict):
-                nexusvariables = dct
+        dct = self.__getVar("NeXusConfigVariables", "NeXusConfigVariables", None, True)
+        if isinstance(dct, dict):
+            nexusvariables = dct
 
         self.__nexusconfig_device.Variables = json.dumps(
             dict(self.__vars["vars"], **nexusvariables),
@@ -764,24 +797,26 @@ class NXS_FileRecorder(BaseFileRecorder):
 
     def _startRecordList(self, recordlist):
         try:
-            env = self.macro.getAllEnv() if self.macro else {}
+            self.__env = self.macro.getAllEnv() if self.macro else {}
             if self.__base_filename is None:
                 return
 
-            appendentry = env["NeXusAppendEntry"] \
-                if "NeXusAppendEntry" in env.keys() else False
+            self.__setNexusDevices()
+
+            
+            appendentry = self.__getVar("AppendEntry", "NeXusAppendEntry", 
+                                        False)
 
             self.__setFileName(self.__base_filename, not appendentry)
             envRec = self.recordlist.getEnviron()
             if appendentry:         
                 self.__vars["vars"]["serialno"] = envRec["serialno"]
 
-            self.__setNexusDevices(env)
         
 #        self.sampleTime = envRec['estimatedtime']  \
 #                     /(envRec['total_scan_intervals'] + 1)
             
-            cnfxml = self.__createConfiguration(env)
+            cnfxml = self.__createConfiguration()
 
             self.__nexuswriter_device.Init()
             self.__nexuswriter_device.FileName = self.filename
@@ -791,11 +826,12 @@ class NXS_FileRecorder(BaseFileRecorder):
         
             self.debug('START_DATA: %s' % str(envRec))
 
+            timezone = self.__getVar("TimeZone", "timezone", 'Europe/Berlin')
             self.__vars["data"]["start_time"] = \
-                self.__timeToString(envRec['starttime'], env)
+                self.__timeToString(envRec['starttime'],timezone)
             self.__vars["data"]["serialno"] = envRec["serialno"]
 
-            envrecord = self.__appendRecord(self.__vars, env, 'INIT')
+            envrecord = self.__appendRecord(self.__vars, 'INIT')
             self.__nexuswriter_device.JSONRecord = json.dumps(
                 envrecord, cls=NXS_FileRecorder.numpyEncoder)
             self.__nexuswriter_device.OpenEntry()
@@ -805,12 +841,11 @@ class NXS_FileRecorder(BaseFileRecorder):
         
 
     @classmethod    
-    def __appendRecord(cls, var, env, mode=None):
+    def __appendRecord(cls, var, mode=None):
         nexusrecord = {}
-        if "NeXusDataRecord" in env.keys():
-            dct = env["NeXusDataRecord"] 
-            if isinstance(dct, dict):
-                nexusrecord =  dct
+        dct = self.__getVar("DataRecord","NeXusDataRecord", None, True)
+        if isinstance(dct, dict):
+            nexusrecord =  dct
         record = dict(var)        
         record["data"] = dict(var["data"], **nexusrecord)
         if mode == 'INIT':
@@ -830,8 +865,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         try:
             if self.filename is None:
                 return
-            env = self.macro.getAllEnv() if self.macro else {}
-            envrecord = self.__appendRecord(self.__vars, env, 'STEP')
+            self.__env = self.macro.getAllEnv() if self.macro else {}
+            envrecord = self.__appendRecord(self.__vars, 'STEP')
             self.__nexuswriter_device.JSONRecord = json.dumps(
                 envrecord, cls=NXS_FileRecorder.numpyEncoder)
 
@@ -850,9 +885,7 @@ class NXS_FileRecorder(BaseFileRecorder):
 
 
     @classmethod    
-    def __timeToString(cls, mtime, env=None):
-        tzone = env["timezone"] \
-            if env and "timezone" in env else 'Europe/Berlin'
+    def __timeToString(cls, mtime, tzone):
         tz = timezone(tzone)
         fmt = '%Y-%m-%dT%H:%M:%S.%f%z'
         starttime = tz.localize(mtime)
@@ -864,15 +897,16 @@ class NXS_FileRecorder(BaseFileRecorder):
             if self.filename is None:
                 return
 
-            env = self.macro.getAllEnv() if self.macro else {}
+            self.__env = self.macro.getAllEnv() if self.macro else {}
             envRec = recordlist.getEnviron()
         
             self.debug('END_DATA: %s ' % str(envRec))
 
+            timezone = self.__getVar("TimeZone", "timezone", 'Europe/Berlin')
             self.__vars["data"]["end_time"] = \
-                self.__timeToString(envRec['endtime'], env)
+                self.__timeToString(envRec['endtime'], timezone)
 
-            envrecord = self.__appendRecord(self.__vars, env, 'FINAL')
+            envrecord = self.__appendRecord(self.__vars, 'FINAL')
             self.__nexuswriter_device.JSONRecord = json.dumps(
                 envrecord, cls=NXS_FileRecorder.numpyEncoder)
 
