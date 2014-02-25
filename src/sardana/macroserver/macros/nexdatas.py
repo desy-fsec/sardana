@@ -100,8 +100,8 @@ class nxs_components(Macro):
             nomand = list(set(cps) - set(mand))
         
             self.output("Configuration Server: %s" % servers[0])
-            self.output("Mandatory Components: %s" % str(mand))
-            self.output("Other Components: %s" % str(nomand))
+            self.output("Mandatory Components: %s" % str(sorted(mand)))
+            self.output("Other Components: %s" % str(sorted(nomand)))
 
 
 
@@ -121,7 +121,7 @@ class nxs_datasources(Macro):
             ds = list(set(dss))
 
             self.output("Configuration Server: %s" % servers[0])
-            self.output("DataSources: %s" % str(ds))
+            self.output("DataSources: %s" % str(sorted(ds)))
 
 
 
