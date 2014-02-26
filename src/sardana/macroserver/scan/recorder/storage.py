@@ -351,10 +351,11 @@ class NXS_FileRecorder(BaseFileRecorder):
 
     def __getVar(self, attr, var, default, decode = False):
         if self.__nexussettings_device:
-            res = getattr(self.__nexussettings_device, attr)
+            res = self.__nexussettings_device.read_attribute(attr).value
             if decode:
                 try:
                     dec = json.loads(res)                
+                    return dec
                 except: 
                     self.warning("%s = '%s' cannot be decoded" %  (attr, res))
                     self.macro.warning("%s = '%s' cannot be decoded" %  (attr, res))
@@ -539,12 +540,11 @@ class NXS_FileRecorder(BaseFileRecorder):
         return names
 
 
-    @classmethod
-    def __createGroupTree(cls, root, path, links=False):
+    def __createGroupTree(self, root, path, links=False):
         # create group tree    
         df = root.createElement("definition")
         root.appendChild(df)
-                
+        
         spath = path.split('/')       
         entry = None
         parent = df
@@ -681,7 +681,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         cpReq = {}
 
         ## check datasources / get require components with give datasources
-        cmps = self.__availableComponents()
+        cmps = list(set(nexuscomponents) | set(self.__availableComponents()))
         for cp in cmps:
             try:
                 dss = self.__nexusconfig_device.ComponentDataSources(cp)
@@ -748,11 +748,11 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.info("User Components %s" % str(nexuscomponents))
 
         self.__availableComps = []
-        lst = self.__getVar("SpecifiedComponents", "NeXusSpecifiedComponents", None, True)
+        lst = self.__getVar("AutomaticComponents", "NeXusAutomaticComponents", None, True)
         if isinstance(lst, (tuple, list)):
             self.__availableComps.extend(lst)
         self.__availableComps = list(set(
-                self.__availableComps) | set(nexuscomponents))
+                self.__availableComps) )
         self.info("Available Components %s" % str(
                 self.__availableComponents()))
  
@@ -769,7 +769,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         nexuscomponents = list(set(nexuscomponents))
 
         nexusvariables = {}
-        dct = self.__getVar("NeXusConfigVariables", "NeXusConfigVariables", None, True)
+        dct = self.__getVar("ConfigVariables", "NeXusConfigVariables", None, True)
         if isinstance(dct, dict):
             nexusvariables = dct
 
@@ -840,8 +840,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             raise
         
 
-    @classmethod    
-    def __appendRecord(cls, var, mode=None):
+    def __appendRecord(self, var, mode=None):
         nexusrecord = {}
         dct = self.__getVar("DataRecord","NeXusDataRecord", None, True)
         if isinstance(dct, dict):
