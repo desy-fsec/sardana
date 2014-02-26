@@ -83,6 +83,78 @@ class nxs_list_settings(Macro):
         self.__printString("timezone",'[Europe/Berlin]')
 
 
+
+
+class nxs_list_server_settings(Macro):
+    """ Lists avaliable components """
+
+    def __printDict(self, name, decode=True):
+        self.output("%s:" % name)
+        try:
+            data = self.__nexussettings_device.read_attribute(name).value
+            if decode:
+                data = json.loads(data) 
+        except:
+            pass
+        self.output("  %s" % str(data))
+
+
+    def __printList(self, name, decode=True):
+        self.output("%s:" % name)
+        try:
+            data = self.__nexussettings_device.read_attribute(name).value
+            if decode:
+                data = json.loads(data) 
+        except:
+            pass
+        self.output("  %s" % str(data))
+
+    def __printString(self, name):
+        string = self.__nexussettings_device.read_attribute(name).value
+        self.output("%s: %s" % (name, string))
+        
+
+    def run(self):
+        db = PyTango.Database()
+
+        self.output("")   
+        try:
+            servers = [self.getEnv("NeXusSettingsDevice")]
+        except:
+            servers = db.get_device_exported_for_class(
+                "NXSRecSettings").value_string 
+        if len(servers) > 0:
+            self.__nexussettings_device = PyTango.DeviceProxy(servers[0])
+            self.output("SettingsDevice: %s" % str(servers[0]))
+        
+        
+
+        self.__printString("ConfigDevice")
+
+        self.__printString("WriterDevice")
+
+        self.output("")
+        self.__printList("Components", True)
+        self.output("")
+        self.__printDict("DataRecord" , True)
+
+        self.output("")
+        self.__printList("DataSources", True)
+        
+        self.output("")
+        self.__printString("AppendEntry")
+        self.__printString("ComponentsFromMntGrp")
+
+        self.output("")
+        self.__printString("DynamicComponents") 
+        self.__printString("DynamicLinks")
+        self.__printString("DynamicPath")
+        self.output("")
+        self.__printDict("ConfigVariables", True)
+        self.output("")
+        self.__printString("TimeZone")
+
+
 class nxs_components(Macro):
     """ Lists avaliable components """
     def run(self):
@@ -865,6 +937,8 @@ class nxs_set_mntgrp_from_components(Macro):
             dct[ u'source'] = dct['full_name'] + "/value"
             ctrlChannels[full_name] = dct
             
+
+
 
 
 
