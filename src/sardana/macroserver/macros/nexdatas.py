@@ -129,11 +129,12 @@ class nxs_list_server_settings(Macro):
         
         
 
+        self.output("")
         self.__printString("ConfigDevice")
 
         self.__printString("WriterDevice")
 
-        self.output("")
+        self.output("") 
         self.__printList("Components", True)
         self.output("")
         self.__printDict("DataRecord" , True)
