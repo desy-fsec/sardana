@@ -837,7 +837,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.info("User Components %s" % str(nexuscomponents))
 
         self.__availableComps = []
-        lst = self.__getVar("AutomaticComponents", "NeXusAutomaticComponents", None, True)
+        lst = self.__getVar("OptionalComponents", "NeXusOptionalComponents", None, True)
         if isinstance(lst, (tuple, list)):
             self.__availableComps.extend(lst)
         self.__availableComps = list(set(
