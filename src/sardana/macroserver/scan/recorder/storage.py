@@ -603,7 +603,7 @@ class NXS_FileRecorder(BaseFileRecorder):
 
 
         dsources = []
-        lst = self.__getVar("DataSources", "NeXusDataSources", None, True)
+        lst = self.__getVar("DataSources", "NeXusDataSources", None, False)
         if isinstance(lst, (tuple, list)):
             dsources.extend(lst)
 
@@ -831,10 +831,16 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.info("Default Components %s" %  str(mandatory))
 
         nexuscomponents = []
-        lst = self.__getVar("Components", "NeXusComponents", None, True)
+        lst = self.__getVar("Components", "NeXusComponents", None, False)
         if isinstance(lst, (tuple, list)):
             nexuscomponents.extend(lst)
         self.info("User Components %s" % str(nexuscomponents))
+
+        lst = self.__getVar("AutomaticComponents", "NeXusAutomaticComponents", None, False)
+        if isinstance(lst, (tuple, list)):
+            nexuscomponents.extend(lst)
+        self.info("User Components %s" % str(nexuscomponents))
+
 
         self.__availableComps = []
         lst = self.__getVar("OptionalComponents", "NeXusOptionalComponents", None, True)
