@@ -587,25 +587,10 @@ class NXS_FileRecorder(BaseFileRecorder):
             entry.appendChild(nxdata)
             nxdata.setAttribute("type", "NXdata")
             nxdata.setAttribute("name", "data")
+
         return parent, nxdata
-
-
-    def __createDynamicComponent(self, dss):
-        envRec = self.recordlist.getEnviron()
-        cps =  self.__nexusconfig_device.AvailableComponents()
-        name = "__dynamic_component__"
-        while name in cps:
-            self.warning("Dynamic component '%s' already exists" % name)
-            self.macro.warning("Dynamic component '%s' already exists" % name)
-            name = name + "x"
-        self.__dynamicCP = name
-        self.debug("Creates '%s' component for '%s'" % (name, str(dss)))
-
-
-        dsources = []
-        lst = self.__getVar("DataSources", "NeXusDataSources", None, False)
-        if isinstance(lst, (tuple, list)):
-            dsources.extend(lst)
+    
+    def __loadLabelDictionaries(self):
 
         nexuslabels = {}
         dct = self.__getVar("DataSourceLabels","NeXusDataSourceLabels", None, True)
@@ -633,8 +618,28 @@ class NXS_FileRecorder(BaseFileRecorder):
         if isinstance(dct, dict):
             nexusshapes =  dct
 
-        links = self.__getVar("DynamicLinks", "NeXusDynamicLinks", True)
+        return (nexuslabels, nexuspaths, nexuslinks, nexustypes, nexusshapes)    
+
+    def __createDynamicComponent(self, dss):
+        envRec = self.recordlist.getEnviron()
+        cps =  self.__nexusconfig_device.AvailableComponents()
+        name = "__dynamic_component__"
+        while name in cps:
+            self.warning("Dynamic component '%s' already exists" % name)
+            self.macro.warning("Dynamic component '%s' already exists" % name)
+            name = name + "x"
+        self.__dynamicCP = name
+        self.debug("Creates '%s' component for '%s'" % (name, str(dss)))
+
+        dsources = []
+        lst = self.__getVar("DataSources", "NeXusDataSources", None, False)
+        if isinstance(lst, (tuple, list)):
+            dsources.extend(lst)
         
+        (nexuslabels, nexuspaths, nexuslinks, 
+         nexustypes, nexusshapes) = self.__loadLabelDictionaries()
+
+        links = self.__getVar("DynamicLinks", "NeXusDynamicLinks", True)
         defaultpath = self.__getVar(
             "DynamicPath", "NeXusDynamicPath", 
             "/entry$var.serialno:NXentry/NXinstrument/NXcollection")

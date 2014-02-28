@@ -161,18 +161,30 @@ class nxs_components(Macro):
     def run(self):
         db = PyTango.Database()
         try:
-            servers = [self.getEnv("NeXusConfigDevice")]
+            servers = [self.getEnv("NeXusSettingsDevice")]
         except:   
             servers = db.get_device_exported_for_class(
-                "NXSConfigServer").value_string 
+                "NXSRecSettings").value_string 
+
         if len(servers) > 0:
+            self.__nexussetting_device = PyTango.DeviceProxy(servers[0])
+            self.output("Setting Server: %s" % servers[0])
+            servers = [self.__nexussetting_device.ConfigDevice]
+
+        else:
+            try:
+                servers = [self.getEnv("NeXusConfigDevice")]
+            except:   
+                servers = db.get_device_exported_for_class(
+                    "NXSConfigServer").value_string 
+        if len(servers) > 0:
+            self.output("Configuration Server: %s" % servers[0])
             nexusconfig_device = PyTango.DeviceProxy(servers[0])
             nexusconfig_device.Open()
             cps = nexusconfig_device.AvailableComponents()  
             mand = nexusconfig_device.MandatoryComponents()
             nomand = list(set(cps) - set(mand))
         
-            self.output("Configuration Server: %s" % servers[0])
             self.output("Mandatory Components: %s" % str(sorted(mand)))
             self.output("Other Components: %s" % str(sorted(nomand)))
 
@@ -183,10 +195,22 @@ class nxs_datasources(Macro):
     def run(self):
         db = PyTango.Database()
         try:
-            servers = [self.getEnv("NeXusConfigDevice")]
+            servers = [self.getEnv("NeXusSettingsDevice")]
         except:   
             servers = db.get_device_exported_for_class(
-                "NXSConfigServer").value_string 
+                "NXSRecSettings").value_string 
+
+        if len(servers) > 0:
+            self.__nexussetting_device = PyTango.DeviceProxy(servers[0])
+            self.output("Setting Server: %s" % servers[0])
+            servers = [self.__nexussetting_device.ConfigDevice]
+
+        else:
+            try:
+                servers = [self.getEnv("NeXusConfigDevice")]
+            except:   
+                servers = db.get_device_exported_for_class(
+                    "NXSConfigServer").value_string 
         if len(servers) > 0:
             nexusconfig_device = PyTango.DeviceProxy(servers[0])
             nexusconfig_device.Open()
@@ -208,10 +232,22 @@ class nxs_component_describe(Macro):
     def run(self, component):
         db = PyTango.Database()
         try:
-            servers = [self.getEnv("NeXusConfigDevice")]
+            servers = [self.getEnv("NeXusSettingsDevice")]
         except:   
             servers = db.get_device_exported_for_class(
-                "NXSConfigServer").value_string 
+                "NXSRecSettings").value_string 
+
+        if len(servers) > 0:
+            self.__nexussetting_device = PyTango.DeviceProxy(servers[0])
+            self.output("Setting Server: %s" % servers[0])
+            servers = [self.__nexussetting_device.ConfigDevice]
+
+        else:
+            try:
+                servers = [self.getEnv("NeXusConfigDevice")]
+            except:   
+                servers = db.get_device_exported_for_class(
+                    "NXSConfigServer").value_string 
         if len(servers) > 0:
             nexusconfig_device = PyTango.DeviceProxy(servers[0])
             nexusconfig_device.Open()
@@ -250,10 +286,22 @@ class nxs_component_xml(Macro):
     def run(self, component):
         db = PyTango.Database()
         try:
-            servers = [self.getEnv("NeXusConfigDevice")]
+            servers = [self.getEnv("NeXusSettingsDevice")]
         except:   
             servers = db.get_device_exported_for_class(
-                "NXSConfigServer").value_string 
+                "NXSRecSettings").value_string 
+
+        if len(servers) > 0:
+            self.__nexussetting_device = PyTango.DeviceProxy(servers[0])
+            self.output("Setting Server: %s" % servers[0])
+            servers = [self.__nexussetting_device.ConfigDevice]
+
+        else:
+            try:
+                servers = [self.getEnv("NeXusConfigDevice")]
+            except:   
+                servers = db.get_device_exported_for_class(
+                    "NXSConfigServer").value_string 
         if len(servers) > 0:
             nexusconfig_device = PyTango.DeviceProxy(servers[0])
             nexusconfig_device.Open()
@@ -277,10 +325,22 @@ class nxs_datasource_xml(Macro):
     def run(self, datasource):
         db = PyTango.Database()
         try:
-            servers = [self.getEnv("NeXusConfigDevice")]
+            servers = [self.getEnv("NeXusSettingsDevice")]
         except:   
             servers = db.get_device_exported_for_class(
-                "NXSConfigServer").value_string 
+                "NXSRecSettings").value_string 
+
+        if len(servers) > 0:
+            self.__nexussetting_device = PyTango.DeviceProxy(servers[0])
+            self.output("Setting Server: %s" % servers[0])
+            servers = [self.__nexussetting_device.ConfigDevice]
+
+        else:
+            try:
+                servers = [self.getEnv("NeXusConfigDevice")]
+            except:   
+                servers = db.get_device_exported_for_class(
+                    "NXSConfigServer").value_string 
 
         if len(servers) > 0:
             nexusconfig_device = PyTango.DeviceProxy(servers[0])
@@ -405,17 +465,37 @@ class nxs_component_describe_full(Macro):
         self.silent = False
 
     def run(self, component, strategy, dstype, env_components):
+        self.__nexussetting_device = None
         db = PyTango.Database()
         try:
-            servers = [self.getEnv("NeXusConfigDevice")]
+            servers = [self.getEnv("NeXusSettingsDevice")]
         except:   
             servers = db.get_device_exported_for_class(
-                "NXSConfigServer").value_string 
+                "NXSRecSettings").value_string 
+
+        if len(servers) > 0:
+            self.__nexussetting_device = PyTango.DeviceProxy(servers[0])
+            self.output("Setting Server: %s" % servers[0])
+            servers = [self.__nexussetting_device.ConfigDevice]
+
+        else:
+            try:
+                servers = [self.getEnv("NeXusConfigDevice")]
+            except:   
+                servers = db.get_device_exported_for_class(
+                    "NXSConfigServer").value_string 
+
         if len(servers) > 0:
             self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
             self.__nexusconfig_device.Open()
             if env_components:
-                cps = self.getEnv("NeXusComponents")
+                if self.__nexussetting_device:
+                    cps = self.__nexussetting_device.Components
+                else:
+                    try:
+                        cps = self.getEnv("NeXusComponents")
+                    except:
+                        cps = set()
             elif component:
                 cpp = self.__nexusconfig_device.AvailableComponents()  
                 cps = [component] if component in cpp else []
@@ -472,10 +552,23 @@ def nxs_select_components(self):
     """Macro nxs_select_components"""
     db = PyTango.Database()
     try:
-        servers = [self.getEnv("NeXusConfigDevice")]
+        servers = [self.getEnv("NeXusSettingsDevice")]
     except:   
         servers = db.get_device_exported_for_class(
-            "NXSConfigServer").value_string 
+            "NXSRecSettings").value_string 
+
+    if len(servers) > 0:
+        self.__nexussetting_device = PyTango.DeviceProxy(servers[0])
+        self.output("Setting Server: %s" % servers[0])
+        servers = [self.__nexussetting_device.ConfigDevice]
+
+    else:
+        try:
+            servers = [self.getEnv("NeXusConfigDevice")]
+        except:   
+            servers = db.get_device_exported_for_class(
+                "NXSConfigServer").value_string 
+ 
     if len(servers) > 0:
         self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
         self.__nexusconfig_device.Open()
@@ -533,10 +626,16 @@ class nxs_select_elements(iMacro):
     """Macro nxs_select_elements"""
 
     def __selectComponents(self, mancps):
-        try:
-            envcps = set(self.getEnv("NeXusComponents"))
-        except:
-            envcps = set()
+        if self.__nexussetting_device:
+            
+            print  "CDEVICE '%s'" % str(self.__nexussetting_device.DataSources)
+            print  "CDEVICE2 '%s'" % str(self.__nexussetting_device.Components)
+            envcps = set(self.__nexussetting_device.Components) 
+        else:
+            try:
+                envcps = set(self.getEnv("NeXusComponents"))
+            except:
+                envcps = set()
 
         dt =  self.createMacro("nxs_datasource_components", 
                                '', 'STEP', '')
@@ -559,15 +658,34 @@ class nxs_select_elements(iMacro):
                          allow_multiple=True,
                          default_value=tuple(envcps))
             
-        self.setEnv("NeXusComponents", list(sel))
+
+        if self.__nexussetting_device:
+            try:
+                cpgrp = json.loads(self.__nexussetting_device.ComponentGroup)
+            except:
+                cpgrp = {}
+            for sl in sel:
+                cpgrp[sl] = True
+                self.__nexussetting_device.ComponentGroup = json.dumps(cpgrp)
+        else:
+            self.setEnv("NeXusComponents", list(sel))
         return sel
 
 
     def __selectDataSources(self):
-        try:
-            envdss = set(self.getEnv("NeXusDataSources"))
-        except:
-            envdss = set()
+        if self.__nexussetting_device:
+            print  "DEVICE '%s'" % str(self.__nexussetting_device.DataSources)
+            print  "DEVICE2 '%s'" % str(self.__nexussetting_device.Components)
+            if self.__nexussetting_device.DataSources:
+                envdss = set(self.__nexussetting_device.DataSources)
+            else:
+                envdss = set()
+        else:
+            try:
+                envdss = set(self.getEnv("NeXusDataSources"))
+            except:
+                envdss = set()
+
 
         dt =  self.createMacro("nxs_datasource_components", 
                                '', 'STEP', '', True)
@@ -588,16 +706,39 @@ class nxs_select_elements(iMacro):
                          allow_multiple=True,
                          default_value=tuple(envdss))
             
-        self.setEnv("NeXusDataSources", list(sel))
+        if self.__nexussetting_device:
+            try:
+                dsgrp = json.loads(self.__nexussetting_device.DataSourceGroup)
+            except:
+                dsgrp = {}
+            for sl in sel:
+                dsgrp[sl] = True
+                self.__nexussetting_device.DataSourceGroup = json.dumps(dsgrp)
+        else:
+            self.setEnv("NeXusDataSources", list(sel))
         return sel
 
     def run(self):
         db = PyTango.Database()
+        self.__nexussetting_device = None
         try:
-            servers = [self.getEnv("NeXusConfigDevice")]
+            servers = [self.getEnv("NeXusSettingsDevice")]
         except:   
             servers = db.get_device_exported_for_class(
-                "NXSConfigServer").value_string 
+                "NXSRecSettings").value_string 
+
+        if len(servers) > 0:
+            self.__nexussetting_device = PyTango.DeviceProxy(servers[0])
+            self.output("Setting Server: %s" % servers[0])
+            servers = [self.__nexussetting_device.ConfigDevice]
+
+        else:
+            try:
+                servers = [self.getEnv("NeXusConfigDevice")]
+            except:   
+                servers = db.get_device_exported_for_class(
+                    "NXSConfigServer").value_string 
+ 
         ready = False    
         while len(servers) > 0 and not ready:
             self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
@@ -633,6 +774,8 @@ class nxs_select_elements(iMacro):
             
         
 
+
+
         
 
 
@@ -658,10 +801,23 @@ class nxs_datasource_components(Macro):
 
         db = PyTango.Database()
         try:
-            servers = [self.getEnv("NeXusConfigDevice")]
+            servers = [self.getEnv("NeXusSettingsDevice")]
         except:   
             servers = db.get_device_exported_for_class(
-                "NXSConfigServer").value_string 
+                "NXSRecSettings").value_string 
+
+        if len(servers) > 0:
+            self.__nexussetting_device = PyTango.DeviceProxy(servers[0])
+#            self.output("Setting Server: %s" % servers[0])
+            servers = [self.__nexussetting_device.ConfigDevice]
+
+        else:
+            try:
+                servers = [self.getEnv("NeXusConfigDevice")]
+            except:   
+                servers = db.get_device_exported_for_class(
+                    "NXSConfigServer").value_string 
+ 
         if len(servers) > 0:
             self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
             self.__nexusconfig_device.Open()
@@ -844,12 +1000,6 @@ class nxs_set_mntgrp_from_components(Macro):
             if device == chan['name']:
                 ctrl = chan['controller']
                 break
-#        if ctrl is None and device.find("adc") >= 0:
-#            ctrl = os.getenv("TANGO_HOST") + "/" 
-# + "controller/hasylabadcctrl/hasyadcctrl"
-#        elif ctrl is None and device.find("vfc") >= 0:
-#            ctrl = os.getenv("TANGO_HOST") + "/" 
-# + "controller/vfcadccontroller/hasyvfcadcctrl"
         return ctrl
 
 
