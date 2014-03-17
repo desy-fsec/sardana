@@ -490,7 +490,10 @@ class nxs_component_describe_full(Macro):
             self.__nexusconfig_device.Open()
             if env_components:
                 if self.__nexussetting_device:
-                    cps = self.__nexussetting_device.Components
+                    if self.__nexussetting_device.Components:
+                        cps = self.__nexussetting_device.Components
+                    else:
+                        cps = []
                 else:
                     try:
                         cps = self.getEnv("NeXusComponents")
@@ -627,10 +630,10 @@ class nxs_select_elements(iMacro):
 
     def __selectComponents(self, mancps):
         if self.__nexussetting_device:
-            
-            print  "CDEVICE '%s'" % str(self.__nexussetting_device.DataSources)
-            print  "CDEVICE2 '%s'" % str(self.__nexussetting_device.Components)
-            envcps = set(self.__nexussetting_device.Components) 
+            if self.__nexussetting_device.Components:
+                envcps = set(self.__nexussetting_device.Components) 
+            else:
+                envcps = set()
         else:
             try:
                 envcps = set(self.getEnv("NeXusComponents"))
@@ -662,11 +665,15 @@ class nxs_select_elements(iMacro):
         if self.__nexussetting_device:
             try:
                 cpgrp = json.loads(self.__nexussetting_device.ComponentGroup)
+                self.output("CPG1 %s" % str(cpgrp))
             except:
                 cpgrp = {}
-            for sl in sel:
-                cpgrp[sl] = True
-                self.__nexussetting_device.ComponentGroup = json.dumps(cpgrp)
+            for cp in cpgrp:
+                cpgrp[cp] = False
+            if sel:    
+                for sl in sel:
+                    cpgrp[sl] = True
+            self.__nexussetting_device.ComponentGroup = json.dumps(cpgrp)
         else:
             self.setEnv("NeXusComponents", list(sel))
         return sel
@@ -674,8 +681,8 @@ class nxs_select_elements(iMacro):
 
     def __selectDataSources(self):
         if self.__nexussetting_device:
-            print  "DEVICE '%s'" % str(self.__nexussetting_device.DataSources)
-            print  "DEVICE2 '%s'" % str(self.__nexussetting_device.Components)
+#            print  "DEVICE '%s'" % str(self.__nexussetting_device.DataSources)
+#            print  "DEVICE2 '%s'" % str(self.__nexussetting_device.Components)
             if self.__nexussetting_device.DataSources:
                 envdss = set(self.__nexussetting_device.DataSources)
             else:
@@ -711,9 +718,12 @@ class nxs_select_elements(iMacro):
                 dsgrp = json.loads(self.__nexussetting_device.DataSourceGroup)
             except:
                 dsgrp = {}
-            for sl in sel:
-                dsgrp[sl] = True
-                self.__nexussetting_device.DataSourceGroup = json.dumps(dsgrp)
+            for ds in dsgrp:
+                dsgrp[ds] = False
+            if sel:    
+                for sl in sel:
+                    dsgrp[sl] = True
+            self.__nexussetting_device.DataSourceGroup = json.dumps(dsgrp)
         else:
             self.setEnv("NeXusDataSources", list(sel))
         return sel
@@ -930,7 +940,6 @@ class nxs_set_mntgrp_from_components(Macro):
     def run(self, timer, flagClear):
         aliases = [timer] if timer else []
         self.__setpools()
-
         dt =  self.createMacro("nxs_component_describe_full",
                                '', 'STEP', 'CLIENT', True)
         dt[0].silent = True
