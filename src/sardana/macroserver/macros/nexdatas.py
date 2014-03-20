@@ -776,6 +776,7 @@ class nxs_select_elements(iMacro):
                     dt =  self.createMacro("nxs_set_mntgrp_from_components",
                                            timer,  True)
                     dt[0].silent = True
+                    dt[0].datasources = list(dssel)
                     self.runMacro(dt[0])
                     ready = True
                     self.output("Selected Timer: %s" % timer)
@@ -900,6 +901,7 @@ class nxs_set_mntgrp_from_components(Macro):
         self.__hsh['label'] = "" 
         self.__masterTimer = 'exp_t01'
 
+        self.datasources = []
         self.silent = False
 
     def __getDeviceNamesByClass(self, className):
@@ -938,7 +940,12 @@ class nxs_set_mntgrp_from_components(Macro):
                 pass
 
     def run(self, timer, flagClear):
-        aliases = [timer] if timer else []
+        aliases = []
+        if isinstance(self.datasources, list):
+            aliases = self.datasources
+        if timer:
+            aliases.append(timer)
+
         self.__setpools()
         dt =  self.createMacro("nxs_component_describe_full",
                                '', 'STEP', 'CLIENT', True)
@@ -949,8 +956,10 @@ class nxs_set_mntgrp_from_components(Macro):
             for dss in grp.values():
                 for ds in dss.keys():
                     aliases.append(str(ds))
+        aliases = list(set(aliases))
         if not self.silent:
-            self.output("devices:\n %s" % (str(set(aliases))))
+            self.output("devices:\n %s" % (str(aliases)))
+
 
         mntGrpName = self.getEnv('ActiveMntGrp')
         self.__mg = self.getObj(mntGrpName, type_class=Type.MeasurementGroup).getObj()
