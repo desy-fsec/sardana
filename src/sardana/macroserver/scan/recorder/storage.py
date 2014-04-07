@@ -402,7 +402,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             servers = [self.__env["NeXusSettingsDevice"]]
         else:
             servers = self.__db.get_device_exported_for_class(
-                "NXSRecSettings").value_string 
+                "NXSRecSelector").value_string 
         if len(servers) > 0:
             self.__nexussettings_device = PyTango.DeviceProxy(servers[0])
             self.__nexussettings_device.set_timeout_millis(self.__timeout)
