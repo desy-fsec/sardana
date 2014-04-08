@@ -420,7 +420,7 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         if self.__nexussettings_device:
             servers = [self.__nexussettings_device.configDevice]
-        if "NeXusConfigDevice" in self.__env.keys():
+        elif "NeXusConfigDevice" in self.__env.keys():
             servers = [self.__env["NeXusConfigDevice"]]
         else:
             servers = self.__db.get_device_exported_for_class(
