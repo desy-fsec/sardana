@@ -319,8 +319,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__deviceAliases = {}
         ## cut device aliases
         self.__cutDeviceAliases = {}
-        ## dictionary with names to replace
-        self.__toReplace = {}
+#        ## dictionary with names to replace
+#        self.__toReplace = {}
 
         ## dynamic components
         self.__dynamicCP = "__dynamic_component__"
@@ -883,16 +883,16 @@ class NXS_FileRecorder(BaseFileRecorder):
         return cnfxml
 
         
-    ## replaces alias but cut aliases according to self.toReplaces
-    # \param text with aliases
-    # \returns text with cut aliases    
-    def __replaceAliases(self, text):
-        res = text
-        if self.__toReplace:
-            for el in self.__toReplace.keys():
-##                TODO check if full name
-                res = res.replace(el, self.__toReplace[el])
-        return res
+#    ## replaces alias but cut aliases according to self.toReplaces
+#    # \param text with aliases
+#    # \returns text with cut aliases    
+#    def __replaceAliases(self, text):
+#        res = text
+#        if self.__toReplace:
+#            for el in self.__toReplace.keys():
+###                TODO check if full name
+#                res = res.replace(el, self.__toReplace[el])
+#        return res
     
 
     def _startRecordList(self, recordlist):
@@ -970,11 +970,13 @@ class NXS_FileRecorder(BaseFileRecorder):
                 envrecord, cls=NXS_FileRecorder.numpyEncoder)
 
             self.debug('DATA: {"data":%s}' % json.dumps(
-                    self.__replaceAliases(record.data),
+                    record.data,
+                    #                    self.__replaceAliases(record.data),
                     cls=NXS_FileRecorder.numpyEncoder))
 
             jsonString = '{"data":%s}' % json.dumps(
-                self.__replaceAliases(record.data),
+                record.data,
+#                self.__replaceAliases(record.data),
                 cls=NXS_FileRecorder.numpyEncoder)
             self.debug("JSON!!: %s" % jsonString)
             self.__nexuswriter_device.Record(jsonString)
