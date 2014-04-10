@@ -471,11 +471,12 @@ class NXS_FileRecorder(BaseFileRecorder):
         
         self.__cutDeviceAliases = {}
         for alias in self.__deviceAliases.keys():
-            if alias.startswith("sca_exp_mca"):
-                self.__cutDeviceAliases[alias] = "_".join(alias.split("_")[:3])
-                self.__toReplace[alias] = "_".join(alias.split("_")[:3])
-            else:
-                self.__cutDeviceAliases[alias] = alias
+#            if alias.startswith("sca_exp_mca"):
+#                self.__cutDeviceAliases[alias] = "_".join(alias.split("_")[:3])
+#                self.__toReplace[alias] = "_".join(alias.split("_")[:3])
+#            else:
+#                self.__cutDeviceAliases[alias] = alisa
+            self.__cutDeviceAliases[alias] = alias
         
 
     def __checkNode(self, node):
