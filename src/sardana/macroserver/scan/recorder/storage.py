@@ -377,12 +377,25 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.fd.close()
    
         dirname = os.path.dirname(filename)
+        if not dirname:
+            self.warning(
+                "Missing file directory. "
+                "File will be saved in the local writer directory.")
+            self.macro.warning(
+                "Missing file directory. "
+                "File will be saved in the local writer directory.")
+            dirname = '/'
+            
         if not os.path.isdir(dirname):
             try:
                 os.makedirs(dirname)
-            except:
+                os.chmod(dirname, 0o777)
+            except Exception as e:
+                self.macro.warning(str(e))
+                self.warning(str(e))
                 self.filename = None
                 return
+            
 
         if number:
             # construct the filename, e.g. : /dir/subdir/etcdir/prefix_00123.nxs
