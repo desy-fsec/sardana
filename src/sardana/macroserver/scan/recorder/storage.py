@@ -985,9 +985,13 @@ class NXS_FileRecorder(BaseFileRecorder):
             raise
 
 
-    @classmethod    
-    def __timeToString(cls, mtime, tzone):
-        tz = timezone(tzone)
+    def __timeToString(self, mtime, tzone):
+        try:
+            tz = timezone(tzone)
+        except:
+            self.warning("Wrong TimeZone. Time Zone was changed to Europe/Berlin")
+            tz = timezone("Europe/Berlin")
+            
         fmt = '%Y-%m-%dT%H:%M:%S.%f%z'
         starttime = tz.localize(mtime)
         return str(starttime.strftime(fmt))
