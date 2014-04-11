@@ -348,7 +348,10 @@ class NXS_FileRecorder(BaseFileRecorder):
         ## available components
         self.__availableComps = []
 
+        ## default timezone
+        self.__timezone = "Europe/Berlin"
 
+        self.__defaultpath = "/entry$var.serialno:NXentry/NXinstrument/NXcollection"
     def __getVar(self, attr, var, default, decode = False):
         if self.__nexussettings_device:
             res = self.__nexussettings_device.read_attribute(attr).value
@@ -642,9 +645,13 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         links = self.__getVar("DynamicLinks", "NeXusDynamicLinks", True)
         defaultpath = self.__getVar(
-            "DynamicPath", "NeXusDynamicPath", 
-            "/entry$var.serialno:NXentry/NXinstrument/NXcollection")
-
+            "DynamicPath", "NeXusDynamicPath", self.__defaultpath)
+        if not defaultpath:
+            self.warning("Empty dynamic component path. "
+                          "The path set to `%s`" % (self.__defaultpath))
+            self.macro.warning("Empty dynamic component path. "
+                               "The path set to `%s`" % (self.__defaultpath))
+            defaultpath = self.__defaultpath
 
         root = xml.dom.minidom.Document()
         definition = root.createElement("definition")
@@ -926,7 +933,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         
             self.debug('START_DATA: %s' % str(envRec))
 
-            timezone = self.__getVar("TimeZone", "timezone", 'Europe/Berlin')
+            timezone = self.__getVar("TimeZone", "timezone", self.__timezone)
             self.__vars["data"]["start_time"] = \
                 self.__timeToString(envRec['starttime'],timezone)
             self.__vars["data"]["serialno"] = envRec["serialno"]
@@ -989,8 +996,13 @@ class NXS_FileRecorder(BaseFileRecorder):
         try:
             tz = timezone(tzone)
         except:
-            self.warning("Wrong TimeZone. Time Zone was changed to Europe/Berlin")
-            tz = timezone("Europe/Berlin")
+            self.warning(
+                "Wrong TimeZone. "
+                + "The time zone set to `%s`" % self.__timezone)
+            self.macro.warning(
+                "Wrong TimeZone. "
+                + "The time zone set to `%s`" % self.__timezone)
+            tz = timezone(self.__timezone)
             
         fmt = '%Y-%m-%dT%H:%M:%S.%f%z'
         starttime = tz.localize(mtime)
@@ -1007,7 +1019,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         
             self.debug('END_DATA: %s ' % str(envRec))
 
-            timezone = self.__getVar("TimeZone", "timezone", 'Europe/Berlin')
+            timezone = self.__getVar("TimeZone", "timezone", self.__timezone)
             self.__vars["data"]["end_time"] = \
                 self.__timeToString(envRec['endtime'], timezone)
 
