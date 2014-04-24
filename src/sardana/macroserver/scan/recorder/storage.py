@@ -352,6 +352,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__timezone = "Europe/Berlin"
 
         self.__defaultpath = "/entry$var.serialno:NXentry/NXinstrument/NXcollection"
+
     def __getVar(self, attr, var, default, decode = False):
         if self.__nexussettings_device:
             res = self.__nexussettings_device.read_attribute(attr).value
@@ -491,7 +492,7 @@ class NXS_FileRecorder(BaseFileRecorder):
 #                self.__cutDeviceAliases[alias] = "_".join(alias.split("_")[:3])
 #                self.__toReplace[alias] = "_".join(alias.split("_")[:3])
 #            else:
-#                self.__cutDeviceAliases[alias] = alisa
+#                self.__cutDeviceAliases[alias] = alias
             self.__cutDeviceAliases[alias] = alias
         
 
@@ -903,7 +904,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         return cnfxml
 
         
-#    ## replaces alias but cut aliases according to self.toReplaces
+#    ## replaces alias by cut aliases according to self.toReplaces
 #    # \param text with aliases
 #    # \returns text with cut aliases    
 #    def __replaceAliases(self, text):
@@ -939,7 +940,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             cnfxml = self.__createConfiguration()
 
             self.__nexuswriter_device.Init()
-            self.__nexuswriter_device.FileName = self.filename
+            self.__nexuswriter_device.FileName = str(self.filename)
             self.__nexuswriter_device.OpenFile()
             
             self.__nexuswriter_device.XMLSettings = cnfxml
