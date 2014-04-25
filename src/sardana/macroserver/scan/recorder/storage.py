@@ -415,8 +415,8 @@ class NXS_FileRecorder(BaseFileRecorder):
 
 
     def __setNexusDevices(self):
-        if "NeXusSettingsDevice" in self.__env.keys():
-            servers = [self.__env["NeXusSettingsDevice"]]
+        if "NeXusSelectorDevice" in self.__env.keys():
+            servers = [self.__env["NeXusSelectorDevice"]]
         else:
             servers = self.__db.get_device_exported_for_class(
                 "NXSRecSelector").value_string 
