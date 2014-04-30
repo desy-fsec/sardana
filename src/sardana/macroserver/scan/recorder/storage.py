@@ -611,7 +611,7 @@ class NXS_FileRecorder(BaseFileRecorder):
     def __loadLabelDictionaries(self):
 
         nexuslabels = {}
-        dct = self.__getVar("DataSourceLabels","NeXusDataSourceLabels", None, True)
+        dct = self.__getVar("Labels","NeXusLabels", None, True)
         if isinstance(dct, dict):
             nexuslabels =  dct
 
