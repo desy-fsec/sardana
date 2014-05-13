@@ -429,7 +429,7 @@ class build(dftbuild):
         if self.with_extra_widgets:
             self.distribution.packages.extend(extra_packages)
         self.distribution.package_data['taurus.qt.qtgui.resource'].extend(self.get_extra_resource_package_data())
-#        self.build_jdraw()
+        self.build_jdraw()
         dftbuild.run(self)
 
     def build_jdraw(self):
