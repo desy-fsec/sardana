@@ -36,7 +36,7 @@ from taurus.core.util.log import Logger
 from taurus.core.util.enumeration import Enumeration
 
 DataFormats = Enumeration('DataFormats', ('Spec', 'CSV', 'XLS', 'w5', 'w4',
-                                          'wx', 'fio'))
+                                          'wx', 'fio', 'nxs'))
 SaveModes = Enumeration('SaveModes', ('Record', 'Block'))
 RecorderStatus = Enumeration('RecorderStatus', ('Idle', 'Active', 'Disable'))
 

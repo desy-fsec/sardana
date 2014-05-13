@@ -7,6 +7,7 @@
 ## http://www.tango-controls.org/static/sardana/latest/doc/html/index.html
 ##
 ## Copyright 2011 CELLS / ALBA Synchrotron, Bellaterra, Spain
+## Copyright 2014 DESY, Hamburg, Germany
 ## 
 ## Sardana is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU Lesser General Public License as published by
@@ -35,8 +36,14 @@ import itertools
 import re
 
 import numpy
+import json
+
+from datetime import datetime
+from pytz import timezone
+import pytz
 
 import PyTango
+import xml.dom.minidom 
 
 from sardana.taurus.core.tango.sardana import PlotType
 from sardana.macroserver.macro import Type
@@ -270,6 +277,770 @@ class FIO_FileRecorder(BaseFileRecorder):
             pass
             
         os.chdir( currDir)
+
+
+
+class NXS_FileRecorder(BaseFileRecorder):
+    """ This recorder saves data to a NeXus file making use of NexDaTaS Writer
+"""
+
+    formats = { DataFormats.nxs : '.nxs' }
+
+    class numpyEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, numpy.ndarray) and obj.ndim > 0 :
+                return obj.tolist()
+            return json.JSONEncoder.default(self, obj)
+
+    
+    def __init__(self, filename=None, macro=None, **pars):
+        BaseFileRecorder.__init__(self)
+        ## base filename
+        self.__base_filename = filename
+        if macro:
+            self.macro = macro
+        ## tango database    
+        self.__db = PyTango.Database()
+        
+        ## NXS data writer device
+        self.__nexuswriter_device = None
+        ## NXS configuration server device
+        self.__nexusconfig_device = None
+
+        ## NXS settings server device
+        self.__nexussettings_device = None
+
+        ## device proxy timeout 
+        self.__timeout =  25000
+        ## Custom variables
+        self.__vars = {"data":{}, 
+                       "datasources":{}, 
+                       "decoders":{}, 
+                       "vars":{},
+                       "triggers":[]} 
+
+        ## device aliases
+        self.__deviceAliases = {}
+        ## cut device aliases
+        self.__cutDeviceAliases = {}
+
+        ## dynamic components
+        self.__dynamicCP = "__dynamic_component__"
+
+        ## map of numpy types : NEXUS
+        self.__npTn = {"float32":"NX_FLOAT32", "float64":"NX_FLOAT64", 
+                       "float":"NX_FLOAT32", "double":"NX_FLOAT64", 
+                       "int":"NX_INT", "int64":"NX_INT64",
+                       "int32":"NX_INT32", "int16":"NX_INT16", 
+                       "int8":"NX_INT8", "uint64":"NX_UINT64", 
+                       "uint32":"NX_UINT32", "uint16":"NX_UINT16", 
+                       "uint8":"NX_UINT8", "uint":"NX_UINT64",
+                       "string":"NX_CHAR", "bool":"NX_BOOLEAN"}
+
+        self.__env = self.macro.getAllEnv() if self.macro else {}
+
+        self.__setNexusDevices()
+        
+        appendentry = self.__getVar("AppendEntry", "NeXusAppendEntry", False)
+        scanID = self.__env["ScanID"] \
+            if "ScanID" in self.__env.keys() else -1
+
+        self.__setFileName(self.__base_filename, not appendentry, scanID)
+
+        ## available components
+        self.__availableComps = []
+
+        ## default timezone
+        self.__timezone = "Europe/Berlin"
+
+        self.__defaultpath = "/entry$var.serialno:NXentry/NXinstrument/NXcollection"
+
+    def __getVar(self, attr, var, default, decode = False):
+        if self.__nexussettings_device:
+            res = self.__nexussettings_device.read_attribute(attr).value
+            if decode:
+                try:
+                    dec = json.loads(res)                
+                    return dec
+                except: 
+                    self.warning("%s = '%s' cannot be decoded" %  (attr, res))
+                    self.macro.warning("%s = '%s' cannot be decoded" %  (attr, res))
+                    return default
+            else:
+                return res 
+        else:
+            return self.__env[var] \
+                if var in self.__env.keys() else default
+        
+
+    def __setFileName(self, filename, number=True, scanID=None):
+        if scanID is not None and scanID < 0 :
+            return
+        if self.fd != None: 
+            self.fd.close()
+   
+        dirname = os.path.dirname(filename)
+        if not dirname:
+            self.warning(
+                "Missing file directory. "
+                "File will be saved in the local writer directory.")
+            self.macro.warning(
+                "Missing file directory. "
+                "File will be saved in the local writer directory.")
+            dirname = '/'
+            
+        if not os.path.isdir(dirname):
+            try:
+                os.makedirs(dirname)
+                os.chmod(dirname, 0o777)
+            except Exception as e:
+                self.macro.warning(str(e))
+                self.warning(str(e))
+                self.filename = None
+                return
+            
+
+        if number:
+            # construct the filename, e.g. : /dir/subdir/etcdir/prefix_00123.nxs
+            tpl = filename.rpartition('.')
+            if scanID is None:
+                serial = self.recordlist.getEnvironValue('serialno')
+            elif scanID >= 0:
+                serial = scanID + 1
+            self.filename = "%s_%05d.%s" % (tpl[0], serial, tpl[2])
+        else:
+            self.filename = filename
+                    
+
+    def getFormat(self):
+        return DataFormats.whatis(DataFormats.nxs)
+
+
+    def __setNexusDevices(self):
+        if "NeXusSelectorDevice" in self.__env.keys():
+            servers = [str(self.__env["NeXusSelectorDevice"])]
+        else:
+            servers = self.__db.get_device_exported_for_class(
+                "NXSRecSelector").value_string 
+        if len(servers) > 0:
+            self.__nexussettings_device = PyTango.DeviceProxy(servers[0])
+            self.__nexussettings_device.set_timeout_millis(self.__timeout)
+
+        if self.__nexussettings_device:
+            servers = [self.__nexussettings_device.writerDevice]
+        elif "NeXusWriterDevice" in self.__env.keys():
+            servers = [self.__env["NeXusWriterDevice"]]
+        else:
+            servers = self.__db.get_device_exported_for_class(
+                "NXSDataWriter").value_string 
+        if len(servers) > 0:
+            self.__nexuswriter_device = PyTango.DeviceProxy(servers[0])
+            self.__nexuswriter_device.set_timeout_millis(self.__timeout)
+
+        if self.__nexussettings_device:
+            servers = [self.__nexussettings_device.configDevice]
+        elif "NeXusConfigDevice" in self.__env.keys():
+            servers = [self.__env["NeXusConfigDevice"]]
+        else:
+            servers = self.__db.get_device_exported_for_class(
+                "NXSConfigServer").value_string 
+        if len(servers) > 0:
+            self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
+            self.__nexusconfig_device.set_timeout_millis(self.__timeout)
+            self.__nexusconfig_device.Open()
+
+
+
+
+    ## provides a device alias
+    # \param name device name       
+    # \return device alias 
+    def __get_alias(self, name):
+        # if name does not contain a "/" it's probably an alias
+        if name.find("/") == -1:
+            return name
+
+        # haso107klx:10000/expchan/hasysis3820ctrl/1
+        if name.find(':') >= 0:
+            lst = name.split("/")
+            name = "/".join(lst[1:])
+        return self.__db.get_alias(name)
+
+            
+    def __collectAliases(self, envRec):        
+
+        if 'counters' in envRec:     
+            for elm in envRec['counters']:
+                alias = self.__get_alias(str(elm))
+                self.__deviceAliases[alias] = elm
+        if 'ref_moveables' in envRec:     
+            for elm in envRec['ref_moveables']:
+                alias = self.__get_alias(str(elm))
+                self.__deviceAliases[alias] = elm
+
+        if 'column_desc' in envRec:     
+            for elm in envRec['column_desc']:
+                if "name" in elm.keys():
+                    alias = self.__get_alias(str(elm["name"]))
+                    self.__deviceAliases[alias] = elm["name"] 
+        if 'datadesc' in envRec:     
+            for elm in envRec['datadesc']:
+                alias = self.__get_alias(str(elm.name))
+                self.__deviceAliases[alias] = elm.name
+        
+        self.__cutDeviceAliases = {}
+        for alias in self.__deviceAliases.keys():
+            self.__cutDeviceAliases[alias] = alias
+        
+
+    def __checkNode(self, node):
+        label = 'datasources'
+        name = None
+        if node.nodeName == 'datasource':
+            if node.hasAttribute("type") \
+                    and node.attributes["type"].value == 'CLIENT' \
+                    and node.hasAttribute("name"):
+                name = str(node.attributes["name"].value)
+        elif node.nodeType == node.TEXT_NODE:
+            dstxt = node.data
+            index = dstxt.find("$%s." % label)
+            while index != -1 and not name:
+                try:
+                    subc = re.finditer(
+                        r"[\w]+", 
+                        dstxt[(index+len(label)+2):]).next().group(0)
+                except:
+                    subc = ''
+                name = subc.strip() if subc else ""
+                try:
+                    dsource = self.__nexusconfig_device.DataSources([name])
+                except:
+                    dsource = []
+                if len(dsource)>0:
+                    indom = xml.dom.minidom.parseString(dsource[0])
+                    ds = indom.getElementsByTagName("datasource")
+                    if ds and ds[0].nodeName == 'datasource':
+                        if ds[0].hasAttribute("type") \
+                                and ds[0].attributes["type"].value == 'CLIENT' \
+                                and ds[0].hasAttribute("name"):
+                            name = str(ds[0].attributes["name"].value)
+                index = dstxt.find("$%s." % label, index+1)
+        return name
+                
+
+    def __checkClientStepDS(self, cp, dss):         
+        xmlc = self.__nexusconfig_device.Components([cp])
+        names = []
+        if not len(xmlc)>0:
+            return names
+        indom = xml.dom.minidom.parseString(xmlc[0])
+        strategy = indom.getElementsByTagName("strategy")
+        for sg in strategy:
+            if sg.hasAttribute("mode") \
+                    and sg.attributes["mode"].value == 'STEP':
+                name = None
+                nxt = sg.nextSibling
+                while nxt and not name:
+                    name = self.__checkNode(nxt)
+                    if name and name in dss:
+                        names.append(name)
+                    nxt = nxt.nextSibling    
+
+                prev = sg.previousSibling
+                while prev and not name:
+                    name = self.__checkNode(prev)
+                    if name and name in dss:
+                        names.append(name)
+                    prev = prev.previousSibling  
+        return names
+
+
+    def __getProp(self, nexusprop, nexuslabels, name, default):
+        prop = nexusprop.get(nexuslabels.get(name, ""), None)
+        if prop is None:
+            prop = nexusprop.get(name, default)
+        return prop
+
+    def __getFieldPath(self, nexuspaths, nexuslabels, alias, defaultpath):
+        path = nexuspaths.get(nexuslabels.get(alias,""), "")
+        if not path:
+            path = nexuspaths.get(alias, "")
+        if path:
+            spath = path.split('/')
+            field = spath[-1] 
+            path = '/'.join(spath[:-1]) if len(spath) > 1 else defaultpath
+        else:
+            path = defaultpath
+            field = alias
+        return (path, field)
+
+    def __createGroupTree(self, root, definition, path, links=False):
+        # create group tree    
+        
+        spath = path.split('/')       
+        entry = None
+        parent = definition
+        nxdata = None
+        for dr in spath:
+            if dr.strip():
+                node = root.createElement("group")     
+                parent.appendChild(node)
+                if not entry:
+                    entry = node
+
+                w = dr.split(':')
+                if len(w) == 1:
+                    if len(w[0])>2  and w[0][:2] =='NX':
+                        w.insert(0, w[0][2:])
+                    else:
+                        w.append("NX"+ w[0])
+                node.setAttribute("type", w[1])
+                node.setAttribute("name", w[0])
+                parent = node
+        if links:
+            nxdata = root.createElement("group")     
+            entry.appendChild(nxdata)
+            nxdata.setAttribute("type", "NXdata")
+            nxdata.setAttribute("name", "data")
+
+        return parent, nxdata
+    
+    def __loadLabelDictionaries(self):
+
+        nexuslabels = {}
+        dct = self.__getVar("Labels","NeXusLabels", None, True)
+        if isinstance(dct, dict):
+            nexuslabels =  dct
+
+        nexuspaths = {}
+        dct = self.__getVar("LabelPaths","NeXusLabelPaths", None, True)
+        if isinstance(dct, dict):
+            nexuspaths =  dct
+
+        nexuslinks = {}
+        dct = self.__getVar("LabelLinks","NeXusLabelLinks", None, True)
+        if isinstance(dct, dict):
+            nexuslinks =  dct
+
+        nexustypes = {}
+        dct = self.__getVar("LabelTypes","NeXusLabelTypes", None, True)
+        if isinstance(dct, dict):
+            nexustypes =  dct
+
+
+        nexusshapes = {}
+        dct = self.__getVar("LabelShapes","NeXusLabelShapes", None, True)
+        if isinstance(dct, dict):
+            nexusshapes =  dct
+
+        return (nexuslabels, nexuspaths, nexuslinks, nexustypes, nexusshapes)    
+
+    def __createDynamicComponent(self, dss):
+        envRec = self.recordlist.getEnviron()
+        cps =  self.__nexusconfig_device.AvailableComponents()
+        name = "__dynamic_component__"
+        while name in cps:
+            self.warning("Dynamic component '%s' already exists" % name)
+            self.macro.warning("Dynamic component '%s' already exists" % name)
+            name = name + "x"
+        self.__dynamicCP = name
+        self.debug("Creates '%s' component for '%s'" % (name, str(dss)))
+
+        dsources = []
+        lst = self.__getVar("DataSources", "NeXusDataSources", None, False)
+        if isinstance(lst, (tuple, list)):
+            dsources.extend(lst)
+        
+        (nexuslabels, nexuspaths, nexuslinks, 
+         nexustypes, nexusshapes) = self.__loadLabelDictionaries()
+
+        links = self.__getVar("DynamicLinks", "NeXusDynamicLinks", True)
+        defaultpath = self.__getVar(
+            "DynamicPath", "NeXusDynamicPath", self.__defaultpath)
+        if not defaultpath:
+            self.warning("Empty dynamic component path. "
+                          "The path set to `%s`" % (self.__defaultpath))
+            self.macro.warning("Empty dynamic component path. "
+                               "The path set to `%s`" % (self.__defaultpath))
+            defaultpath = self.__defaultpath
+
+        root = xml.dom.minidom.Document()
+        definition = root.createElement("definition")
+        root.appendChild(definition)
+            
+        created = []        
+        for dd in envRec['datadesc']:
+            if self.__get_alias(str(dd.name)) in dss:
+                alias = self.__get_alias(str(dd.name))
+                path, field = self.__getFieldPath(nexuspaths, nexuslabels, 
+                                                  alias, defaultpath)
+                link = self.__getProp(nexuslinks, nexuslabels, alias, links)
+                (parent, nxdata) = self.__createGroupTree(root, definition, path, link)
+                self.debug("DC: %s, %s, %s, %s :  %s %s %s"  % (
+                        dd.name, dd.dtype, dd.label, str(dd.shape), 
+                        alias, path, field))
+                created.append(alias) 
+                nxtype = self.__npTn[dd.dtype] \
+                    if dd.dtype in self.__npTn.keys() else 'NX_CHAR'
+                self.__createField(
+                    root, parent, field, nxtype, alias, dd.name, dd.shape)
+                if link:
+                    self.__createLink(root, nxdata, path, field)
+                    
+        for ds in dss:
+            if ds not in created:
+                path, field = self.__getFieldPath(nexuspaths, nexuslabels, 
+                                                  ds, defaultpath)
+                link = self.__getProp(nexuslinks, nexuslabels, ds, links)
+                (parent, nxdata) = self.__createGroupTree(root, definition, path, link)
+
+                nxtype = self.__getProp(nexustypes, nexuslabels, ds, 'NX_CHAR')
+                shape = self.__getProp(nexusshapes, nexuslabels, ds, None)
+                self.__createField(root, parent, field, nxtype, ds, ds, shape)
+                if link:
+                    self.__createLink(root, nxdata, path, field)
+
+
+        for ds in dsources:
+            if ds not in created:
+                path, field = self.__getFieldPath(nexuspaths, nexuslabels, 
+                                              ds, defaultpath)
+                link = self.__getProp(nexuslinks, nexuslabels, ds, links)
+                (parent, nxdata) = self.__createGroupTree(root, definition, path, link)
+                dsource = self.__nexusconfig_device.DataSources([str(ds)])
+                if len(dsource)>0:
+                    indom = xml.dom.minidom.parseString(dsource[0])
+                    dss = indom.getElementsByTagName("datasource")
+                    if len(dss):
+                        nxtype = self.__getProp(nexustypes, nexuslabels, ds, 'NX_CHAR')
+                        shape = self.__getProp(nexusshapes, nexuslabels, ds, None)
+                        self.debug("TYPE: %s" % nxtype)
+                        self.__createField(root, parent, field, nxtype, ds, 
+                                       dsnode = dss[0], shape = shape)
+                        if link:
+                            self.__createLink(root, nxdata, path, field)
+
+
+        self.__nexusconfig_device.XMLString = str(root.toprettyxml(indent=""))
+        self.__nexusconfig_device.StoreComponent(str(self.__dynamicCP))
+
+        self.debug("Dynamic Component:\n%s" % root.toprettyxml(indent="  "))
+
+
+
+    @classmethod    
+    def __createLink(cls, root, entry, path, name):
+        if name and entry:
+            link = root.createElement("link")     
+            entry.appendChild(link)
+            link.setAttribute("target", "%s/%s" % (path, name))
+            link.setAttribute("name", name)
+
+
+
+    @classmethod    
+    def __createField(cls, root, parent, fname, nxtype, sname, 
+                      record=None, shape=None, dsnode = None):
+        field = root.createElement("field")     
+        parent.appendChild(field) 
+        field.setAttribute("type", nxtype)
+        field.setAttribute("name", fname)
+
+        
+        strategy = root.createElement("strategy")     
+        field.appendChild(strategy)
+        strategy.setAttribute("mode", "STEP")
+
+        if dsnode:
+            dsource = root.importNode(dsnode, True)
+        else:
+            dsource = root.createElement("datasource")     
+            dsource.setAttribute("name", sname)
+            dsource.setAttribute("type", "CLIENT")
+            rec = root.createElement("record")     
+            dsource.appendChild(rec)
+            rec.setAttribute("name", record)
+
+        field.appendChild(dsource)
+        if shape:
+            dm = root.createElement("dimensions")     
+            dm.setAttribute("rank", str(len(shape)))
+            field.appendChild(dm)
+            for i in range(len(shape)):
+                dim = root.createElement("dim")     
+                dm.appendChild(dim)
+                dim.setAttribute("index", str(i+1))
+                dim.setAttribute("value", str(shape[i]))
+                    
+
+
+    def __removeDynamicComponent(self):
+        cps =  self.__nexusconfig_device.AvailableComponents()
+        if self.__dynamicCP in cps: 
+            self.__nexusconfig_device.DeleteComponent(str(self.__dynamicCP))
+
+
+    def __availableComponents(self):
+        cmps = self.__nexusconfig_device.AvailableComponents()
+        if self.__availableComps:
+            return list(set(cmps) & set(self.__availableComps))
+        else:
+            return cmps
+
+
+    def __searchDataSources(self, nexuscomponents, cfm, dyncp):        
+        dsFound = {}
+        dsNotFound = []
+        cpReq = {}
+
+        ## check datasources / get require components with give datasources
+        cmps = list(set(nexuscomponents) | set(self.__availableComponents()))
+        for cp in cmps:
+            try:
+                dss = self.__nexusconfig_device.ComponentDataSources(cp)
+            except:
+                self.warning("Component '%s' wrongly defined in DB!" %  cp)
+                self.macro.warning("Component '%s' wrongly defined in DB!" % cp)
+                dss = []
+            if dss:
+                cdss = list(set(dss) & set(self.__cutDeviceAliases.values()))
+                csds = self.__checkClientStepDS(cp, cdss)
+                for ds in csds:
+                    self.debug("'%s' found in '%s'" % (ds, cp))
+                    if ds not in dsFound.keys():
+                        dsFound[ds] = []
+                    dsFound[ds].append(cp)    
+                    if cp not in cpReq.keys():
+                        cpReq[cp] = []
+                    cpReq[cp].append(ds)    
+                    
+        ## get not found datasources
+        for ds in self.__cutDeviceAliases.values():
+            if ds not in dsFound.keys():
+                dsNotFound.append(ds)
+                if not dyncp:
+                    self.warning(
+                        "Warning: '%s' will not be stored. " % ds 
+                        +  "It was not found in Components!"
+                        + " Consider setting: NeXusDynamicComponents=True")
+                    self.macro.warning(
+                        "Warning: '%s' will not be stored. " % ds 
+                        + "It was not found in Components!"
+                        + " Consider setting: NeXusDynamicComponents=True")
+            elif not cfm:
+                if not (set(dsFound[ds]) & set(nexuscomponents)):
+                    dsNotFound.append(ds)
+                    if not dyncp:
+                        self.warning(
+                            "Warning: '%s' will not be stored. " % ds 
+                            +  "It was not found in User Components!"
+                            + " Consider setting: NeXusDynamicComponents=True")
+                        self.macro.warning(
+                            "Warning: '%s' will not be stored. " % ds 
+                            + "It was not found in User Components!"
+                            + " Consider setting: NeXusDynamicComponents=True")
+        return (dsNotFound, cpReq)
+
+
+    def __createConfiguration(self):
+        cfm = self.__getVar("ComponentsFromMntGrp", "NeXusComponentsFromMntGrp",
+                            False)
+        dyncp = self.__getVar("DynamicComponents","NeXusDynamicComponents",
+                              True)
+
+        envRec = self.recordlist.getEnviron()
+        self.__collectAliases(envRec)
+
+        mandatory = self.__nexusconfig_device.MandatoryComponents()
+        self.info("Default Components %s" %  str(mandatory))
+
+        nexuscomponents = []
+        lst = self.__getVar("Components", "NeXusComponents", None, False)
+        if isinstance(lst, (tuple, list)):
+            nexuscomponents.extend(lst)
+        self.info("User Components %s" % str(nexuscomponents))
+
+        lst = self.__getVar("AutomaticComponents", "NeXusAutomaticComponents", None, False)
+        if isinstance(lst, (tuple, list)):
+            nexuscomponents.extend(lst)
+        self.info("User Components %s" % str(nexuscomponents))
+
+
+        self.__availableComps = []
+        lst = self.__getVar("OptionalComponents", "NeXusOptionalComponents", None, True)
+        if isinstance(lst, (tuple, list)):
+            self.__availableComps.extend(lst)
+        self.__availableComps = list(set(
+                self.__availableComps) )
+        self.info("Available Components %s" % str(
+                self.__availableComponents()))
+ 
+        dsNotFound, cpReq = self.__searchDataSources(
+            nexuscomponents, cfm, dyncp)
+
+        self.__createDynamicComponent(dsNotFound if dyncp else [])
+        nexuscomponents.append(str(self.__dynamicCP))
+
+        if cfm:
+            self.info("Sardana Components %s" % cpReq.keys())
+            nexuscomponents.extend(cpReq.keys())
+        nexuscomponents = list(set(nexuscomponents))
+
+        nexusvariables = {}
+        dct = self.__getVar("ConfigVariables", "NeXusConfigVariables", None, True)
+        if isinstance(dct, dict):
+            nexusvariables = dct
+
+        self.__nexusconfig_device.Variables = json.dumps(
+            dict(self.__vars["vars"], **nexusvariables),
+            cls=NXS_FileRecorder.numpyEncoder)
+        self.info("Components %s" % list(
+                set(nexuscomponents) | set(mandatory)) )
+        self.__nexusconfig_device.CreateConfiguration(nexuscomponents)
+        cnfxml = self.__nexusconfig_device.XMLString 
+        return cnfxml
+
+
+    def _startRecordList(self, recordlist):
+        try:
+            self.__env = self.macro.getAllEnv() if self.macro else {}
+            if self.__base_filename is None:
+                return
+
+            self.__setNexusDevices()
+
+            
+            appendentry = self.__getVar("AppendEntry", "NeXusAppendEntry", 
+                                        False)
+
+            self.__setFileName(self.__base_filename, not appendentry)
+            envRec = self.recordlist.getEnviron()
+            if appendentry:         
+                self.__vars["vars"]["serialno"] = envRec["serialno"]
+
+            cnfxml = self.__createConfiguration()
+
+            self.__nexuswriter_device.Init()
+            self.__nexuswriter_device.FileName = str(self.filename)
+            self.__nexuswriter_device.OpenFile()
+            
+            self.__nexuswriter_device.XMLSettings = cnfxml
+        
+            self.debug('START_DATA: %s' % str(envRec))
+
+            timezone = self.__getVar("TimeZone", "timezone", self.__timezone)
+            self.__vars["data"]["start_time"] = \
+                self.__timeToString(envRec['starttime'],timezone)
+            self.__vars["data"]["serialno"] = envRec["serialno"]
+
+            envrecord = self.__appendRecord(self.__vars, 'INIT')
+            self.__nexuswriter_device.JSONRecord = json.dumps(
+                envrecord, cls=NXS_FileRecorder.numpyEncoder)
+            self.__nexuswriter_device.OpenEntry()
+        except:
+            self.__removeDynamicComponent()
+            raise
+        
+
+    def __appendRecord(self, var, mode=None):
+        nexusrecord = {}
+        dct = self.__getVar("DataRecord","NeXusDataRecord", None, True)
+        if isinstance(dct, dict):
+            nexusrecord =  dct
+        record = dict(var)        
+        record["data"] = dict(var["data"], **nexusrecord)
+        if mode == 'INIT':
+            if var["datasources"]:
+                record["datasources"] = dict(var["datasources"])
+            if var["decoders"]:
+                record["decoders"] = dict(var["decoders"])
+        elif mode == 'FINAL':
+            pass
+        else:
+            if var["triggers"]:
+                record["triggers"] = list(var["triggers"])
+        return record
+
+
+    def _writeRecord(self, record):
+        try:
+            if self.filename is None:
+                return
+            self.__env = self.macro.getAllEnv() if self.macro else {}
+            envrecord = self.__appendRecord(self.__vars, 'STEP')
+            self.__nexuswriter_device.JSONRecord = json.dumps(
+                envrecord, cls=NXS_FileRecorder.numpyEncoder)
+
+            self.debug('DATA: {"data":%s}' % json.dumps(
+                    record.data,
+                    cls=NXS_FileRecorder.numpyEncoder))
+
+            jsonString = '{"data":%s}' % json.dumps(
+                record.data,
+                cls=NXS_FileRecorder.numpyEncoder)
+            self.debug("JSON!!: %s" % jsonString)
+            self.__nexuswriter_device.Record(jsonString)
+        except:
+            self.__removeDynamicComponent()
+            raise
+
+
+    def __timeToString(self, mtime, tzone):
+        try:
+            tz = timezone(tzone)
+        except:
+            self.warning(
+                "Wrong TimeZone. "
+                + "The time zone set to `%s`" % self.__timezone)
+            self.macro.warning(
+                "Wrong TimeZone. "
+                + "The time zone set to `%s`" % self.__timezone)
+            tz = timezone(self.__timezone)
+            
+        fmt = '%Y-%m-%dT%H:%M:%S.%f%z'
+        starttime = tz.localize(mtime)
+        return str(starttime.strftime(fmt))
+
+
+    def _endRecordList(self, recordlist):
+        try:
+            if self.filename is None:
+                return
+
+            self.__env = self.macro.getAllEnv() if self.macro else {}
+            envRec = recordlist.getEnviron()
+        
+            self.debug('END_DATA: %s ' % str(envRec))
+
+            timezone = self.__getVar("TimeZone", "timezone", self.__timezone)
+            self.__vars["data"]["end_time"] = \
+                self.__timeToString(envRec['endtime'], timezone)
+
+            envrecord = self.__appendRecord(self.__vars, 'FINAL')
+            self.__nexuswriter_device.JSONRecord = json.dumps(
+                envrecord, cls=NXS_FileRecorder.numpyEncoder)
+
+            self.__nexuswriter_device.CloseEntry()
+            self.__nexuswriter_device.CloseFile()
+        finally:
+            self.__removeDynamicComponent()
+
+
+    def _addCustomData(self, value, name, group="data", remove=False, **kwargs):
+        if group:
+            if group not in self.__vars.keys():
+                self.__vars[group] = { }
+            if not remove:        
+                self.__vars[group][name] = value
+            else:
+                self.__vars[group].pop(name, None)
+        else:
+            if not remove:
+                self.__vars[name] = value
+            else:
+                self.__vars.pop(name, None)
+
+
 
 class SPEC_FileRecorder(BaseFileRecorder):
     """ Saves data to a file """
@@ -1285,6 +2056,11 @@ def FileRecorder(filename, macro, **pars):
         klass = NXscan_FileRecorder
     elif ext in FIO_FileRecorder.formats.values():
         klass = FIO_FileRecorder
+    elif ext in NXS_FileRecorder.formats.values():
+        klass = NXS_FileRecorder
     else:
         klass = SPEC_FileRecorder
     return klass(filename=filename, macro=macro, **pars)
+
+
+
