@@ -120,7 +120,7 @@ class FIO_FileRecorder(BaseFileRecorder):
         #datetime object
         start_time = envRec['starttime']
         
-        self.motorNames = envRec['ref_moveables']
+        self.motorNames = envRec[ 'ref_moveables']
         self.mcaNames = []
         self.ctNames = []
         for e in envRec['datadesc']:
@@ -323,8 +323,6 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__deviceAliases = {}
         ## cut device aliases
         self.__cutDeviceAliases = {}
-#        ## dictionary with names to replace
-#        self.__toReplace = {}
 
         ## dynamic components
         self.__dynamicCP = "__dynamic_component__"
@@ -492,11 +490,6 @@ class NXS_FileRecorder(BaseFileRecorder):
         
         self.__cutDeviceAliases = {}
         for alias in self.__deviceAliases.keys():
-#            if alias.startswith("sca_exp_mca"):
-#                self.__cutDeviceAliases[alias] = "_".join(alias.split("_")[:3])
-#                self.__toReplace[alias] = "_".join(alias.split("_")[:3])
-#            else:
-#                self.__cutDeviceAliases[alias] = alias
             self.__cutDeviceAliases[alias] = alias
         
 
@@ -907,18 +900,6 @@ class NXS_FileRecorder(BaseFileRecorder):
         cnfxml = self.__nexusconfig_device.XMLString 
         return cnfxml
 
-        
-#    ## replaces alias by cut aliases according to self.toReplaces
-#    # \param text with aliases
-#    # \returns text with cut aliases    
-#    def __replaceAliases(self, text):
-#        res = text
-#        if self.__toReplace:
-#            for el in self.__toReplace.keys():
-###                TODO check if full name
-#                res = res.replace(el, self.__toReplace[el])
-#        return res
-    
 
     def _startRecordList(self, recordlist):
         try:
@@ -937,10 +918,6 @@ class NXS_FileRecorder(BaseFileRecorder):
             if appendentry:         
                 self.__vars["vars"]["serialno"] = envRec["serialno"]
 
-        
-#        self.sampleTime = envRec['estimatedtime']  \
-#                     /(envRec['total_scan_intervals'] + 1)
-            
             cnfxml = self.__createConfiguration()
 
             self.__nexuswriter_device.Init()
@@ -996,12 +973,10 @@ class NXS_FileRecorder(BaseFileRecorder):
 
             self.debug('DATA: {"data":%s}' % json.dumps(
                     record.data,
-                    #                    self.__replaceAliases(record.data),
                     cls=NXS_FileRecorder.numpyEncoder))
 
             jsonString = '{"data":%s}' % json.dumps(
                 record.data,
-#                self.__replaceAliases(record.data),
                 cls=NXS_FileRecorder.numpyEncoder)
             self.debug("JSON!!: %s" % jsonString)
             self.__nexuswriter_device.Record(jsonString)
