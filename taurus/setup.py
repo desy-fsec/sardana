@@ -435,7 +435,7 @@ class build(dftbuild):
     def build_jdraw(self):
         print("Building jdraw grammar...", end='')
         taurus_dir = abspath('lib')
-        sys.path.append(taurus_dir)
+        sys.path.insert(0, taurus_dir)
         try:
             from taurus.qt.qtgui.graphic.jdraw import jdraw_parser
             jdraw_parser.new_parser()
