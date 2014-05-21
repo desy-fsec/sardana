@@ -442,9 +442,8 @@ class build(dftbuild):
             print(" [DONE]")
         except:
             print("[ERROR]")
-            raise
         finally:
-            sys.path.pop()
+            sys.path.pop(0)
         
     def has_doc(self):
         if self.no_doc:
