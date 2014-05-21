@@ -443,7 +443,7 @@ class build(dftbuild):
         except:
             print("[ERROR]")
         finally:
-            sys.path.pop()
+            sys.path.pop(0)
         
     def has_doc(self):
         if self.no_doc:
