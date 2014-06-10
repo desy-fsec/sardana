@@ -938,8 +938,6 @@ class TaurusGui(TaurusMainWindow):
                 registerconfig = p not in POOLINSTRUMENTS  #the pool instruments may change when the pool config changes, so we do not store their config
                 #create a panel
                 self.createPanel(w, p.name, floating=p.floating, registerconfig=registerconfig, instrumentkey=instrumentkey, permanent=True)
-                Qt.qApp.SDM.connectWriter("expConfChanged", w, 
-                                          "experimentConfigurationChanged")
             except Exception, e:
                 msg = 'Cannot create panel %s' % getattr(p, 'name', '__Unknown__')
                 self.error(msg)
