@@ -198,6 +198,11 @@ class DockWidgetPanel(Qt.QDockWidget, TaurusBaseWidget):
             configdict['widget'] = self.widget().createConfig()
         return configdict
 
+    def closeEvent(self, event):
+        Qt.QDockWidget.closeEvent(self, event)        
+        TaurusBaseWidget.closeEvent(self, event)
+        self.widget().closeEvent(event)
+
 
 class TaurusGui(TaurusMainWindow):
     '''
@@ -318,6 +323,8 @@ class TaurusGui(TaurusMainWindow):
         except:
             pass
         TaurusMainWindow.closeEvent(self, event)
+        for panel in self.__panels.values():
+            panel.close()
 
     def __updatePanelsMenu(self):
         '''dynamically fill the panels menus'''

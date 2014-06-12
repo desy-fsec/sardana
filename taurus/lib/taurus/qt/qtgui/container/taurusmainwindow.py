@@ -726,6 +726,8 @@ class TaurusMainWindow(Qt.QMainWindow, TaurusBaseContainer):
         self.saveSettings() #save current window state before closing
         if hasattr(self,"socketServer"):
             self.socketServer.close()
+        Qt.QMainWindow.closeEvent(self, event)
+        TaurusBaseContainer.closeEvent(self, event)
         
         #print "\n\n------ MAIN WINDOW CLOSED ------ \n\n"
     
