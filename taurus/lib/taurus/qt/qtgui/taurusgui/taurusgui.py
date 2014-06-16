@@ -323,9 +323,18 @@ class TaurusGui(TaurusMainWindow):
         except:
             pass
         TaurusMainWindow.closeEvent(self, event)
-        for panel in self.__panels.values():
-            panel.close()
-
+        for n, panel in self.__panels.items():
+            panel.closeEvent(event)
+            if not event.isAccepted():
+                result = Qt.QMessageBox.question(
+                    self, 'Closing error', 
+                    "Panel '%s' cannot be closed. Proceed closing?" % n, 
+                    Qt.QMessageBox.Yes | Qt.QMessageBox.No)
+                if result == Qt.QMessageBox.Yes:
+                    event.accept()
+                else:
+                    break
+                
     def __updatePanelsMenu(self):
         '''dynamically fill the panels menus'''
         panelsmenu = self.sender()
