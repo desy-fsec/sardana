@@ -39,8 +39,7 @@ import numpy
 import json
 
 from datetime import datetime
-from pytz import timezone
-import pytz
+import pytz 
 
 import PyTango
 import xml.dom.minidom 
@@ -928,9 +927,9 @@ class NXS_FileRecorder(BaseFileRecorder):
         
             self.debug('START_DATA: %s' % str(envRec))
 
-            timezone = self.__getVar("TimeZone", "timezone", self.__timezone)
+            tzone = self.__getVar("TimeZone", "timezone", self.__timezone)
             self.__vars["data"]["start_time"] = \
-                self.__timeToString(envRec['starttime'],timezone)
+                self.__timeToString(envRec['starttime'], tzone)
             self.__vars["data"]["serialno"] = envRec["serialno"]
 
             envrecord = self.__appendRecord(self.__vars, 'INIT')
@@ -987,7 +986,7 @@ class NXS_FileRecorder(BaseFileRecorder):
 
     def __timeToString(self, mtime, tzone):
         try:
-            tz = timezone(tzone)
+            tz = pytz.timezone(tzone)
         except:
             self.warning(
                 "Wrong TimeZone. "
@@ -995,7 +994,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.macro.warning(
                 "Wrong TimeZone. "
                 + "The time zone set to `%s`" % self.__timezone)
-            tz = timezone(self.__timezone)
+            tz = pytz.timezone(self.__timezone)
             
         fmt = '%Y-%m-%dT%H:%M:%S.%f%z'
         starttime = tz.localize(mtime)
@@ -1012,9 +1011,9 @@ class NXS_FileRecorder(BaseFileRecorder):
         
             self.debug('END_DATA: %s ' % str(envRec))
 
-            timezone = self.__getVar("TimeZone", "timezone", self.__timezone)
+            tzone = self.__getVar("TimeZone", "timezone", self.__timezone)
             self.__vars["data"]["end_time"] = \
-                self.__timeToString(envRec['endtime'], timezone)
+                self.__timeToString(envRec['endtime'], tzone)
 
             envrecord = self.__appendRecord(self.__vars, 'FINAL')
             self.__nexuswriter_device.JSONRecord = json.dumps(
