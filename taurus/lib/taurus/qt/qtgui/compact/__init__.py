@@ -6,7 +6,7 @@
 ## 
 ## http://www.tango-controls.org/static/taurus/latest/doc/html/index.html
 ##
-## Copyright 2011 CELLS / ALBA Synchrotron, Bellaterra, Spain
+## Copyright 2013 CELLS / ALBA Synchrotron, Bellaterra, Spain
 ## 
 ## Taurus is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU Lesser General Public License as published by
@@ -23,15 +23,10 @@
 ##
 #############################################################################
 
-"""This package provides a set of taurus wiget utilities like color management, 
-configuration, actions."""
+"""This package contains a collection of taurus Qt widgets that combine other widgets
+to provide several functionalities in a reduced space"""
 
 __docformat__ = 'restructuredtext'
 
-from .taurusactionfactory import *
-from .taurusaction import *
-from .tauruscolor import *
-from .tauruswidgetfactory import *
-from .taurusscreenshot import *
-from .qdraganddropdebug import *
-from .ui import *
+from .abstractswitcher import *
+from .basicswitcher import *

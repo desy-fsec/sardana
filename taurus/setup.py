@@ -115,6 +115,7 @@ packages = [
     'taurus.qt.qtgui.base',
     'taurus.qt.qtgui.button',
     'taurus.qt.qtgui.button.test',
+    'taurus.qt.qtgui.compact',
     'taurus.qt.qtgui.console',
     'taurus.qt.qtgui.container',
     'taurus.qt.qtgui.dialog',
@@ -431,11 +432,24 @@ class build(dftbuild):
             self.logo = abspath('lib', 'taurus', 'qt', 'qtgui', 'resource', 'taurus.png')
 
     def run(self):
-        if self.with_extra_widgets:
-            self.distribution.packages.extend(extra_packages)
-        self.distribution.package_data['taurus.qt.qtgui.resource'].extend(self.get_extra_resource_package_data())
+        self.build_package_data()
         self.build_jdraw()
         dftbuild.run(self)
+
+    def build_package_data(self):
+        packages = self.distribution.packages
+        package_data = self.distribution.package_data
+        if self.with_extra_widgets:
+            packages.extend(extra_packages)
+        resource_package_data = self.get_extra_resource_package_data()
+        package_data['taurus.qt.qtgui.resource'].extend(resource_package_data)
+
+        for package in packages:
+            if package.endswith(".ui"):
+                pdata = package_data.get(package)
+                if pdata is None:
+                    package_data[package] = pdata = []
+                pdata.append("*.ui")
 
     def build_jdraw(self):
         print("Building jdraw grammar...", end='')

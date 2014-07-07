@@ -49,8 +49,10 @@ from taurus.qt.qtgui.container import TaurusMainWindow
 from taurus.qt.qtgui.taurusgui.utils import ExternalApp, PanelDescription, \
     ToolBarDescription, AppletDescription
 from taurus.qt.qtgui.panel import QDoubleListDlg
+from taurus.qt.qtgui.util.ui import UILoadable
 
 
+@UILoadable(with_ui='ui')
 class AssociationDialog(Qt.QDialog):
     '''A dialog for viewing and editing the associations between instruments
     and panels'''
@@ -59,10 +61,7 @@ class AssociationDialog(Qt.QDialog):
         if flags is None:
             flags = Qt.Qt.Widget
         Qt.QDialog.__init__(self, parent, flags)
-
-        from ui.ui_PanelAssociationsDlg import Ui_PanelAssociationsDlg
-        self.ui = Ui_PanelAssociationsDlg()
-        self.ui.setupUi(self)
+        self.loadUi()
 
         self.refresh()
         self.connect(self.ui.instrumentCB, Qt.SIGNAL('activated (QString)'), self.onInstrumentChanged)

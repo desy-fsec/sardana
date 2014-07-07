@@ -26,12 +26,4 @@
 """This package provides a set of taurus wiget utilities like color management, 
 configuration, actions."""
 
-__docformat__ = 'restructuredtext'
-
-from .taurusactionfactory import *
-from .taurusaction import *
-from .tauruscolor import *
-from .tauruswidgetfactory import *
-from .taurusscreenshot import *
-from .qdraganddropdebug import *
-from .ui import *
+from .test_ui import *
