@@ -352,7 +352,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         ## default timezone
         self.__timezone = "Europe/Berlin"
 
-        self.__defaultpath = "/entry$var.serialno:NXentry/NXinstrument/NXcollection"
+        self.__defaultpath = "/entry$var.serialno:NXentry/NXinstrument/collection"
 
     def __getVar(self, attr, var, default, decode = False):
         if self.__nexussettings_device:
