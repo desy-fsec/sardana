@@ -438,9 +438,15 @@ class NXS_FileRecorder(BaseFileRecorder):
             servers = self.__db.get_device_exported_for_class(
                 "NXSDataWriter").value_string 
         if len(servers) > 0:
-            self.__nexuswriter_device = PyTango.DeviceProxy(servers[0])
-            self.__nexuswriter_device.set_timeout_millis(self.__timeout)
-        else:
+            try:
+                self.__nexuswriter_device = PyTango.DeviceProxy(servers[0])
+                self.__nexuswriter_device.set_timeout_millis(self.__timeout)
+            except Exception as e:
+                self.__nexuswriter_device = None
+                self.warning("Cannot connect to '%s' " % servers[0])
+                self.macro.warning("Cannot connect to '%s'" % servers[0])
+
+        if self.__nexuswriter_device is None:
             from nxswriter import TangoDataWriter
             self.__nexuswriter_device = TangoDataWriter.TangoDataWriter()
 
@@ -452,9 +458,15 @@ class NXS_FileRecorder(BaseFileRecorder):
             servers = self.__db.get_device_exported_for_class(
                 "NXSConfigServer").value_string 
         if len(servers) > 0:
-            self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
-            self.__nexusconfig_device.set_timeout_millis(self.__timeout)
-        else:    
+
+            try:
+                self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
+                self.__nexusconfig_device.set_timeout_millis(self.__timeout)
+            except Exception as e:
+                self.__nexusconfig_device = None
+                self.warning("Cannot connect to '%s' " % servers[0])
+                self.macro.warning("Cannot connect to '%s'" % servers[0])
+        if self.__nexusconfig_device is None:    
             from nxsconfigserver import XMLConfigurator
             self.__nexusconfig_device = XMLConfigurator.XMLConfigurator()
             dbp = self.__getVar(None, "NeXusDBParams", None, {})
