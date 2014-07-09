@@ -941,6 +941,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             if hasattr(self.__nexuswriter_device, 'Init'):
                 self.__nexuswriter_device.Init()
                 self.__nexuswriter_device.fileName = str(self.filename)
+                self.__nexuswriter_device.openFile()
                 self.__nexuswriter_device.XMLSettings = cnfxml
             else:
                 self.__nexuswriter_device.fileName = str(self.filename)
