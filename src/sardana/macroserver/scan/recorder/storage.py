@@ -469,8 +469,10 @@ class NXS_FileRecorder(BaseFileRecorder):
         if self.__nexusconfig_device is None:    
             from nxsconfigserver import XMLConfigurator
             self.__nexusconfig_device = XMLConfigurator.XMLConfigurator()
-            dbp = self.__getVar(None, "NeXusDBParams", None, {})
-            self.__nexusconfig_device.jsonSettings = dbp
+            dbp = self.__getVar(None, "NeXusDBParams", None, True)
+            if not dbp:
+                dbp = {} 
+            self.__nexusconfig_device.jsonSettings = json.dumps(dbp)
         self.__nexusconfig_device.open()
 
 
