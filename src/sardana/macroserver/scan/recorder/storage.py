@@ -340,11 +340,12 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         self.__setNexusDevices()
         
-        appendentry = self.__getVar("AppendEntry", "NeXusAppendEntry", False)
+        appendentry = self.__getVar("AppendEntry", "NeXusAppendEntry", True)
         scanID = self.__env["ScanID"] \
             if "ScanID" in self.__env.keys() else -1
 
-        self.__setFileName(self.__base_filename, not appendentry, scanID)
+        appendentry = not self.__setFileName(
+            self.__base_filename, not appendentry, scanID)
 
         ## available components
         self.__availableComps = []
@@ -374,10 +375,10 @@ class NXS_FileRecorder(BaseFileRecorder):
 
     def __setFileName(self, filename, number=True, scanID=None):
         if scanID is not None and scanID < 0 :
-            return
+            return number
         if self.fd != None: 
             self.fd.close()
-   
+
         dirname = os.path.dirname(filename)
         if not dirname:
             self.warning(
@@ -396,20 +397,24 @@ class NXS_FileRecorder(BaseFileRecorder):
                 self.macro.warning(str(e))
                 self.warning(str(e))
                 self.filename = None
-                return
-            
-
-        if number:
-            # construct the filename, e.g. : /dir/subdir/etcdir/prefix_00123.nxs
-            tpl = filename.rpartition('.')
+                return number
+        
+        subs = (len([None for a in list(re.finditer('%',filename))]) == 1)
+        # construct the filename, e.g. : /dir/subdir/etcdir/prefix_00123.nxs
+        if subs or number:
             if scanID is None:
                 serial = self.recordlist.getEnvironValue('serialno')
             elif scanID >= 0:
                 serial = scanID + 1
-            self.filename = "%s_%05d.%s" % (tpl[0], serial, tpl[2])
+            if subs:    
+                self.filename = filename % serial
+            else:
+                tpl = filename.rpartition('.')
+                self.filename = "%s_%05d.%s" % (tpl[0], serial, tpl[2])
         else:
             self.filename = filename
                     
+        return number or subs    
 
     def getFormat(self):
         return DataFormats.whatis(DataFormats.nxs)
@@ -421,7 +426,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         else:
             servers = self.__db.get_device_exported_for_class(
                 "NXSRecSelector").value_string 
-        if len(servers) > 0:
+        if len(servers) > 0 and len(servers[0])>0:
             try:
                 self.__nexussettings_device = PyTango.DeviceProxy(servers[0])
                 self.__nexussettings_device.set_timeout_millis(self.__timeout)
@@ -429,6 +434,8 @@ class NXS_FileRecorder(BaseFileRecorder):
                 self.__nexussettings_device = None
                 self.warning("Cannot connect to '%s' " % servers[0])
                 self.macro.warning("Cannot connect to '%s'" % servers[0])
+        else:
+            self.__nexussettings_device = None
                 
         if self.__nexussettings_device:
             servers = [self.__nexussettings_device.writerDevice]
@@ -437,7 +444,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         else:
             servers = self.__db.get_device_exported_for_class(
                 "NXSDataWriter").value_string 
-        if len(servers) > 0:
+        if len(servers) > 0 and len(servers[0]) > 0 :
             try:
                 self.__nexuswriter_device = PyTango.DeviceProxy(servers[0])
                 self.__nexuswriter_device.set_timeout_millis(self.__timeout)
@@ -445,6 +452,9 @@ class NXS_FileRecorder(BaseFileRecorder):
                 self.__nexuswriter_device = None
                 self.warning("Cannot connect to '%s' " % servers[0])
                 self.macro.warning("Cannot connect to '%s'" % servers[0])
+        else:
+            self.__nexuswriter_device = None
+    
 
         if self.__nexuswriter_device is None:
             from nxswriter import TangoDataWriter
@@ -457,15 +467,17 @@ class NXS_FileRecorder(BaseFileRecorder):
         else:
             servers = self.__db.get_device_exported_for_class(
                 "NXSConfigServer").value_string 
-        if len(servers) > 0:
+        if len(servers) > 0 and len(servers[0]) > 0:
 
             try:
                 self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
                 self.__nexusconfig_device.set_timeout_millis(self.__timeout)
             except Exception as e:
-                self.__nexusconfig_device = None
                 self.warning("Cannot connect to '%s' " % servers[0])
                 self.macro.warning("Cannot connect to '%s'" % servers[0])
+        else:
+            self.__nexusconfig_device = None
+            
         if self.__nexusconfig_device is None:    
             from nxsconfigserver import XMLConfigurator
             self.__nexusconfig_device = XMLConfigurator.XMLConfigurator()
@@ -664,9 +676,14 @@ class NXS_FileRecorder(BaseFileRecorder):
         envRec = self.recordlist.getEnviron()
         cps =  self.__nexusconfig_device.availableComponents()
         name = "__dynamic_component__"
+        sfiles = self.recordlist.getEnvironValue('ScanFile')
+        nwarn = type(sfiles).__name__ == 'list' and len(sfiles)>1
+            
+
         while name in cps:
-            self.warning("Dynamic component '%s' already exists" % name)
-            self.macro.warning("Dynamic component '%s' already exists" % name)
+            if not nwarn:
+                self.warning("Dynamic component '%s' already exists" % name)
+                self.macro.warning("Dynamic component '%s' already exists" % name)
             name = name + "x"
         self.__dynamicCP = name
         self.debug("Creates '%s' component for '%s'" % (name, str(dss)))
@@ -943,9 +960,10 @@ class NXS_FileRecorder(BaseFileRecorder):
 
             
             appendentry = self.__getVar("AppendEntry", "NeXusAppendEntry", 
-                                        False)
+                                        True)
 
-            self.__setFileName(self.__base_filename, not appendentry)
+            appendentry = not self.__setFileName(
+                self.__base_filename, not appendentry)
             envRec = self.recordlist.getEnviron()
             if appendentry:         
                 self.__vars["vars"]["serialno"] = envRec["serialno"]
