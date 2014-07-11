@@ -406,13 +406,18 @@ class NXS_FileRecorder(BaseFileRecorder):
                 serial = self.recordlist.getEnvironValue('serialno')
             elif scanID >= 0:
                 serial = scanID + 1
-            if subs:    
+        if subs:    
+            try:
                 self.filename = filename % serial
-            else:
+            except:
+                subs = False
+                
+        if not subs:
+            if number:
                 tpl = filename.rpartition('.')
                 self.filename = "%s_%05d.%s" % (tpl[0], serial, tpl[2])
-        else:
-            self.filename = filename
+            else:
+                self.filename = filename
                     
         return number or subs    
 
@@ -487,7 +492,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             dbp = self.__getVar(None, "NeXusDBParams", None, True)
             if not dbp:
                 dbp = {} 
-            self.__nexusconfig_device.jsonSettings = json.dumps(dbp)
+            self.__nexusconfig_device.jsonsettings = json.dumps(dbp)
         self.__nexusconfig_device.open()
 
 
@@ -766,10 +771,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                             self.__createLink(root, nxdata, path, field)
 
 
-        if hasattr(self.__nexusconfig_device, 'XMLString'):
-            self.__nexusconfig_device.XMLString = str(root.toprettyxml(indent=""))
-        else:
-            self.__nexusconfig_device.xmlConfig = str(root.toprettyxml(indent=""))
+        self.__nexusconfig_device.xmlstring = str(root.toprettyxml(indent=""))
         self.__nexusconfig_device.storeComponent(str(self.__dynamicCP))
 
         self.debug("Dynamic Component:\n%s" % root.toprettyxml(indent="  "))
@@ -946,10 +948,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                 set(nexuscomponents) | set(mandatory)) )
         self.__nexusconfig_device.createConfiguration(nexuscomponents)
 
-        if hasattr(self.__nexusconfig_device, 'XMLString'):
-            cnfxml = self.__nexusconfig_device.XMLString 
-        else:
-            cnfxml = self.__nexusconfig_device.xmlConfig
+        cnfxml = self.__nexusconfig_device.xmlstring 
         return cnfxml
 
 
@@ -975,13 +974,9 @@ class NXS_FileRecorder(BaseFileRecorder):
 
             if hasattr(self.__nexuswriter_device, 'Init'):
                 self.__nexuswriter_device.Init()
-                self.__nexuswriter_device.fileName = str(self.filename)
-                self.__nexuswriter_device.openFile()
-                self.__nexuswriter_device.XMLSettings = cnfxml
-            else:
-                self.__nexuswriter_device.fileName = str(self.filename)
-                self.__nexuswriter_device.openNXFile()
-                self.__nexuswriter_device.xmlSettings = cnfxml
+            self.__nexuswriter_device.fileName = str(self.filename)
+            self.__nexuswriter_device.openFile()
+            self.__nexuswriter_device.xmlsettings = cnfxml
 
         
             self.debug('START_DATA: %s' % str(envRec))
@@ -994,10 +989,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             envrecord = self.__appendRecord(self.__vars, 'INIT')
             rec = json.dumps(
                 envrecord, cls=NXS_FileRecorder.numpyEncoder)
-            if hasattr(self.__nexuswriter_device, 'Init'):
-                self.__nexuswriter_device.JSONRecord = rec
-            else:
-                self.__nexuswriter_device.jsonRecord = rec
+            self.__nexuswriter_device.jsonrecord = rec
             self.__nexuswriter_device.openEntry()
         except:
             self.__removeDynamicComponent()
@@ -1032,10 +1024,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             envrecord = self.__appendRecord(self.__vars, 'STEP')
             rec = json.dumps(
                 envrecord, cls=NXS_FileRecorder.numpyEncoder)
-            if hasattr(self.__nexuswriter_device, 'Init'):
-                self.__nexuswriter_device.JSONRecord = rec
-            else:
-                self.__nexuswriter_device.jsonRecord = rec
+            self.__nexuswriter_device.jsonrecord = rec
 
             self.debug('DATA: {"data":%s}' % json.dumps(
                     record.data,
@@ -1086,14 +1075,9 @@ class NXS_FileRecorder(BaseFileRecorder):
             
             rec =  json.dumps(
                 envrecord, cls=NXS_FileRecorder.numpyEncoder)
-            if hasattr(self.__nexuswriter_device, 'Init'):
-                self.__nexuswriter_device.JSONRecord = rec
-                self.__nexuswriter_device.closeEntry()
-                self.__nexuswriter_device.closeFile()
-            else:
-                self.__nexuswriter_device.jsonRecord = rec
-                self.__nexuswriter_device.closeEntry()
-                self.__nexuswriter_device.closeNXFile()
+            self.__nexuswriter_device.jsonrecord = rec
+            self.__nexuswriter_device.closeEntry()
+            self.__nexuswriter_device.closeFile()
 
         finally:
             self.__removeDynamicComponent()
