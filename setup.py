@@ -348,6 +348,11 @@ def main():
         'sardana.taurus.qt.qtgui.extra_pool',
     ]
 
+    package_data = {'sardana.taurus.qt.qtgui.extra_macroexecutor': ['ui/*.ui'],
+                    'sardana.taurus.qt.qtgui.extra_pool': ['ui/*.ui'],
+                    'sardana.taurus.qt.qtgui.extra_sardana': ['ui/*.ui']
+                    }
+    
     provides = [
         'sardana',
         'sardana.pool',
