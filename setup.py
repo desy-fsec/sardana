@@ -412,6 +412,7 @@ def main():
           license=Release.license,
           packages=packages,
           package_dir=package_dir,
+          package_data=package_data,
           classifiers=classifiers,
           scripts=scripts,
           provides=provides,
