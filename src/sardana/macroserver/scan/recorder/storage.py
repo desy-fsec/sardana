@@ -481,6 +481,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                 self.__nexusconfig_device.set_timeout_millis(self.__timeout)
                 self.__nexusconfig_device.ping()
             except Exception as e:
+                self.__nexusconfig_device = None
                 self.warning("Cannot connect to '%s' " % servers[0])
                 self.macro.warning("Cannot connect to '%s'" % servers[0])
         else:
