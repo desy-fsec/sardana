@@ -355,6 +355,8 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         self.__defaultpath = "/entry$var.serialno:NXentry/NXinstrument/collection"
 
+        self.__defaultenv = "NeXusWriter"
+
     def __getVar(self, attr, var, default, decode=False):
         if self.__nexussettings_device and attr:
             res = self.__nexussettings_device.read_attribute(attr).value
@@ -369,8 +371,15 @@ class NXS_FileRecorder(BaseFileRecorder):
             else:
                 return res 
         else:
-            return self.__env[var] \
-                if var in self.__env.keys() else default
+            if var in self.__env.keys():
+                return self.__env[var] 
+            elif self.__defaultenv in self.__env.keys():
+                nenv = self.__env[self.__defaultenv]
+                if not attr:
+                    attr = var.replace("NeXus", "")
+                if attr in nenv:
+                    return nenv[attr]
+            return default
         
 
     def __setFileName(self, filename, number=True, scanID=None):
@@ -982,7 +991,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         
             self.debug('START_DATA: %s' % str(envRec))
 
-            tzone = self.__getVar("TimeZone", "timezone", self.__timezone)
+            tzone = self.__getVar("TimeZone", "NeXusTimeZone", self.__timezone)
             self.__vars["data"]["start_time"] = \
                 self.__timeToString(envRec['starttime'], tzone)
             self.__vars["data"]["serialno"] = envRec["serialno"]
@@ -1068,7 +1077,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         
             self.debug('END_DATA: %s ' % str(envRec))
 
-            tzone = self.__getVar("TimeZone", "timezone", self.__timezone)
+            tzone = self.__getVar("TimeZone", "NeXusTimeZone", self.__timezone)
             self.__vars["data"]["end_time"] = \
                 self.__timeToString(envRec['endtime'], tzone)
 
