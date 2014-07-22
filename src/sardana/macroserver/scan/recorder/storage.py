@@ -338,15 +338,6 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         self.__env = self.macro.getAllEnv() if self.macro else {}
 
-        self.__setNexusDevices()
-        
-        appendentry = self.__getVar("AppendEntry", "NeXusAppendEntry", True)
-        scanID = self.__env["ScanID"] \
-            if "ScanID" in self.__env.keys() else -1
-
-        appendentry = not self.__setFileName(
-            self.__base_filename, not appendentry, scanID)
-
         ## available components
         self.__availableComps = []
 
@@ -356,6 +347,16 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__defaultpath = "/entry$var.serialno:NXentry/NXinstrument/collection"
 
         self.__defaultenv = "NeXusConfiguration"
+
+        self.__setNexusDevices()
+        
+        appendentry = self.__getVar("AppendEntry", "NeXusAppendEntry", True)
+        scanID = self.__env["ScanID"] \
+            if "ScanID" in self.__env.keys() else -1
+
+        appendentry = not self.__setFileName(
+            self.__base_filename, not appendentry, scanID)
+
 
     def __getVar(self, attr, var, default, decode=False):
         if self.__nexussettings_device and attr:
@@ -435,11 +436,12 @@ class NXS_FileRecorder(BaseFileRecorder):
 
 
     def __setNexusDevices(self):
-        if "NeXusSelectorDevice" in self.__env.keys():
-            servers = [str(self.__env["NeXusSelectorDevice"])]
-        else:
+        vl = self.__getVar(None, "NeXusSelectorDevice", None)
+        if vl is None:
             servers = self.__db.get_device_exported_for_class(
                 "NXSRecSelector").value_string 
+        else:    
+            servers = [str(vl)]
         if len(servers) > 0 and len(servers[0])>0:
             try:
                 self.__nexussettings_device = PyTango.DeviceProxy(servers[0])
@@ -452,13 +454,14 @@ class NXS_FileRecorder(BaseFileRecorder):
         else:
             self.__nexussettings_device = None
                 
-        if self.__nexussettings_device:
-            servers = [self.__nexussettings_device.writerDevice]
-        elif "NeXusWriterDevice" in self.__env.keys():
-            servers = [self.__env["NeXusWriterDevice"]]
-        else:
+
+        vl = self.__getVar("WriterDevice", "NeXusWriterDevice", None)
+        if vl is None:
             servers = self.__db.get_device_exported_for_class(
                 "NXSDataWriter").value_string 
+        else:    
+            servers = [str(vl)]
+
         if len(servers) > 0 and len(servers[0]) > 0 :
             try:
                 self.__nexuswriter_device = PyTango.DeviceProxy(servers[0])
@@ -476,13 +479,13 @@ class NXS_FileRecorder(BaseFileRecorder):
             from nxswriter import TangoDataWriter
             self.__nexuswriter_device = TangoDataWriter.TangoDataWriter()
 
-        if self.__nexussettings_device:
-            servers = [self.__nexussettings_device.configDevice]
-        elif "NeXusConfigDevice" in self.__env.keys():
-            servers = [self.__env["NeXusConfigDevice"]]
-        else:
+        vl = self.__getVar("ConfigDevice", "NeXusConfigDevice", None)
+        if vl is None:
             servers = self.__db.get_device_exported_for_class(
                 "NXSConfigServer").value_string 
+        else:    
+            servers = [str(vl)]
+
         if len(servers) > 0 and len(servers[0]) > 0:
 
             try:
