@@ -355,7 +355,7 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         self.__defaultpath = "/entry$var.serialno:NXentry/NXinstrument/collection"
 
-        self.__defaultenv = "NeXusWriter"
+        self.__defaultenv = "NeXusConfiguration"
 
     def __getVar(self, attr, var, default, decode=False):
         if self.__nexussettings_device and attr:
