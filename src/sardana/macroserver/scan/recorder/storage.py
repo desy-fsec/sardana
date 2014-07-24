@@ -348,6 +348,8 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         self.__defaultenv = "NeXusConfiguration"
 
+        self.__moduleLabel = 'module'
+
         self.__setNexusDevices()
         
         appendentry = self.__getVar("AppendEntry", "NeXusAppendEntry", True)
@@ -442,7 +444,8 @@ class NXS_FileRecorder(BaseFileRecorder):
                 "NXSRecSelector").value_string 
         else:    
             servers = [str(vl)]
-        if len(servers) > 0 and len(servers[0])>0:
+        if len(servers) > 0 and len(servers[0])>0 \
+                and servers[0] != self.__moduleLabel:
             try:
                 self.__nexussettings_device = PyTango.DeviceProxy(servers[0])
                 self.__nexussettings_device.set_timeout_millis(self.__timeout)
@@ -456,13 +459,14 @@ class NXS_FileRecorder(BaseFileRecorder):
                 
 
         vl = self.__getVar("WriterDevice", "NeXusWriterDevice", None)
-        if vl is None:
+        if not vl:
             servers = self.__db.get_device_exported_for_class(
                 "NXSDataWriter").value_string 
         else:    
             servers = [str(vl)]
 
-        if len(servers) > 0 and len(servers[0]) > 0 :
+        if len(servers) > 0 and len(servers[0])>0 \
+                and servers[0] != self.__moduleLabel:
             try:
                 self.__nexuswriter_device = PyTango.DeviceProxy(servers[0])
                 self.__nexuswriter_device.set_timeout_millis(self.__timeout)
@@ -480,14 +484,14 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.__nexuswriter_device = TangoDataWriter.TangoDataWriter()
 
         vl = self.__getVar("ConfigDevice", "NeXusConfigDevice", None)
-        if vl is None:
+        if not vl:
             servers = self.__db.get_device_exported_for_class(
                 "NXSConfigServer").value_string 
         else:    
             servers = [str(vl)]
 
-        if len(servers) > 0 and len(servers[0]) > 0:
-
+        if len(servers) > 0 and len(servers[0])>0 \
+                and servers[0] != self.__moduleLabel:
             try:
                 self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
                 self.__nexusconfig_device.set_timeout_millis(self.__timeout)
