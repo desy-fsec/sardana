@@ -310,7 +310,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__nexussettings_device = None
 
         ## device proxy timeout 
-        self.__timeout =  25000
+        self.__timeout =  100000
         ## Custom variables
         self.__vars = {"data":{}, 
                        "datasources":{}, 
