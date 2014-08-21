@@ -707,8 +707,8 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         while name in cps:
             if not nwarn:
-                self.warning("Dynamic component '%s' already exists" % name)
-                self.macro.warning("Dynamic component '%s' already exists" % name)
+                self.info("Dynamic component '%s' already exists" % name)
+                self.macro.info("Dynamic component '%s' already exists" % name)
             name = name + "x"
         self.__dynamicCP = name
         self.debug("Creates '%s' component for '%s'" % (name, str(dss)))
