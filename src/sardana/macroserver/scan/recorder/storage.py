@@ -456,8 +456,30 @@ class NXS_FileRecorder(BaseFileRecorder):
                 self.macro.warning("Cannot connect to '%s'" % servers[0])
         else:
             self.__nexussettings_device = None
-                
 
+        mntgrp = self.__getVar("MntGrp", "NeXusMntGrp", None)
+        amntgrp = self.__getVar(None, "ActiveMntGrp", None)
+        if amntgrp != mntgrp:
+            self.warning(
+                ("Active Measurement Group '%s'" % amntgrp) \
+                + (" differs from NeXusMntGrp '%s'." % mntgrp))
+            self.warning(
+                "Some metadata may not be stored into the NeXus file.")
+            self.warning(
+                "To fix it please apply your settings by Component Selector."
+                )
+            self.macro.warning(
+                ("Active Measurement Group '%s'" % amntgrp) \
+                + (" differs from NeXusMntGrp '%s'." % mntgrp))
+            self.macro.warning(
+                "Some metadata may not be stored into the NeXus file.")
+            self.macro.warning(
+                "To fix it please apply your settings by Component Selector."
+                )
+            
+            self.__nexussettings_device = None
+            self.__defaultenv = None
+                
         vl = self.__getVar("WriterDevice", "NeXusWriterDevice", None)
         if not vl:
             servers = self.__db.get_device_exported_for_class(
