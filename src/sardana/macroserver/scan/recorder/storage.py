@@ -459,7 +459,7 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         mntgrp = self.__getVar("MntGrp", "NeXusMntGrp", None)
         amntgrp = self.__getVar(None, "ActiveMntGrp", None)
-        if amntgrp != mntgrp:
+        if mntgrp and amntgrp != mntgrp:
             self.warning(
                 ("Active Measurement Group '%s'" % amntgrp) \
                 + (" differs from NeXusMntGrp '%s'." % mntgrp))
