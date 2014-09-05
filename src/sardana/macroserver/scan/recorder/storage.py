@@ -1010,6 +1010,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                 self.__vars["vars"]["serialno"] = envRec["serialno"]
 
             cnfxml = self.__createConfiguration()
+            self.__removeDynamicComponent()
 
             if hasattr(self.__nexuswriter_device, 'Init'):
                 self.__nexuswriter_device.Init()
