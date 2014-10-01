@@ -360,7 +360,8 @@ class NXS_FileRecorder(BaseFileRecorder):
 
     def __getVar(self, attr, var, default, decode=False):
         if self.__nexussettings_device and attr:
-            res = self.__nexussettings_device.read_attribute(attr).value
+#            res = self.__nexussettings_device.read_attribute(attr).value
+            res = getattr(self.__nexussettings_device, attr)
             if decode:
                 try:
                     dec = json.loads(res)
@@ -453,8 +454,12 @@ class NXS_FileRecorder(BaseFileRecorder):
                 self.macro.warning("Cannot connect to '%s'" % servers[0])
         else:
             self.__nexussettings_device = None
+        if self.__nexussettings_device is None:
+            from nxsrecconfig import Settings
+            self.__nexussettings_device = Settings.Settings()
+            self.__nexussettings_device.importAllEnv()
 
-        mntgrp = self.__getVar("MntGrp", "NeXusMntGrp", None)
+        mntgrp = self.__getVar("mntGrp", "NeXusMntGrp", None)
         amntgrp = self.__getVar(None, "ActiveMntGrp", None)
         if mntgrp and amntgrp != mntgrp:
             self.warning(
@@ -477,7 +482,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.__nexussettings_device = None
             self.__defaultenv = None
 
-        vl = self.__getVar("WriterDevice", "NeXusWriterDevice", None)
+        vl = self.__getVar("writerDevice", "NeXusWriterDevice", None)
         if not vl:
             servers = self.__db.get_device_exported_for_class(
                 "NXSDataWriter").value_string
@@ -501,7 +506,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             from nxswriter import TangoDataWriter
             self.__nexuswriter_device = TangoDataWriter.TangoDataWriter()
 
-        vl = self.__getVar("ConfigDevice", "NeXusConfigDevice", None)
+        vl = self.__getVar("configDevice", "NeXusConfigDevice", None)
         if not vl:
             servers = self.__db.get_device_exported_for_class(
                 "NXSConfigServer").value_string
@@ -629,223 +634,21 @@ class NXS_FileRecorder(BaseFileRecorder):
                     prev = prev.previousSibling
         return names
 
-    def __getProp(self, nexusprop, nexuslabels, name, default):
-        prop = nexusprop.get(nexuslabels.get(name, ""), None)
-        if prop is None:
-            prop = nexusprop.get(name, default)
-        return prop
-
-    def __getFieldPath(self, nexuspaths, nexuslabels, alias, defaultpath):
-        path = nexuspaths.get(nexuslabels.get(alias, ""), "")
-        if not path:
-            path = nexuspaths.get(alias, "")
-        if path:
-            spath = path.split('/')
-            field = spath[-1]
-            path = '/'.join(spath[:-1]) if len(spath) > 1 else defaultpath
-        else:
-            path = defaultpath
-            field = alias
-        return (path, field)
-
-    def __createGroupTree(self, root, definition, path, links=False):
-        # create group tree
-
-        spath = path.split('/')
-        entry = None
-        parent = definition
-        nxdata = None
-        for dr in spath:
-            if dr.strip():
-                node = root.createElement("group")
-                parent.appendChild(node)
-                if not entry:
-                    entry = node
-
-                w = dr.split(':')
-                if len(w) == 1:
-                    if len(w[0]) > 2 and w[0][:2] == 'NX':
-                        w.insert(0, w[0][2:])
-                    else:
-                        w.append("NX" + w[0])
-                node.setAttribute("type", w[1])
-                node.setAttribute("name", w[0])
-                parent = node
-        if links:
-            nxdata = root.createElement("group")
-            entry.appendChild(nxdata)
-            nxdata.setAttribute("type", "NXdata")
-            nxdata.setAttribute("name", "data")
-
-        return parent, nxdata
-
-    def __loadLabelDictionaries(self):
-
-        nexuslabels = {}
-        dct = self.__getVar("Labels", "NeXusLabels", None, True)
-        if isinstance(dct, dict):
-            nexuslabels = dct
-
-        nexuspaths = {}
-        dct = self.__getVar("LabelPaths", "NeXusLabelPaths", None, True)
-        if isinstance(dct, dict):
-            nexuspaths = dct
-
-        nexuslinks = {}
-        dct = self.__getVar("LabelLinks", "NeXusLabelLinks", None, True)
-        if isinstance(dct, dict):
-            nexuslinks = dct
-
-        nexustypes = {}
-        dct = self.__getVar("LabelTypes", "NeXusLabelTypes", None, True)
-        if isinstance(dct, dict):
-            nexustypes = dct
-
-        nexusshapes = {}
-        dct = self.__getVar("LabelShapes", "NeXusLabelShapes", None, True)
-        if isinstance(dct, dict):
-            nexusshapes = dct
-
-        return (nexuslabels, nexuspaths, nexuslinks, nexustypes, nexusshapes)
-
     def __createDynamicComponent(self, dss):
+
+        jdss = json.dumps(dss, cls=NXS_FileRecorder.numpyEncoder)
         envRec = self.recordlist.getEnviron()
-        cps = self.__nexusconfig_device.availableComponents()
-        name = "__dynamic_component__"
-        sfiles = self.recordlist.getEnvironValue('ScanFile')
-        nwarn = type(sfiles).__name__ == 'list' and len(sfiles) > 1
-
-        while name in cps:
-            if not nwarn:
-                self.info("Dynamic component '%s' already exists" % name)
-                self.macro.info("Dynamic component '%s' already exists" % name)
-            name = name + "x"
-        self.__dynamicCP = name
-        self.debug("Creates '%s' component for '%s'" % (name, str(dss)))
-
-        dsources = []
-        lst = self.__getVar("DataSources", "NeXusDataSources", None, False)
-        if isinstance(lst, (tuple, list)):
-            dsources.extend(lst)
-
-        (nexuslabels, nexuspaths, nexuslinks,
-         nexustypes, nexusshapes) = self.__loadLabelDictionaries()
-
-        links = self.__getVar("DynamicLinks", "NeXusDynamicLinks", True)
-        defaultpath = self.__getVar(
-            "DynamicPath", "NeXusDynamicPath", self.__defaultpath)
-        if not defaultpath:
-            self.warning("Empty dynamic component path. "
-                          "The path set to `%s`" % (self.__defaultpath))
-            self.macro.warning("Empty dynamic component path. "
-                               "The path set to `%s`" % (self.__defaultpath))
-            defaultpath = self.__defaultpath
-
-        root = xml.dom.minidom.Document()
-        definition = root.createElement("definition")
-        root.appendChild(definition)
-
-        created = []
+        lddict = []
         for dd in envRec['datadesc']:
-            if self.__get_alias(str(dd.name)) in dss:
-                alias = self.__get_alias(str(dd.name))
-                path, field = self.__getFieldPath(nexuspaths, nexuslabels,
-                                                  alias, defaultpath)
-                link = self.__getProp(nexuslinks, nexuslabels, alias, links)
-                (parent, nxdata) = self.__createGroupTree(
-                    root, definition, path, link)
-                self.debug("DC: %s, %s, %s, %s :  %s %s %s" % (
-                        dd.name, dd.dtype, dd.label, str(dd.shape),
-                        alias, path, field))
-                created.append(alias)
-                nxtype = self.__npTn[dd.dtype] \
-                    if dd.dtype in self.__npTn.keys() else 'NX_CHAR'
-                self.__createField(
-                    root, parent, field, nxtype, alias, dd.name, dd.shape)
-                if link:
-                    self.__createLink(root, nxdata, path, field)
-
-        for ds in dss:
-            if ds not in created:
-                path, field = self.__getFieldPath(nexuspaths, nexuslabels,
-                                                  ds, defaultpath)
-                link = self.__getProp(nexuslinks, nexuslabels, ds, links)
-                (parent, nxdata) = self.__createGroupTree(
-                    root, definition, path, link)
-
-                nxtype = self.__getProp(nexustypes, nexuslabels, ds, 'NX_CHAR')
-                shape = self.__getProp(nexusshapes, nexuslabels, ds, None)
-                self.__createField(root, parent, field, nxtype, ds, ds, shape)
-                if link:
-                    self.__createLink(root, nxdata, path, field)
-
-        for ds in dsources:
-            if ds not in created:
-                path, field = self.__getFieldPath(nexuspaths, nexuslabels,
-                                              ds, defaultpath)
-                link = self.__getProp(nexuslinks, nexuslabels, ds, links)
-                (parent, nxdata) = self.__createGroupTree(
-                    root, definition, path, link)
-                dsource = self.__nexusconfig_device.dataSources([str(ds)])
-                if len(dsource) > 0:
-                    indom = xml.dom.minidom.parseString(dsource[0])
-                    dss = indom.getElementsByTagName("datasource")
-                    if len(dss):
-                        nxtype = self.__getProp(nexustypes, nexuslabels, ds,
-                                                'NX_CHAR')
-                        shape = self.__getProp(nexusshapes, nexuslabels, ds,
-                                               None)
-                        self.debug("TYPE: %s" % nxtype)
-                        self.__createField(root, parent, field, nxtype, ds,
-                                       dsnode=dss[0], shape=shape)
-                        if link:
-                            self.__createLink(root, nxdata, path, field)
-
-        self.__nexusconfig_device.xmlstring = str(root.toprettyxml(indent=""))
-        self.__nexusconfig_device.storeComponent(str(self.__dynamicCP))
-
-        self.debug("Dynamic Component:\n%s" % root.toprettyxml(indent="  "))
-
-    @classmethod
-    def __createLink(cls, root, entry, path, name):
-        if name and entry:
-            link = root.createElement("link")
-            entry.appendChild(link)
-            link.setAttribute("target", "%s/%s" % (path, name))
-            link.setAttribute("name", name)
-
-    @classmethod
-    def __createField(cls, root, parent, fname, nxtype, sname,
-                      record=None, shape=None, dsnode=None):
-        field = root.createElement("field")
-        parent.appendChild(field)
-        field.setAttribute("type", nxtype)
-        field.setAttribute("name", fname)
-
-        strategy = root.createElement("strategy")
-        field.appendChild(strategy)
-        strategy.setAttribute("mode", "STEP")
-
-        if dsnode:
-            dsource = root.importNode(dsnode, True)
-        else:
-            dsource = root.createElement("datasource")
-            dsource.setAttribute("name", sname)
-            dsource.setAttribute("type", "CLIENT")
-            rec = root.createElement("record")
-            dsource.appendChild(rec)
-            rec.setAttribute("name", record)
-
-        field.appendChild(dsource)
-        if shape:
-            dm = root.createElement("dimensions")
-            dm.setAttribute("rank", str(len(shape)))
-            field.appendChild(dm)
-            for i in range(len(shape)):
-                dim = root.createElement("dim")
-                dm.appendChild(dim)
-                dim.setAttribute("index", str(i + 1))
-                dim.setAttribute("value", str(shape[i]))
+            mdd = {}
+            mdd["name"] = dd.name
+            mdd["shape"] = dd.shape
+            mdd["label"] = dd.label
+            mdd["dtype"] = dd.dtype
+            lddict.append(mdd)
+        jddict = json.dumps(lddict, cls=NXS_FileRecorder.numpyEncoder)
+        self.__dynamicCP = \
+            self.__nexussettings_device.createDynamicComponent([jdss, jddict])
 
     def __removeDynamicComponent(self):
         cps = self.__nexusconfig_device.availableComponents()
