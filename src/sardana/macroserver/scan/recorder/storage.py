@@ -324,16 +324,6 @@ class NXS_FileRecorder(BaseFileRecorder):
         ## dynamic components
         self.__dynamicCP = "__dynamic_component__"
 
-        ## map of numpy types : NEXUS
-        self.__npTn = {"float32": "NX_FLOAT32", "float64": "NX_FLOAT64",
-                       "float": "NX_FLOAT32", "double": "NX_FLOAT64",
-                       "int": "NX_INT", "int64": "NX_INT64",
-                       "int32": "NX_INT32", "int16": "NX_INT16",
-                       "int8": "NX_INT8", "uint64": "NX_UINT64",
-                       "uint32": "NX_UINT32", "uint16": "NX_UINT16",
-                       "uint8": "NX_UINT8", "uint": "NX_UINT64",
-                       "string": "NX_CHAR", "bool": "NX_BOOLEAN"}
-
         self.__env = self.macro.getAllEnv() if self.macro else {}
 
         ## available components
@@ -341,9 +331,6 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         ## default timezone
         self.__timezone = "Europe/Berlin"
-
-        self.__defaultpath = \
-            "/entry$var.serialno:NXentry/NXinstrument/collection"
 
         self.__defaultenv = "NeXusConfiguration"
 
@@ -410,7 +397,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                 self.filename = None
                 return number
 
-        subs = (len([None for a in list(re.finditer('%', filename))]) == 1)
+        subs = (len([None for _ in list(re.finditer('%', filename))]) == 1)
         # construct the filename, e.g. : /dir/subdir/etcdir/prefix_00123.nxs
         if subs or number:
             if scanID is None:
@@ -448,7 +435,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                 self.__nexussettings_device = PyTango.DeviceProxy(servers[0])
                 self.__nexussettings_device.set_timeout_millis(self.__timeout)
                 self.__nexussettings_device.ping()
-            except Exception as e:
+            except Exception:
                 self.__nexussettings_device = None
                 self.warning("Cannot connect to '%s' " % servers[0])
                 self.macro.warning("Cannot connect to '%s'" % servers[0])
@@ -495,7 +482,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                 self.__nexuswriter_device = PyTango.DeviceProxy(servers[0])
                 self.__nexuswriter_device.set_timeout_millis(self.__timeout)
                 self.__nexuswriter_device.ping()
-            except Exception as e:
+            except Exception:
                 self.__nexuswriter_device = None
                 self.warning("Cannot connect to '%s' " % servers[0])
                 self.macro.warning("Cannot connect to '%s'" % servers[0])
@@ -519,7 +506,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                 self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
                 self.__nexusconfig_device.set_timeout_millis(self.__timeout)
                 self.__nexusconfig_device.ping()
-            except Exception as e:
+            except Exception:
                 self.__nexusconfig_device = None
                 self.warning("Cannot connect to '%s' " % servers[0])
                 self.macro.warning("Cannot connect to '%s'" % servers[0])
