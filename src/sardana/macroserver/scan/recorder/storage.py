@@ -347,7 +347,6 @@ class NXS_FileRecorder(BaseFileRecorder):
 
     def __getVar(self, attr, var, default, decode=False):
         if self.__nexussettings_device and attr:
-#            res = self.__nexussettings_device.read_attribute(attr).value
             res = getattr(self.__nexussettings_device, attr)
             if decode:
                 try:
