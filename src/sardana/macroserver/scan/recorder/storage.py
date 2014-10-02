@@ -561,66 +561,6 @@ class NXS_FileRecorder(BaseFileRecorder):
         for alias in self.__deviceAliases.keys():
             self.__cutDeviceAliases[alias] = alias
 
-    def __checkNode(self, node):
-        label = 'datasources'
-        name = None
-        if node.nodeName == 'datasource':
-            if node.hasAttribute("type") \
-                    and node.attributes["type"].value == 'CLIENT' \
-                    and node.hasAttribute("name"):
-                name = str(node.attributes["name"].value)
-        elif node.nodeType == node.TEXT_NODE:
-            dstxt = node.data
-            index = dstxt.find("$%s." % label)
-            while index != -1 and not name:
-                try:
-                    subc = re.finditer(
-                        r"[\w]+",
-                        dstxt[(index + len(label) + 2):]).next().group(0)
-                except:
-                    subc = ''
-                name = subc.strip() if subc else ""
-                try:
-                    dsource = self.__nexusconfig_device.dataSources([name])
-                except:
-                    dsource = []
-                if len(dsource) > 0:
-                    indom = xml.dom.minidom.parseString(dsource[0])
-                    ds = indom.getElementsByTagName("datasource")
-                    if ds and ds[0].nodeName == 'datasource':
-                        if ds[0].hasAttribute("type") and \
-                                ds[0].attributes["type"].value == 'CLIENT' \
-                                and ds[0].hasAttribute("name"):
-                            name = str(ds[0].attributes["name"].value)
-                index = dstxt.find("$%s." % label, index + 1)
-        return name
-
-    def __checkClientStepDS(self, cp, dss):
-        xmlc = self.__nexusconfig_device.components([cp])
-        names = []
-        if not len(xmlc) > 0:
-            return names
-        indom = xml.dom.minidom.parseString(xmlc[0])
-        strategy = indom.getElementsByTagName("strategy")
-        for sg in strategy:
-            if sg.hasAttribute("mode") \
-                    and sg.attributes["mode"].value == 'STEP':
-                name = None
-                nxt = sg.nextSibling
-                while nxt and not name:
-                    name = self.__checkNode(nxt)
-                    if name and name in dss:
-                        names.append(name)
-                    nxt = nxt.nextSibling
-
-                prev = sg.previousSibling
-                while prev and not name:
-                    name = self.__checkNode(prev)
-                    if name and name in dss:
-                        names.append(name)
-                    prev = prev.previousSibling
-        return names
-
     def __createDynamicComponent(self, dss):
 
         jdss = json.dumps(dss, cls=NXS_FileRecorder.numpyEncoder)
@@ -658,16 +598,27 @@ class NXS_FileRecorder(BaseFileRecorder):
         cmps = list(set(nexuscomponents) | set(self.__availableComponents()))
         for cp in cmps:
             try:
-                dss = self.__nexusconfig_device.componentDataSources(cp)
-            except:
-                self.warning("Component '%s' wrongly defined in DB!" % cp)
-                self.macro.warning(
-                    "Component '%s' wrongly defined in DB!" % cp)
+                cpdss = json.loads(
+                    self.__nexussettings_device.clientSources([cp]))
+                dss = [ds["dsname"]
+                       for ds in cpdss if ds["strategy"] == 'STEP']
+            except Exception as e:
+                if cp in nexuscomponents:
+                    self.warning("Component '%s' wrongly defined in DB!" % cp)
+                    self.warning("Error: '%s'" % str(e))
+                    self.macro.warning(
+                        "Component '%s' wrongly defined in DB!" % cp)
+                #                self.macro.warning("Error: '%s'" % str(e))
+                else:
+                    self.debug("Component '%s' wrongly defined in DB!" % cp)
+                    self.warning("Error: '%s'" % str(e))
+                    self.macro.debug(
+                        "Component '%s' wrongly defined in DB!" % cp)
+                    self.macro.debug("Error: '%s'" % str(e))
                 dss = []
             if dss:
                 cdss = list(set(dss) & set(self.__cutDeviceAliases.values()))
-                csds = self.__checkClientStepDS(cp, cdss)
-                for ds in csds:
+                for ds in cdss:
                     self.debug("'%s' found in '%s'" % (ds, cp))
                     if ds not in dsFound.keys():
                         dsFound[ds] = []
@@ -739,7 +690,8 @@ class NXS_FileRecorder(BaseFileRecorder):
                 self.__availableComponents()))
 
         dsNotFound, cpReq = self.__searchDataSources(
-            nexuscomponents, cfm, dyncp)
+            list(set(nexuscomponents) | set(mandatory)),
+            cfm, dyncp)
 
         self.__createDynamicComponent(dsNotFound if dyncp else [])
         nexuscomponents.append(str(self.__dynamicCP))
