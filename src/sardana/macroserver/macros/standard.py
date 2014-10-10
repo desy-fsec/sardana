@@ -23,8 +23,10 @@
 
 """This is the standard macro module"""
 
-__all__ = ["ct", "mstate", "mv", "mvr", "pwa", "pwm", "set_lim", "set_lm",
+__all__ = ["ct", "logmacro_off", "logmacro_on", "logmacro_restart", 
+           "mstate", "mv", "mvr",  "pwa", "pwm", "set_lim", "set_lm", 
            "set_pos", "settimer", "uct", "umv", "umvr", "wa", "wm"]
+
 
 __docformat__ = 'restructuredtext'
 
@@ -54,31 +56,62 @@ class _wm(Macro):
     
     def run(self, *motor_list):
         show_dial = self.getViewOption(ViewOption.ShowDial)
+        show_ctrlaxis = self.getViewOption(ViewOption.ShowCtrlAxis)
+        pos_format = self.getViewOption(ViewOption.PosFormat)
+
         motor_width = 9
         motor_names = []
         motor_pos   = []
         motor_list = list(motor_list)
         motor_list.sort()
         for motor in motor_list:
+
             name = motor.getName()
             motor_names.append([name])
+
             pos = motor.getPosition(force=True)
             if pos is None:
                 pos = float('NAN')
-            
+        
             if show_dial:
                 dial_pos = motor.getDialPosition(force=True)
                 if dial_pos is None:
                     dial_pos = float('NAN')
-                motor_pos.append((pos,dial_pos))
+                if show_ctrlaxis:
+                    axis_nb = getattr(motor, "axis")
+                    ctrl_name = self.getController(motor.controller).name
+                    ca_name = "(" + ctrl_name + "." + str(axis_nb) + ")"
+                    motor_pos.append((ca_name,pos,dial_pos))
+                else:
+                    motor_pos.append((pos,dial_pos))
             else:
-                motor_pos.append((pos,))
+                if show_ctrlaxis:
+                    axis_nb = getattr(motor, "axis")
+                    ctrl_name = self.getController(motor.controller).name
+                    ca_name = "(" + ctrl_name + "." + str(axis_nb) + ")"
+                    motor_pos.append((ca_name,pos))
+                else:
+                    motor_pos.append((pos,))
 
             motor_width = max(motor_width,len(name))
-
+            
+            if show_ctrlaxis:
+                motor_width = max(motor_width, len(ca_name) + 2)
+ 
         fmt = '%c*.%df' % ('%',motor_width - 5)
 
-        table = Table(motor_pos, elem_fmt=[fmt],
+        if pos_format != -1:
+            fmt = '%c*.%df' % ('%',int(pos_format))
+
+        if show_ctrlaxis:
+            if show_dial:
+                t_format = ['%*s',fmt,fmt]
+            else:
+                t_format = ['%*s',fmt]
+        else:
+            t_format = [fmt]
+
+        table = Table(motor_pos, elem_fmt=t_format,
                       col_head_str=motor_names, col_head_width=motor_width,
                       **self.table_opts)
         for line in table.genOutput():
@@ -244,9 +277,19 @@ class wm(Macro):
         motor_pos   = []
 
         show_dial = self.getViewOption(ViewOption.ShowDial)
+        show_ctrlaxis = self.getViewOption(ViewOption.ShowCtrlAxis)
         
         for motor in motor_list:
+            
+            if show_ctrlaxis:
+                axis_nb = getattr(motor, "axis")
+                ctrl_name = self.getController(motor.controller).name
+
             name = motor.getName()
+            
+            if show_ctrlaxis:
+                name = name + " (" + ctrl_name + "." + str(axis_nb) + ")"
+
             motor_names.append([name])
             posObj = motor.getPositionObj()
             upos = map(str, [posObj.getMaxValue(), motor.getPosition(force=True), posObj.getMinValue()])
@@ -573,3 +616,23 @@ class settimer(Macro):
 def report(self, *message):
     """Logs a new record into the message report system (if active)"""
     self.report(' '.join(message))
+
+class logmacro_off(Macro):
+    """ Set off the logging of the spock output """
+
+    def run(self):
+        self.setEnv('LogMacroOnOff', False)
+        
+
+class logmacro_on(Macro):
+    """ Set on the logging of the spock output """
+
+    def run(self):
+        self.setEnv('LogMacroOnOff', True)
+
+class logmacro_restart(Macro):
+    """ Set the flag for restarting spock logging file """
+
+    def run(self):
+        self.setEnv('LogMacroMode', True)
+    

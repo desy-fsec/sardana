@@ -854,6 +854,22 @@ class Macro(Logger):
         :type msg: :obj:`str`
         :param args: list of arguments
         :param kwargs: list of keyword arguments"""
+        try:
+            logging_onoff = self.getEnv("LogMacroOnOff")
+        except:
+            logging_onoff = False
+        try:
+            logging_mode = self.getEnv("LogMacroMode")
+        except:
+            logging_mode = 0
+
+        self.setEnv('LogMacroMode', 0)
+
+        logging_path = self.getEnv("LogMacroPath")
+
+        if logging_onoff:
+            Logger.loggingtofile(self, msg, logging_mode, logging_path, *args, **kwargs)
+
         return Logger.output(self, msg, *args, **kwargs)
 
     @mAPI
@@ -1807,6 +1823,13 @@ class Macro(Logger):
     def _getViewOptions(self):
         try:
             vo = self.getEnv('_ViewOptions')
+            if len(vo.keys()) < len(ViewOption.get_view_options_keys()):
+                import msoptions
+                iop = ViewOption.init_options(dict())
+                for key in iop.keys():
+                    if key not in vo.keys():
+                        vo[key] = iop[key]
+                self.setEnv('_ViewOptions', vo)
         except UnknownEnv:
             import msoptions
             vo = ViewOption.init_options(dict())
