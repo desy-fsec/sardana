@@ -865,7 +865,11 @@ class Macro(Logger):
 
         self.setEnv('LogMacroMode', 0)
 
-        logging_path = self.getEnv("LogMacroPath")
+        try:
+            logging_path = self.getEnv("LogMacroPath")
+        except:
+            self.setEnv("LogMacroPath","/tmp")
+            logging_path = self.getEnv("LogMacroPath")
 
         if logging_onoff:
             Logger.loggingtofile(self, msg, logging_mode, logging_path, *args, **kwargs)
