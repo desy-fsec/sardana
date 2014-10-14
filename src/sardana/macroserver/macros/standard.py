@@ -278,31 +278,72 @@ class wm(Macro):
 
         show_dial = self.getViewOption(ViewOption.ShowDial)
         show_ctrlaxis = self.getViewOption(ViewOption.ShowCtrlAxis)
-        
+        pos_format = self.getViewOption(ViewOption.PosFormat)
+ 
         for motor in motor_list:
-            
+                   
+            max_len = 0
             if show_ctrlaxis:
                 axis_nb = getattr(motor, "axis")
                 ctrl_name = self.getController(motor.controller).name
+                if len(ctrl_name) > max_len:
+                    max_len = len(ctrl_name)
 
             name = motor.getName()
-            
-            if show_ctrlaxis:
-                name = name + " (" + ctrl_name + "." + str(axis_nb) + ")"
+            if len(name) > max_len:
+                max_len = len(name)
+
+            max_len = max_len + 5
+            if max_len < 14:
+                max_len = 14 # Length of 'Not specified'
+
+            str_fmt = "%c%ds" % ('%', int(max_len))
+
+            name = str_fmt % name
 
             motor_names.append([name])
             posObj = motor.getPositionObj()
-            upos = map(str, [posObj.getMaxValue(), motor.getPosition(force=True), posObj.getMinValue()])
-            pos_data = [''] + upos
+            if pos_format != -1:
+                fmt = '%c.%df' % ('%', int(pos_format))
+
+            try:
+                val1 = fmt % motor.getPosition(force=True)
+                val1 = str_fmt % val1
+            except:
+                val1 = str_fmt % motor.getPosition(force=True)
+      
+
+            val2 =  str_fmt % posObj.getMaxValue()
+            val3 =  str_fmt % posObj.getMinValue()
+
+            if show_ctrlaxis:
+                val0 =  str_fmt % (ctrl_name + "." + str(axis_nb))
+                upos = map(str, [val0, ' ', val2, val1, val3])
+            else:
+                upos = map(str, ['', val2, val1, val3])
+            pos_data =  upos
             if show_dial:
-                dPosObj = motor.getDialPositionObj()
-                dpos = map(str, [dPosObj.getMaxValue(), motor.getDialPosition(force=True), dPosObj.getMinValue()])
+                try:
+                    val1 = fmt % motor.getDialPosition(force=True)
+                    val1 = str_fmt % val1
+                except:
+                    val1 = str_fmt % motor.getDialPosition(force=True)
+     
+                dPosObj = motor.getDialPositionObj() 
+                val2 =  str_fmt % dPosObj.getMaxValue()
+                val3 =  str_fmt % dPosObj.getMinValue()
+
+                dpos = map(str, [val2, val1, val3])
                 pos_data += [''] + dpos
             
             motor_pos.append(pos_data)
 
-        elem_fmt = (['%*s'] + ['%*s'] * 3) * 2
-        row_head_str = ['User', ' High', ' Current', ' Low']
+        elem_fmt = (['%*s'] + ['%*s'] * 4) * 2
+        if show_ctrlaxis:
+            row_head_str = [' ', 'User', ' High', ' Current', ' Low']
+        else:
+            row_head_str = ['User', ' High', ' Current', ' Low']
+            
         if show_dial:
             row_head_str += ['Dial', ' High', ' Current', ' Low']
         table = Table(motor_pos, elem_fmt=elem_fmt, row_head_str=row_head_str,
