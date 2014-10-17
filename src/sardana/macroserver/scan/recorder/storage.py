@@ -345,7 +345,12 @@ class NXS_FileRecorder(BaseFileRecorder):
         appendentry = not self.__setFileName(
             self.__base_filename, not appendentry, scanID)
 
-    def __getVar(self, attr, var, default, decode=False):
+        self.__oddmntgrp = False
+
+
+    def __getVar(self, attr, var, default, decode=False, pass_default=False):
+        if pass_default:
+            return default
         if self.__nexussettings_device and attr:
             res = getattr(self.__nexussettings_device, attr)
             if decode:
@@ -464,9 +469,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.macro.warning(
                 "To fix it please apply your settings by Component Selector."
                 )
-
-            self.__nexussettings_device = None
-            self.__defaultenv = None
+            self.__oddmntgrp = True
 
         vl = self.__getVar("writerDevice", "NeXusWriterDevice", None)
         if not vl:
@@ -561,7 +564,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.__cutDeviceAliases[alias] = alias
 
     def __createDynamicComponent(self, dss):
-
+        self.debug("DSS: %s" % dss)
         envRec = self.recordlist.getEnviron()
         lddict = []
         for dd in envRec['datadesc']:
@@ -572,8 +575,10 @@ class NXS_FileRecorder(BaseFileRecorder):
                 mdd["dtype"] = dd.dtype
                 lddict.append(mdd)
         jddict = json.dumps(lddict, cls=NXS_FileRecorder.numpyEncoder)
+        jdss = json.dumps(dss, cls=NXS_FileRecorder.numpyEncoder)
+        self.debug("JDD: %s" % jddict)
         self.__dynamicCP = \
-            self.__nexussettings_device.createDynamicComponent(jddict)
+            self.__nexussettings_device.createDynamicComponent([jdss, jddict])
 
     def __removeDynamicComponent(self):
         cps = self.__nexusconfig_device.availableComponents()
@@ -655,9 +660,9 @@ class NXS_FileRecorder(BaseFileRecorder):
     def __createConfiguration(self):
         cfm = self.__getVar("componentsFromMntGrp",
                             "NeXusComponentsFromMntGrp",
-                            False)
+                            False, pass_default=self.__oddmntgrp)
         dyncp = self.__getVar("dynamicComponents", "NeXusDynamicComponents",
-                              True)
+                              True, pass_default=self.__oddmntgrp)
 
         envRec = self.recordlist.getEnviron()
         self.__collectAliases(envRec)
@@ -666,20 +671,21 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.info("Default Components %s" % str(mandatory))
 
         nexuscomponents = []
-        lst = self.__getVar("components", "NeXusComponents", None, False)
+        lst = self.__getVar("components", "NeXusComponents", None, False,
+                            pass_default=self.__oddmntgrp)
         if isinstance(lst, (tuple, list)):
             nexuscomponents.extend(lst)
         self.info("User Components %s" % str(nexuscomponents))
 
         lst = self.__getVar("automaticComponents", "NeXusAutomaticComponents",
-                            None, False)
+                            None, False, pass_default=self.__oddmntgrp)
         if isinstance(lst, (tuple, list)):
             nexuscomponents.extend(lst)
         self.info("User Components %s" % str(nexuscomponents))
 
         self.__availableComps = []
         lst = self.__getVar("optionalComponents", "NeXusOptionalComponents",
-                            None, True)
+                            None, True, pass_default=self.__oddmntgrp)
         if isinstance(lst, (tuple, list)):
             self.__availableComps.extend(lst)
         self.__availableComps = list(set(
@@ -733,6 +739,8 @@ class NXS_FileRecorder(BaseFileRecorder):
                 self.__vars["vars"]["serialno"] = envRec["serialno"]
 
             cnfxml = self.__createConfiguration()
+            self.debug('XML: %s' % str(cnfxml))
+            
             self.__removeDynamicComponent()
 
             if hasattr(self.__nexuswriter_device, 'Init'):
