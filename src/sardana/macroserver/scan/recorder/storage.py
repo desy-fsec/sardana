@@ -737,6 +737,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             envRec = self.recordlist.getEnviron()
             if appendentry:
                 self.__vars["vars"]["serialno"] = envRec["serialno"]
+            self.__vars["vars"]["scan_title"] = envRec["title"]
 
             cnfxml = self.__createConfiguration()
             self.debug('XML: %s' % str(cnfxml))
@@ -755,6 +756,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.__vars["data"]["start_time"] = \
                 self.__timeToString(envRec['starttime'], tzone)
             self.__vars["data"]["serialno"] = envRec["serialno"]
+            self.__vars["data"]["scan_title"] = envRec["title"]
 
             envrecord = self.__appendRecord(self.__vars, 'INIT')
             rec = json.dumps(
