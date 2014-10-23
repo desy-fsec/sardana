@@ -347,6 +347,7 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         self.__oddmntgrp = False
 
+        self.__clientSources = []
 
     def __getVar(self, attr, var, default, decode=False, pass_default=False):
         if pass_default:
@@ -563,7 +564,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         for alias in self.__deviceAliases.keys():
             self.__cutDeviceAliases[alias] = alias
 
-    def __createDynamicComponent(self, dss):
+    def __createDynamicComponent(self, dss, keys):
         self.debug("DSS: %s" % dss)
         envRec = self.recordlist.getEnviron()
         lddict = []
@@ -576,9 +577,11 @@ class NXS_FileRecorder(BaseFileRecorder):
                 lddict.append(mdd)
         jddict = json.dumps(lddict, cls=NXS_FileRecorder.numpyEncoder)
         jdss = json.dumps(dss, cls=NXS_FileRecorder.numpyEncoder)
+        jkeys = json.dumps(keys, cls=NXS_FileRecorder.numpyEncoder)
         self.debug("JDD: %s" % jddict)
         self.__dynamicCP = \
-            self.__nexussettings_device.createDynamicComponent([jdss, jddict])
+            self.__nexussettings_device.createDynamicComponent(
+            [jdss, jddict, jkeys])
 
     def __removeDynamicComponent(self):
         cps = self.__nexusconfig_device.availableComponents()
@@ -592,19 +595,22 @@ class NXS_FileRecorder(BaseFileRecorder):
         else:
             return cmps
 
-    def __searchDataSources(self, nexuscomponents, cfm, dyncp):
+    def __searchDataSources(self, nexuscomponents, cfm, dyncp, userkeys):
         dsFound = {}
         dsNotFound = []
         cpReq = {}
+        keyFound = set()
 
         ## check datasources / get require components with give datasources
         cmps = list(set(nexuscomponents) | set(self.__availableComponents()))
+
         for cp in cmps:
             try:
                 cpdss = json.loads(
                     self.__nexussettings_device.clientSources([cp]))
                 dss = [ds["dsname"]
                        for ds in cpdss if ds["strategy"] == 'STEP']
+                keyFound.update(set([ds["record"] for ds in cpdss]))
             except Exception as e:
                 if cp in nexuscomponents:
                     self.warning("Component '%s' wrongly defined in DB!" % cp)
@@ -629,6 +635,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                     if cp not in cpReq.keys():
                         cpReq[cp] = []
                     cpReq[cp].append(ds)
+        missingKeys = set(userkeys) - keyFound
 
         ## get not found datasources
         for ds in self.__cutDeviceAliases.values():
@@ -655,9 +662,9 @@ class NXS_FileRecorder(BaseFileRecorder):
                             "Warning: '%s' will not be stored. " % ds
                             + "It was not found in User Components!"
                             + " Consider setting: NeXusDynamicComponents=True")
-        return (dsNotFound, cpReq)
+        return (dsNotFound, cpReq, list(missingKeys))
 
-    def __createConfiguration(self):
+    def __createConfiguration(self, userdata):
         cfm = self.__getVar("componentsFromMntGrp",
                             "NeXusComponentsFromMntGrp",
                             False, pass_default=self.__oddmntgrp)
@@ -693,11 +700,12 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.info("Available Components %s" % str(
                 self.__availableComponents()))
 
-        dsNotFound, cpReq = self.__searchDataSources(
+        dsNotFound, cpReq, missingKeys = self.__searchDataSources(
             list(set(nexuscomponents) | set(mandatory)),
-            cfm, dyncp)
+            cfm, dyncp, userdata.keys())
 
-        self.__createDynamicComponent(dsNotFound if dyncp else [])
+        self.debug("Missing User Data : %s" % missingKeys)
+        self.__createDynamicComponent(dsNotFound if dyncp else [], missingKeys)
         nexuscomponents.append(str(self.__dynamicCP))
 
         if cfm:
@@ -716,6 +724,8 @@ class NXS_FileRecorder(BaseFileRecorder):
             cls=NXS_FileRecorder.numpyEncoder)
         self.info("Components %s" % list(
                 set(nexuscomponents) | set(mandatory)))
+
+        self.debug("Client Sources: %s" % self.__clientSources)
         self.__nexusconfig_device.createConfiguration(nexuscomponents)
 
         cnfxml = self.__nexusconfig_device.xmlstring
@@ -739,10 +749,19 @@ class NXS_FileRecorder(BaseFileRecorder):
                 self.__vars["vars"]["serialno"] = envRec["serialno"]
             self.__vars["vars"]["scan_title"] = envRec["title"]
 
-            cnfxml = self.__createConfiguration()
+            tzone = self.__getVar("timeZone", "NeXusTimeZone", self.__timezone)
+            self.__vars["data"]["start_time"] = \
+                self.__timeToString(envRec['starttime'], tzone)
+
+            envrecord = self.__appendRecord(self.__vars, 'INIT')
+            rec = json.dumps(
+                envrecord, cls=NXS_FileRecorder.numpyEncoder)
+            cnfxml = self.__createConfiguration(envrecord["data"])
             self.debug('XML: %s' % str(cnfxml))
-            
             self.__removeDynamicComponent()
+
+            self.__vars["data"]["serialno"] = envRec["serialno"]
+            self.__vars["data"]["scan_title"] = envRec["title"]
 
             if hasattr(self.__nexuswriter_device, 'Init'):
                 self.__nexuswriter_device.Init()
@@ -752,15 +771,6 @@ class NXS_FileRecorder(BaseFileRecorder):
 
             self.debug('START_DATA: %s' % str(envRec))
 
-            tzone = self.__getVar("timeZone", "NeXusTimeZone", self.__timezone)
-            self.__vars["data"]["start_time"] = \
-                self.__timeToString(envRec['starttime'], tzone)
-            self.__vars["data"]["serialno"] = envRec["serialno"]
-            self.__vars["data"]["scan_title"] = envRec["title"]
-
-            envrecord = self.__appendRecord(self.__vars, 'INIT')
-            rec = json.dumps(
-                envrecord, cls=NXS_FileRecorder.numpyEncoder)
             self.__nexuswriter_device.jsonrecord = rec
             self.__nexuswriter_device.openEntry()
         except:
