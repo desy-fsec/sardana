@@ -684,6 +684,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             nexuscomponents.extend(lst)
         self.info("User Components %s" % str(nexuscomponents))
 
+        ## add updateControllers
         lst = self.__getVar("automaticComponents", "NeXusAutomaticComponents",
                             None, False, pass_default=self.__oddmntgrp)
         if isinstance(lst, (tuple, list)):
