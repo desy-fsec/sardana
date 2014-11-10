@@ -180,7 +180,7 @@ class wa(Macro):
          '.*', 'a regular expression filter'],
     ]
 
-    def prepare(self,*filter, **opts):
+    def prepare(self, *filter, **opts):
         self.all_motors = self.findObjs(filter, type_class=Type.Moveable)
         self.table_opts = {}
     
