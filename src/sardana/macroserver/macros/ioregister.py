@@ -59,5 +59,6 @@ class read_ioreg(Macro):
         name = ioreg.getName()
         data = ioreg.readIORegister(force=True)
         o = "Reading " +  name + " register "
+        self.debug(o)
+        o = "Value: " + str(data)
         self.output(o)
-        self.output(data)
