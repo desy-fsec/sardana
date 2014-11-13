@@ -301,8 +301,6 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         ## NXS data writer device
         self.__nexuswriter_device = None
-        ## NXS configuration server device
-        self.__nexusconfig_device = None
 
         ## NXS settings server device
         self.__nexussettings_device = None
@@ -496,34 +494,6 @@ class NXS_FileRecorder(BaseFileRecorder):
             from nxswriter import TangoDataWriter
             self.__nexuswriter_device = TangoDataWriter.TangoDataWriter()
 
-        vl = self.__getVar("configDevice", "NeXusConfigDevice", None)
-        if not vl:
-            servers = self.__db.get_device_exported_for_class(
-                "NXSConfigServer").value_string
-        else:
-            servers = [str(vl)]
-
-        if len(servers) > 0 and len(servers[0]) > 0 \
-                and servers[0] != self.__moduleLabel:
-            try:
-                self.__nexusconfig_device = PyTango.DeviceProxy(servers[0])
-                self.__nexusconfig_device.set_timeout_millis(self.__timeout)
-                self.__nexusconfig_device.ping()
-            except Exception:
-                self.__nexusconfig_device = None
-                self.warning("Cannot connect to '%s' " % servers[0])
-                self.macro.warning("Cannot connect to '%s'" % servers[0])
-        else:
-            self.__nexusconfig_device = None
-
-        if self.__nexusconfig_device is None:
-            from nxsconfigserver import XMLConfigurator
-            self.__nexusconfig_device = XMLConfigurator.XMLConfigurator()
-            dbp = self.__getVar(None, "NeXusDBParams", None, True)
-            if not dbp:
-                dbp = {}
-            self.__nexusconfig_device.jsonsettings = json.dumps(dbp)
-        self.__nexusconfig_device.open()
 
     ## provides a device alias
     # \param name device name
@@ -584,12 +554,10 @@ class NXS_FileRecorder(BaseFileRecorder):
             [jdss, jddict, jkeys])
 
     def __removeDynamicComponent(self):
-        cps = self.__nexusconfig_device.availableComponents()
-        if self.__dynamicCP in cps:
-            self.__nexusconfig_device.deleteComponent(str(self.__dynamicCP))
+        self.__nexussettings_device.removeDynamicComponent(str(self.__dynamicCP))
 
     def __availableComponents(self):
-        cmps = self.__nexusconfig_device.availableComponents()
+        cmps = self.__nexussettings_device.availableComponents()
         if self.__availableComps:
             return list(set(cmps) & set(self.__availableComps))
         else:
@@ -603,11 +571,12 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         ## check datasources / get require components with give datasources
         cmps = list(set(nexuscomponents) | set(self.__availableComponents()))
-
+        self.__clientSources = []
         for cp in cmps:
             try:
                 cpdss = json.loads(
                     self.__nexussettings_device.clientSources([cp]))
+                self.__clientSources.extend(cpdss)
                 dss = [ds["dsname"]
                        for ds in cpdss if ds["strategy"] == 'STEP']
                 keyFound.update(set([ds["record"] for ds in cpdss]))
@@ -674,7 +643,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         envRec = self.recordlist.getEnviron()
         self.__collectAliases(envRec)
 
-        mandatory = self.__nexusconfig_device.mandatoryComponents()
+        mandatory = self.__nexussettings_device.mandatoryComponents()
         self.info("Default Components %s" % str(mandatory))
 
         nexuscomponents = []
@@ -719,17 +688,27 @@ class NXS_FileRecorder(BaseFileRecorder):
                             None, True)
         if isinstance(dct, dict):
             nexusvariables = dct
+        try:    
+            self.__nexussettings_device.configVariables = json.dumps(
+                dict(self.__vars["vars"], **nexusvariables),
+                cls=NXS_FileRecorder.numpyEncoder)
+            self.__nexussettings_device.updateConfigVariables()
 
-        self.__nexusconfig_device.variables = json.dumps(
-            dict(self.__vars["vars"], **nexusvariables),
-            cls=NXS_FileRecorder.numpyEncoder)
-        self.info("Components %s" % list(
-                set(nexuscomponents) | set(mandatory)))
+            self.info("Components %s" % list(
+                    set(nexuscomponents) | set(mandatory)))
 
-        self.debug("Client Sources: %s" % self.__clientSources)
-        self.__nexusconfig_device.createConfiguration(nexuscomponents)
+            csources = [ds["dsname"] for ds in self.__clientSources]
+            toswitch = []
+            for dd in envRec['datadesc']:
+                toswitch.append(self.__get_alias(str(dd.name)))
+            self.debug("Switching to STEP mode: %s" % toswitch)
+            self.__nexussettings_device.stepdatasources = toswitch
+            cnfxml = self.__nexussettings_device.createConfiguration(nexuscomponents)
+        finally:
+            self.__nexussettings_device.configVariables = json.dumps(
+                nexusvariables)
+            
 
-        cnfxml = self.__nexusconfig_device.xmlstring
         return cnfxml
 
     def _startRecordList(self, recordlist):
