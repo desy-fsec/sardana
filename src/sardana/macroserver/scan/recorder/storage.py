@@ -494,7 +494,6 @@ class NXS_FileRecorder(BaseFileRecorder):
             from nxswriter import TangoDataWriter
             self.__nexuswriter_device = TangoDataWriter.TangoDataWriter()
 
-
     ## provides a device alias
     # \param name device name
     # \return device alias
@@ -554,7 +553,8 @@ class NXS_FileRecorder(BaseFileRecorder):
             [jdss, jddict, jkeys])
 
     def __removeDynamicComponent(self):
-        self.__nexussettings_device.removeDynamicComponent(str(self.__dynamicCP))
+        self.__nexussettings_device.removeDynamicComponent(
+            str(self.__dynamicCP))
 
     def __availableComponents(self):
         cmps = self.__nexussettings_device.availableComponents()
@@ -688,7 +688,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                             None, True)
         if isinstance(dct, dict):
             nexusvariables = dct
-        try:    
+        try:
             self.__nexussettings_device.configVariables = json.dumps(
                 dict(self.__vars["vars"], **nexusvariables),
                 cls=NXS_FileRecorder.numpyEncoder)
@@ -703,11 +703,11 @@ class NXS_FileRecorder(BaseFileRecorder):
                 toswitch.append(self.__get_alias(str(dd.name)))
             self.debug("Switching to STEP mode: %s" % toswitch)
             self.__nexussettings_device.stepdatasources = toswitch
-            cnfxml = self.__nexussettings_device.createConfiguration(nexuscomponents)
+            cnfxml = self.__nexussettings_device.createConfiguration(
+                nexuscomponents)
         finally:
             self.__nexussettings_device.configVariables = json.dumps(
                 nexusvariables)
-            
 
         return cnfxml
 
