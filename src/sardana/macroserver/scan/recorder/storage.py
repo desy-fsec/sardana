@@ -688,6 +688,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                             None, True)
         if isinstance(dct, dict):
             nexusvariables = dct
+        oldtoswitch = None
         try:
             self.__nexussettings_device.configVariables = json.dumps(
                 dict(self.__vars["vars"], **nexusvariables),
@@ -696,18 +697,19 @@ class NXS_FileRecorder(BaseFileRecorder):
 
             self.info("Components %s" % list(
                     set(nexuscomponents) | set(mandatory)))
-
-            csources = [ds["dsname"] for ds in self.__clientSources]
             toswitch = []
             for dd in envRec['datadesc']:
                 toswitch.append(self.__get_alias(str(dd.name)))
             self.debug("Switching to STEP mode: %s" % toswitch)
+            oldtoswitch = self.__nexussettings_device.stepdatasources
             self.__nexussettings_device.stepdatasources = toswitch
             cnfxml = self.__nexussettings_device.createConfiguration(
                 nexuscomponents)
         finally:
             self.__nexussettings_device.configVariables = json.dumps(
                 nexusvariables)
+            if oldtoswitch is not None:
+                self.__nexussettings_device.stepdatasources = oldtoswitch
 
         return cnfxml
 
