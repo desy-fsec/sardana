@@ -865,14 +865,18 @@ class Macro(Logger):
 
         self.setEnv('LogMacroMode', 0)
 
-        try:
-            logging_path = self.getEnv("LogMacroPath")
-        except:
-            self.setEnv("LogMacroPath","/tmp")
-            logging_path = self.getEnv("LogMacroPath")
+        if logging_onoff:
+            try:
+                logging_path = self.getEnv("LogMacroPath")
+            except:
+                self.setEnv("LogMacroPath","/tmp")
+                logging_path = self.getEnv("LogMacroPath")
 
         if logging_onoff:
-            Logger.loggingtofile(self, msg, logging_mode, logging_path, *args, **kwargs)
+            try:
+                Logger.loggingtofile(self, msg, logging_mode, logging_path, *args, **kwargs)
+            except:
+                self.warning("Not able to write log file. Check if the path for logging %s exist." % logging_path)
 
         return Logger.output(self, msg, *args, **kwargs)
 
