@@ -178,12 +178,11 @@ class FIO_FileRecorder(BaseFileRecorder):
             outLine = " Col %d %s %s\n" % ( i, col.label, dType)
             self.fd.write( outLine)
             i += 1
-        # +++
+        # 
         # 11.9.2012 timestamp to the end
         #
         outLine = " Col %d %s %s\n" % ( i, 'timestamp', 'DOUBLE')
         self.fd.write( outLine)
-        # +++
         self.fd.flush()
 
     def _writeRecord(self, record):
@@ -192,12 +191,17 @@ class FIO_FileRecorder(BaseFileRecorder):
         nan, ctNames, fd = float('nan'), self.ctNames, self.fd
         outstr = ''
         for c in ctNames:
+            #
+            # +++
+            #
+            if c == "timestamp" or c == "point_nb": 
+                continue                    
+            # +++
             outstr += ' ' + str(record.data.get(c, nan))
-        # +++
+        # 
         # 11.9.2012 timestamp to the end
         #
         outstr += ' ' + str(record.data.get('timestamp', nan))
-        # +++
         outstr += '\n'
         
         fd.write( outstr )
@@ -249,9 +253,9 @@ class FIO_FileRecorder(BaseFileRecorder):
             col = col + 1
 
         if not record.data[ self.mcaNames[0]] is None:
-            #print "+++storage.py, recordno", record.recordno
-            #print "+++storage.py, record.data", record.data
-            #print "+++storage.py, len %d,  %s" % (len( record.data[ self.mcaNames[0]]), self.mcaNames[0])
+            #print "storage.py, recordno", record.recordno
+            #print "storage.py, record.data", record.data
+            #print "storage.py, len %d,  %s" % (len( record.data[ self.mcaNames[0]]), self.mcaNames[0])
             #
             # the MCA arrays me be of different size. the short ones are extended by zeros.
             #
@@ -272,7 +276,7 @@ class FIO_FileRecorder(BaseFileRecorder):
             
             fd.close()
         else:
-            #print "+++storage.py, recordno", record.recordno, "data None"
+            #print "storage.py, recordno", record.recordno, "data None"
             pass
             
         os.chdir( currDir)
