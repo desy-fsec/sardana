@@ -52,6 +52,10 @@ class SpockInputHandler(BaseInputHandler):
         if input_data is None:
             input_data = {}
         prompt = input_data.get('prompt')
+        try:
+            print("Input possibilities are:  %s" % input_data['data_type'])
+        except:
+            pass
         ret = dict(input=None, cancel=False)
         try:
             if prompt is None:
