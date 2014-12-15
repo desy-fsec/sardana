@@ -100,7 +100,7 @@ class _wm(Macro):
  
         fmt = '%c*.%df' % ('%',motor_width - 5)
 
-        if pos_format != -1:
+        if pos_format > -1:
             fmt = '%c*.%df' % ('%',int(pos_format))
 
         if show_ctrlaxis:
