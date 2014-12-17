@@ -80,7 +80,6 @@ class FIO_FileRecorder(BaseFileRecorder):
         self.db = PyTango.Database()
         if filename:
             self.setFileName(self.base_filename)
- 
 
     def setFileName(self, filename):
         if self.fd != None: 
@@ -107,7 +106,7 @@ class FIO_FileRecorder(BaseFileRecorder):
             #
             self.mcaDirName = "%s_%05d" % (tpl[0], serial)
         except:
-            self.filename = "%s_%s.%s" % (tpl[0], "[ScanId]", tpl[2]))
+            self.filename = "%s_%s.%s" % (tpl[0], "[ScanId]", tpl[2])
 
     def getFormat(self):
         return DataFormats.whatis(DataFormats.fio)
