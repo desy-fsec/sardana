@@ -578,6 +578,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         ## check datasources / get require components with give datasources
         cmps = list(set(nexuscomponents) | set(self.__availableComponents()))
         self.__clientSources = []
+        datasources = list(set(self.__nexussettings_device.dataSources)
+                           | set(self.__cutDeviceAliases.values()))
         for cp in cmps:
             try:
                 cpdss = json.loads(
@@ -601,7 +603,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                     self.macro.debug("Error: '%s'" % str(e))
                 dss = []
             if dss:
-                cdss = list(set(dss) & set(self.__cutDeviceAliases.values()))
+                cdss = list(set(dss) & set(datasources))
                 for ds in cdss:
                     self.debug("'%s' found in '%s'" % (ds, cp))
                     if ds not in dsFound.keys():
@@ -613,7 +615,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         missingKeys = set(userkeys) - keyFound
 
         ## get not found datasources
-        for ds in self.__cutDeviceAliases.values():
+        for ds in datasources:
             if ds not in dsFound.keys():
                 dsNotFound.append(ds)
                 if not dyncp:
@@ -680,6 +682,8 @@ class NXS_FileRecorder(BaseFileRecorder):
             list(set(nexuscomponents) | set(mandatory)),
             cfm, dyncp, userdata.keys())
 
+        self.debug("DataSources Not Found : %s" % dsNotFound)
+        self.debug("Components required : %s" % cpReq)
         self.debug("Missing User Data : %s" % missingKeys)
         self.__createDynamicComponent(dsNotFound if dyncp else [], missingKeys)
         nexuscomponents.append(str(self.__dynamicCP))
@@ -703,12 +707,13 @@ class NXS_FileRecorder(BaseFileRecorder):
 
             self.info("Components %s" % list(
                     set(nexuscomponents) | set(mandatory)))
-            toswitch = []
+            toswitch = set()
             for dd in envRec['datadesc']:
-                toswitch.append(self.__get_alias(str(dd.name)))
+                toswitch.add(self.__get_alias(str(dd.name)))
+            toswitch.update(set(self.__nexussettings_device.dataSources))    
             self.debug("Switching to STEP mode: %s" % toswitch)
             oldtoswitch = self.__nexussettings_device.stepdatasources
-            self.__nexussettings_device.stepdatasources = toswitch
+            self.__nexussettings_device.stepdatasources = list(toswitch)
             cnfxml = self.__nexussettings_device.createConfiguration(
                 nexuscomponents)
         finally:
