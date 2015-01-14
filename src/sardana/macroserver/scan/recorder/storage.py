@@ -578,8 +578,9 @@ class NXS_FileRecorder(BaseFileRecorder):
         ## check datasources / get require components with give datasources
         cmps = list(set(nexuscomponents) | set(self.__availableComponents()))
         self.__clientSources = []
-        datasources = list(set(self.__nexussettings_device.dataSources)
-                           | set(self.__cutDeviceAliases.values()))
+        nds = self.__getVar("dataSources", "NeXusDataSources", [], False,
+                            pass_default=self.__oddmntgrp)
+        datasources = list(set(nds) | set(self.__cutDeviceAliases.values()))
         for cp in cmps:
             try:
                 cpdss = json.loads(
@@ -710,7 +711,10 @@ class NXS_FileRecorder(BaseFileRecorder):
             toswitch = set()
             for dd in envRec['datadesc']:
                 toswitch.add(self.__get_alias(str(dd.name)))
-            toswitch.update(set(self.__nexussettings_device.dataSources))    
+            nds = self.__getVar("dataSources", "NeXusDataSources", [], False,
+                                pass_default=self.__oddmntgrp)
+
+            toswitch.update(set(nds))    
             self.debug("Switching to STEP mode: %s" % toswitch)
             oldtoswitch = self.__nexussettings_device.stepdatasources
             self.__nexussettings_device.stepdatasources = list(toswitch)
