@@ -23,23 +23,26 @@
 ##
 ##############################################################################
 
-"""The sardana package. It contains specific part of sardana"""
+from taurus.external import unittest
+from sardana.pool.test import (FakePool, createPoolController,
+                               dummyPoolCTCtrlConf01)
+from sardana.pool.poolcontroller import PoolController
 
-__docformat__ = 'restructuredtext'
+class PoolControllerTestCase(unittest.TestCase):
+    """Unittest of PoolController Class"""
 
-from .sardana import *
+    def setUp(self):
+        """Instantiate a fake Pool and create a Controller"""
+        pool = FakePool()
+        self.pc = createPoolController(pool, dummyPoolCTCtrlConf01)
 
+    def test_init(self):
+        """Verify that the created Controller is an instance of
+        PoolController"""
+        msg = 'PoolController constructor does not create ' +\
+              'PoolController instance'
+        self.assertIsInstance(self.pc, PoolController, msg)
 
-def registerExtensions():
-    from . import pool
-    from . import macroserver
-
-    pool.registerExtensions()
-    macroserver.registerExtensions()
-
-def unregisterExtensions():
-    from . import pool
-    from . import macroserver
-
-    pool.unregisterExtensions()
-    macroserver.unregisterExtensions()
+    def tearDown(self):
+        unittest.TestCase.tearDown(self)
+        self.pc = None

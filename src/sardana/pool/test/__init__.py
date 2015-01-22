@@ -23,23 +23,8 @@
 ##
 ##############################################################################
 
-"""The sardana package. It contains specific part of sardana"""
+"""This is the pool test module"""
 
-__docformat__ = 'restructuredtext'
-
-from .sardana import *
-
-
-def registerExtensions():
-    from . import pool
-    from . import macroserver
-
-    pool.registerExtensions()
-    macroserver.registerExtensions()
-
-def unregisterExtensions():
-    from . import pool
-    from . import macroserver
-
-    pool.unregisterExtensions()
-    macroserver.unregisterExtensions()
+from .fake import *
+from .helper import *
+from .dummyconfs import *

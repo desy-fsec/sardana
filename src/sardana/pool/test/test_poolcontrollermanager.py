@@ -23,23 +23,23 @@
 ##
 ##############################################################################
 
-"""The sardana package. It contains specific part of sardana"""
+from taurus.external import unittest
+from sardana.pool.poolcontrollermanager import ControllerManager
 
-__docformat__ = 'restructuredtext'
+class ControllerManagerTestCase(unittest.TestCase):
+    """Unittest of ControllerManager Class"""
 
-from .sardana import *
+    def setUp(self):
+        """Create a ControllerManager"""
+        self.cm = ControllerManager()
 
+    def test_init(self):
+        """Verify that the created ControllerManager is a ControllerManager
+        instance."""
+        msg = 'ControllerManager constructor does not create ' +\
+              'ControllerManager instance'
+        self.assertIsInstance(self.cm, ControllerManager, msg)
 
-def registerExtensions():
-    from . import pool
-    from . import macroserver
-
-    pool.registerExtensions()
-    macroserver.registerExtensions()
-
-def unregisterExtensions():
-    from . import pool
-    from . import macroserver
-
-    pool.unregisterExtensions()
-    macroserver.unregisterExtensions()
+    def tearDown(self):
+        unittest.TestCase.tearDown(self)
+        self.cm = None

@@ -23,23 +23,29 @@
 ##
 ##############################################################################
 
-"""The sardana package. It contains specific part of sardana"""
+from taurus.external import unittest
+from sardana.pool.poolcountertimer import PoolCounterTimer
+from sardana.pool.test import (FakePool, createPoolController,
+                               createPoolCounterTimer, dummyCounterTimerConf01,
+                               dummyPoolCTCtrlConf01)
 
-__docformat__ = 'restructuredtext'
+class PoolCounterTimerTestCase(unittest.TestCase):
+    """Unittest of PoolCounterTimer Class"""
 
-from .sardana import *
+    def setUp(self):
+        """Create a Controller and a CounterTimer element"""
+        pool = FakePool()
 
+        pc = createPoolController(pool, dummyPoolCTCtrlConf01)
+        self.pct = createPoolCounterTimer(pool, pc, dummyCounterTimerConf01)
 
-def registerExtensions():
-    from . import pool
-    from . import macroserver
+    def test_init(self):
+        """Verify that the created CounterTimer is a PoolCounterTimer
+        instance."""
+        msg = 'PoolCounterTimer constructor does not create ' +\
+              'PoolCounterTimer instance'
+        self.assertIsInstance(self.pct, PoolCounterTimer, msg)
 
-    pool.registerExtensions()
-    macroserver.registerExtensions()
-
-def unregisterExtensions():
-    from . import pool
-    from . import macroserver
-
-    pool.unregisterExtensions()
-    macroserver.unregisterExtensions()
+    def tearDown(self):
+        unittest.TestCase.tearDown(self)
+        self.pct = None

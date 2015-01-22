@@ -23,23 +23,25 @@
 ##
 ##############################################################################
 
-"""The sardana package. It contains specific part of sardana"""
+__all__ = ['FakePool']
 
-__docformat__ = 'restructuredtext'
+from sardana.pool.poolcontrollermanager import ControllerManager
 
-from .sardana import *
+class FakePool(object):
+    ''' Fake class to simulate the behaviour of the Pool class
+    '''
+    acq_loop_sleep_time = 0.1
+    acq_loop_states_per_value = 10
 
+    elements = {}
 
-def registerExtensions():
-    from . import pool
-    from . import macroserver
+    def __init__(self):
+        self.ctrl_manager = ControllerManager()
+        self.ctrl_manager.set_pool(self)
+        self.ctrl_manager.setControllerPath([])
 
-    pool.registerExtensions()
-    macroserver.registerExtensions()
+    def add_element(self, element):
+        self.elements[element.id] = element
 
-def unregisterExtensions():
-    from . import pool
-    from . import macroserver
-
-    pool.unregisterExtensions()
-    macroserver.unregisterExtensions()
+    def get_element(self, id):
+        return self.elements[id]
