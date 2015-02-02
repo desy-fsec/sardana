@@ -1797,7 +1797,7 @@ class Macro(Logger):
     
     @mAPI
     def getViewOption(self, name):
-        return self._getViewOptions()[name]
+        return self._getViewOption(name)
     
     @mAPI
     def getViewOptions(self):
@@ -1829,6 +1829,9 @@ class Macro(Logger):
     #@{
     
     def _getViewOptions(self):
+        '''Gets _ViewOption dictionary. If it is not defined in the environment,
+        sets it with the default values dictionary and returns it.
+        '''
         try:
             vo = self.getEnv('_ViewOptions')
             if len(vo.keys()) < len(ViewOption.get_view_options_keys()):
@@ -1839,10 +1842,19 @@ class Macro(Logger):
                         vo[key] = iop[key]
                 self.setEnv('_ViewOptions', vo)
         except UnknownEnv:
-            import msoptions
             vo = ViewOption.init_options(dict())
             self.setEnv('_ViewOptions', vo)
         return vo
+    
+    def _getViewOption(self, name):
+        '''Gets _ViewOption of a given name. If it is not defined in 
+        the environment, sets it to a default value and returns it.
+        '''
+        view_options = self._getViewOptions()
+        if not view_options.has_key(name):
+            ViewOption.reset_option(view_options, name)
+            self.setEnv('_ViewOptions', view_options)
+        return view_options[name]
 
     def _input(self, msg, *args, **kwargs):
         """**Unofficial Macro API**.
