@@ -322,8 +322,8 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         ## device aliases
         self.__deviceAliases = {}
-        ## cut device aliases
-        self.__cutDeviceAliases = {}
+        ## dynamic datasources
+        self.__dynamicDataSources = {}
 
         ## dynamic components
         self.__dynamicCP = "__dynamic_component__"
@@ -512,39 +512,52 @@ class NXS_FileRecorder(BaseFileRecorder):
         if name.find(':') >= 0:
             lst = name.split("/")
             name = "/".join(lst[1:])
-        return self.__db.get_alias(name)
+        try:
+            alias = self.__db.get_alias(name)
+        except:
+            alias = None
+        return alias
 
     def __collectAliases(self, envRec):
 
         if 'counters' in envRec:
             for elm in envRec['counters']:
                 alias = self.__get_alias(str(elm))
-                self.__deviceAliases[alias] = elm
+                if alias:
+                    self.__deviceAliases[alias] = str(elm)
+                else:
+                    self.__dynamicDataSources[(str(elm))] = None
         if 'ref_moveables' in envRec:
             for elm in envRec['ref_moveables']:
                 alias = self.__get_alias(str(elm))
-                self.__deviceAliases[alias] = elm
-
+                if alias:
+                    self.__deviceAliases[alias] = str(elm)
+                else:
+                    self.__dynamicDataSources[(str(elm))] = None
         if 'column_desc' in envRec:
             for elm in envRec['column_desc']:
                 if "name" in elm.keys():
                     alias = self.__get_alias(str(elm["name"]))
-                    self.__deviceAliases[alias] = elm["name"]
+                    if alias:
+                        self.__deviceAliases[alias] = str(elm["name"])
+                    else:
+                        self.__dynamicDataSources[(str(elm["name"]))] = None
         if 'datadesc' in envRec:
             for elm in envRec['datadesc']:
                 alias = self.__get_alias(str(elm.name))
-                self.__deviceAliases[alias] = elm.name
+                if alias:
+                    self.__deviceAliases[alias] = str(elm.name)
+                else:
+                    self.__dynamicDataSources[(str(elm.name))] = None
 
-        self.__cutDeviceAliases = {}
-        for alias in self.__deviceAliases.keys():
-            self.__cutDeviceAliases[alias] = alias
 
     def __createDynamicComponent(self, dss, keys):
         self.debug("DSS: %s" % dss)
         envRec = self.recordlist.getEnviron()
         lddict = []
         for dd in envRec['datadesc']:
-            if self.__get_alias(str(dd.name)) in dss:
+            alias = self.__get_alias(str(dd.name))
+            if  alias in dss:
                 mdd = {}
                 mdd["name"] = dd.name
                 mdd["shape"] = dd.shape
@@ -580,7 +593,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.__clientSources = []
         nds = self.__getVar("dataSources", "NeXusDataSources", [], False,
                             pass_default=self.__oddmntgrp)
-        datasources = list(set(nds) | set(self.__cutDeviceAliases.values()))
+        nds = nds if nds else []
+        datasources = list(set(nds) | set(self.__deviceAliases.keys()))
         for cp in cmps:
             try:
                 cpdss = json.loads(
@@ -615,6 +629,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                     cpReq[cp].append(ds)
         missingKeys = set(userkeys) - keyFound
 
+        datasources.extend(self.__dynamicDataSources.keys())
         ## get not found datasources
         for ds in datasources:
             if ds not in dsFound.keys():
@@ -710,10 +725,12 @@ class NXS_FileRecorder(BaseFileRecorder):
                     set(nexuscomponents) | set(mandatory)))
             toswitch = set()
             for dd in envRec['datadesc']:
-                toswitch.add(self.__get_alias(str(dd.name)))
+                alias = self.__get_alias(str(dd.name))
+                if alias:
+                    toswitch.add(alias)
             nds = self.__getVar("dataSources", "NeXusDataSources", [], False,
                                 pass_default=self.__oddmntgrp)
-
+            nds = nds if nds else []
             toswitch.update(set(nds))    
             self.debug("Switching to STEP mode: %s" % toswitch)
             oldtoswitch = self.__nexussettings_device.stepdatasources
