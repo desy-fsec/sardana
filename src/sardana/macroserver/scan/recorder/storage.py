@@ -475,6 +475,9 @@ class NXS_FileRecorder(BaseFileRecorder):
                 "To fix it please apply your settings by Component Selector."
                 )
             self.__oddmntgrp = True
+        else:
+            self.__nexussettings_device.importMntGrp()
+            
 
         vl = self.__getVar("writerDevice", "NeXusWriterDevice", None)
         if not vl:
