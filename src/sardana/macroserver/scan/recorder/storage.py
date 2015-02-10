@@ -477,6 +477,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.__oddmntgrp = True
         else:
             self.__nexussettings_device.importMntGrp()
+            self.__nexussettings_device.updateMntGrp()
             
 
         vl = self.__getVar("writerDevice", "NeXusWriterDevice", None)
