@@ -474,10 +474,12 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.macro.warning(
                 "To fix it please apply your settings by Component Selector."
                 )
-            self.__oddmntgrp = True
-        else:
-            self.__nexussettings_device.importMntGrp()
-            self.__nexussettings_device.updateMntGrp()
+            self.__oddmntgrp = False
+            self.__nexussettings_device.mntgrp = amntgrp
+
+        self.__nexussettings_device.fetchConfiguration()
+        self.__nexussettings_device.importMntGrp()
+        self.__nexussettings_device.updateMntGrp()
             
 
         vl = self.__getVar("writerDevice", "NeXusWriterDevice", None)
