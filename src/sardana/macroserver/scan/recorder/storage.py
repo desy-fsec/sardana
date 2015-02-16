@@ -458,28 +458,29 @@ class NXS_FileRecorder(BaseFileRecorder):
         mntgrp = self.__getVar("mntGrp", "NeXusMntGrp", None)
         amntgrp = self.__getVar(None, "ActiveMntGrp", None)
         if mntgrp and amntgrp != mntgrp:
-            self.warning(
-                ("Active Measurement Group '%s'" % amntgrp)
-                + (" differs from NeXusMntGrp '%s'." % mntgrp))
-            self.warning(
-                "Some metadata may not be stored into the NeXus file.")
-            self.warning(
-                "To fix it please apply your settings by Component Selector."
-                )
-            self.macro.warning(
-                ("Active Measurement Group '%s'" % amntgrp)
-                + (" differs from NeXusMntGrp '%s'." % mntgrp))
-            self.macro.warning(
-                "Some metadata may not be stored into the NeXus file.")
-            self.macro.warning(
-                "To fix it please apply your settings by Component Selector."
-                )
-            self.__oddmntgrp = False
             self.__nexussettings_device.mntgrp = amntgrp
-
-        self.__nexussettings_device.fetchConfiguration()
-        self.__nexussettings_device.importMntGrp()
-        self.__nexussettings_device.updateMntGrp()
+        if amntgrp not in self.__nexussettings_device.availableSelections():
+            self.warning(
+                ("Active Measurement Group '%s'" % amntgrp)
+                + (" differs from NeXusMntGrp '%s'." % mntgrp))
+            self.warning(
+                "Some metadata may not be stored into the NeXus file.")
+            self.warning(
+                "To fix it please apply your settings by Component Selector."
+                )
+            self.macro.warning(
+                ("Active Measurement Group '%s'" % amntgrp)
+                + (" differs from NeXusMntGrp '%s'." % mntgrp))
+            self.macro.warning(
+                "Some metadata may not be stored into the NeXus file.")
+            self.macro.warning(
+                "To fix it please apply your settings by Component Selector."
+                )
+            self.__oddmntgrp = True
+        else:
+            self.__nexussettings_device.fetchConfiguration()
+            self.__nexussettings_device.importMntGrp()
+            self.__nexussettings_device.updateMntGrp()
             
 
         vl = self.__getVar("writerDevice", "NeXusWriterDevice", None)
