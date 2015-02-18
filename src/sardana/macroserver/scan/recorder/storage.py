@@ -328,6 +328,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         ## dynamic components
         self.__dynamicCP = "__dynamic_component__"
 
+        ## environment
         self.__env = self.macro.getAllEnv() if self.macro else {}
 
         ## available components
@@ -336,13 +337,18 @@ class NXS_FileRecorder(BaseFileRecorder):
         ## default timezone
         self.__timezone = "Europe/Berlin"
 
+        ## default NeXus configuration env variable
         self.__defaultenv = "NeXusConfiguration"
 
+        ## module lable
         self.__moduleLabel = 'module'
+
+        ## NeXus configuration
+        self.__conf = {}
 
         self.__setNexusDevices()
 
-        appendentry = self.__getVar("appendEntry", "NeXusAppendEntry", True)
+        appendentry = self.__getConfVar("AppendEntry", True)
         scanID = self.__env["ScanID"] \
             if "ScanID" in self.__env.keys() else -1
 
@@ -353,7 +359,29 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         self.__clientSources = []
 
-    def __getVar(self, attr, var, default, decode=False, pass_default=False):
+    def __getConfVar(self, var, default, decode=False, pass_default=False):
+        if pass_default:
+            return default
+        if var in self.__conf.keys():
+            res = self.__conf[var]
+            if decode:
+                try:
+                    dec = json.loads(res)
+                    return dec
+                except:
+                    self.warning("%s = '%s' cannot be decoded" % (var, res))
+                    self.macro.warning(
+                        "%s = '%s' cannot be decoded" % (var, res))
+                    return default
+            else:
+                return res
+        else:
+            self.warning("%s = '%s' cannot be found" % (var, res))
+            self.macro.warning(
+                "%s = '%s' cannot be found" % (var, res))
+            return default
+
+    def __getServerVar(self, attr, default, decode=False, pass_default=False):
         if pass_default:
             return default
         if self.__nexussettings_device and attr:
@@ -370,15 +398,22 @@ class NXS_FileRecorder(BaseFileRecorder):
             else:
                 return res
         else:
-            if var in self.__env.keys():
-                return self.__env[var]
-            elif self.__defaultenv in self.__env.keys():
-                nenv = self.__env[self.__defaultenv]
-                if not attr:
-                    attr = var.replace("NeXus", "")
-                if attr in nenv:
-                    return nenv[attr]
+            self.warning("%s = '%s' cannot be found" % (attr, res))
+            self.macro.warning(
+                "%s = '%s' cannot be found" % (attr, res))
             return default
+
+    def __getEnvVar(self, var, default, pass_default=False):
+        if pass_default:
+            return default
+        if var in self.__env.keys():
+            return self.__env[var]
+        elif self.__defaultenv in self.__env.keys():
+            nenv = self.__env[self.__defaultenv]
+            attr = var.replace("NeXus", "")
+            if attr in nenv:
+                return nenv[attr]
+        return default
 
     def __setFileName(self, filename, number=True, scanID=None):
         if scanID is not None and scanID < 0:
@@ -432,7 +467,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         return DataFormats.whatis(DataFormats.nxs)
 
     def __setNexusDevices(self):
-        vl = self.__getVar(None, "NeXusSelectorDevice", None)
+        vl = self.__getEnvVar("NeXusSelectorDevice", None)
         if vl is None:
             servers = self.__db.get_device_exported_for_class(
                 "NXSRecSelector").value_string
@@ -455,8 +490,10 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.__nexussettings_device = Settings.Settings()
             self.__nexussettings_device.importAllEnv()
 
-        mntgrp = self.__getVar("mntGrp", "NeXusMntGrp", None)
-        amntgrp = self.__getVar(None, "ActiveMntGrp", None)
+        self.__conf = self.__getServerVar("configuration", {}, True)
+
+        mntgrp = self.__getConfVar("MntGrp", None)
+        amntgrp = self.__getEnvVar("ActiveMntGrp", None)
         if mntgrp and amntgrp != mntgrp:
             self.__nexussettings_device.mntgrp = amntgrp
         if amntgrp not in self.__nexussettings_device.availableSelections():
@@ -481,9 +518,8 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.__nexussettings_device.fetchConfiguration()
             self.__nexussettings_device.importMntGrp()
             self.__nexussettings_device.updateMntGrp()
-            
 
-        vl = self.__getVar("writerDevice", "NeXusWriterDevice", None)
+        vl = self.__getConfVar("WriterDevice", None)
         if not vl:
             servers = self.__db.get_device_exported_for_class(
                 "NXSDataWriter").value_string
@@ -557,14 +593,13 @@ class NXS_FileRecorder(BaseFileRecorder):
                 else:
                     self.__dynamicDataSources[(str(elm.name))] = None
 
-
     def __createDynamicComponent(self, dss, keys):
         self.debug("DSS: %s" % dss)
         envRec = self.recordlist.getEnviron()
         lddict = []
         for dd in envRec['datadesc']:
             alias = self.__get_alias(str(dd.name))
-            if  alias in dss:
+            if alias in dss:
                 mdd = {}
                 mdd["name"] = dd.name
                 mdd["shape"] = dd.shape
@@ -598,7 +633,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         ## check datasources / get require components with give datasources
         cmps = list(set(nexuscomponents) | set(self.__availableComponents()))
         self.__clientSources = []
-        nds = self.__getVar("dataSources", "NeXusDataSources", [], False,
+        nds = self.__getServerVar("dataSources", [], False,
                             pass_default=self.__oddmntgrp)
         nds = nds if nds else []
         datasources = list(set(nds) | set(self.__deviceAliases.keys()))
@@ -665,10 +700,9 @@ class NXS_FileRecorder(BaseFileRecorder):
         return (dsNotFound, cpReq, list(missingKeys))
 
     def __createConfiguration(self, userdata):
-        cfm = self.__getVar("componentsFromMntGrp",
-                            "NeXusComponentsFromMntGrp",
+        cfm = self.__getConfVar("ComponentsFromMntGrp",
                             False, pass_default=self.__oddmntgrp)
-        dyncp = self.__getVar("dynamicComponents", "NeXusDynamicComponents",
+        dyncp = self.__getConfVar("DynamicComponents",
                               True, pass_default=self.__oddmntgrp)
 
         envRec = self.recordlist.getEnviron()
@@ -678,21 +712,21 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.info("Default Components %s" % str(mandatory))
 
         nexuscomponents = []
-        lst = self.__getVar("components", "NeXusComponents", None, False,
-                            pass_default=self.__oddmntgrp)
+        lst = self.__getServerVar("components", None, False,
+                                  pass_default=self.__oddmntgrp)
         if isinstance(lst, (tuple, list)):
             nexuscomponents.extend(lst)
         self.info("User Components %s" % str(nexuscomponents))
 
         ## add updateControllers
-        lst = self.__getVar("automaticComponents", "NeXusAutomaticComponents",
-                            None, False, pass_default=self.__oddmntgrp)
+        lst = self.__getServerVar("automaticComponents",
+                                  None, False, pass_default=self.__oddmntgrp)
         if isinstance(lst, (tuple, list)):
             nexuscomponents.extend(lst)
         self.info("User Components %s" % str(nexuscomponents))
 
         self.__availableComps = []
-        lst = self.__getVar("optionalComponents", "NeXusOptionalComponents",
+        lst = self.__getConfVar("OptionalComponents",
                             None, True, pass_default=self.__oddmntgrp)
         if isinstance(lst, (tuple, list)):
             self.__availableComps.extend(lst)
@@ -717,8 +751,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         nexuscomponents = list(set(nexuscomponents))
 
         nexusvariables = {}
-        dct = self.__getVar("configVariables", "NeXusConfigVariables",
-                            None, True)
+        dct = self.__getConfVar("ConfigVariables", None, True)
         if isinstance(dct, dict):
             nexusvariables = dct
         oldtoswitch = None
@@ -735,12 +768,12 @@ class NXS_FileRecorder(BaseFileRecorder):
                 alias = self.__get_alias(str(dd.name))
                 if alias:
                     toswitch.add(alias)
-            nds = self.__getVar("dataSources", "NeXusDataSources", [], False,
+            nds = self.__getServerVar("dataSources", [], False,
                                 pass_default=self.__oddmntgrp)
             nds = nds if nds else []
-            toswitch.update(set(nds))    
+            toswitch.update(set(nds))
             self.debug("Switching to STEP mode: %s" % toswitch)
-            oldtoswitch = self.__nexussettings_device.stepdatasources
+            oldtoswitch = self.__getServerVar("stepdatasources", [], False)
             self.__nexussettings_device.stepdatasources = list(toswitch)
             cnfxml = self.__nexussettings_device.createConfiguration(
                 nexuscomponents)
@@ -760,7 +793,7 @@ class NXS_FileRecorder(BaseFileRecorder):
 
             self.__setNexusDevices()
 
-            appendentry = self.__getVar("appendEntry", "NeXusAppendEntry",
+            appendentry = self.__getConfVar("AppendEntry",
                                         True)
 
             appendentry = not self.__setFileName(
@@ -770,7 +803,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                 self.__vars["vars"]["serialno"] = envRec["serialno"]
             self.__vars["vars"]["scan_title"] = envRec["title"]
 
-            tzone = self.__getVar("timeZone", "NeXusTimeZone", self.__timezone)
+            tzone = self.__getConfVar("TimeZone", self.__timezone)
             self.__vars["data"]["start_time"] = \
                 self.__timeToString(envRec['starttime'], tzone)
 
@@ -800,7 +833,7 @@ class NXS_FileRecorder(BaseFileRecorder):
 
     def __appendRecord(self, var, mode=None):
         nexusrecord = {}
-        dct = self.__getVar("dataRecord", "NeXusDataRecord", None, True)
+        dct = self.__getConfVar("DataRecord", None, True)
         if isinstance(dct, dict):
             nexusrecord = dct
         record = dict(var)
@@ -866,7 +899,7 @@ class NXS_FileRecorder(BaseFileRecorder):
 
             self.debug('END_DATA: %s ' % str(envRec))
 
-            tzone = self.__getVar("timeZone", "NeXusTimeZone", self.__timezone)
+            tzone = self.__getConfVar("TimeZone", self.__timezone)
             self.__vars["data"]["end_time"] = \
                 self.__timeToString(envRec['endtime'], tzone)
 
