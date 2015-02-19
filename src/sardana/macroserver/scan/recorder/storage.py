@@ -346,18 +346,17 @@ class NXS_FileRecorder(BaseFileRecorder):
         ## NeXus configuration
         self.__conf = {}
 
-        self.__setNexusDevices()
+        self.__oddmntgrp = False
+
+        self.__clientSources = []
+
+        self.__setNexusDevices(onlyconfig=True)
 
         appendentry = self.__getConfVar("AppendEntry", True)
         scanID = self.__env["ScanID"] \
             if "ScanID" in self.__env.keys() else -1
-
         appendentry = not self.__setFileName(
             self.__base_filename, not appendentry, scanID)
-
-        self.__oddmntgrp = False
-
-        self.__clientSources = []
 
     def __getConfVar(self, var, default, decode=False, pass_default=False):
         if pass_default:
@@ -466,7 +465,7 @@ class NXS_FileRecorder(BaseFileRecorder):
     def getFormat(self):
         return DataFormats.whatis(DataFormats.nxs)
 
-    def __setNexusDevices(self):
+    def __setNexusDevices(self, onlyconfig=False):
         vl = self.__getEnvVar("NeXusSelectorDevice", None)
         if vl is None:
             servers = self.__db.get_device_exported_for_class(
@@ -490,9 +489,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.__nexussettings_device = Settings.Settings()
             self.__nexussettings_device.importAllEnv()
 
-        self.__conf = self.__getServerVar("configuration", {}, True)
-
-        mntgrp = self.__getConfVar("MntGrp", None)
+        mntgrp = self.__getServerVar("mntGrp", None)
         amntgrp = self.__getEnvVar("ActiveMntGrp", None)
         if mntgrp and amntgrp != mntgrp:
             self.__nexussettings_device.mntgrp = amntgrp
@@ -516,32 +513,36 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.__oddmntgrp = True
         else:
             self.__nexussettings_device.fetchConfiguration()
+
+        self.__conf = self.__getServerVar("configuration", {}, True)
+        if not self.__oddmntgrp and not onlyconfig:
             self.__nexussettings_device.importMntGrp()
             self.__nexussettings_device.updateMntGrp()
 
-        vl = self.__getConfVar("WriterDevice", None)
-        if not vl:
-            servers = self.__db.get_device_exported_for_class(
-                "NXSDataWriter").value_string
-        else:
-            servers = [str(vl)]
+        if not onlyconfig:
+            vl = self.__getConfVar("WriterDevice", None)
+            if not vl:
+                servers = self.__db.get_device_exported_for_class(
+                    "NXSDataWriter").value_string
+            else:
+                servers = [str(vl)]
 
-        if len(servers) > 0 and len(servers[0]) > 0 \
-                and servers[0] != self.__moduleLabel:
-            try:
-                self.__nexuswriter_device = PyTango.DeviceProxy(servers[0])
-                self.__nexuswriter_device.set_timeout_millis(self.__timeout)
-                self.__nexuswriter_device.ping()
-            except Exception:
+            if len(servers) > 0 and len(servers[0]) > 0 \
+                    and servers[0] != self.__moduleLabel:
+                try:
+                    self.__nexuswriter_device = PyTango.DeviceProxy(servers[0])
+                    self.__nexuswriter_device.set_timeout_millis(self.__timeout)
+                    self.__nexuswriter_device.ping()
+                except Exception:
+                    self.__nexuswriter_device = None
+                    self.warning("Cannot connect to '%s' " % servers[0])
+                    self.macro.warning("Cannot connect to '%s'" % servers[0])
+            else:
                 self.__nexuswriter_device = None
-                self.warning("Cannot connect to '%s' " % servers[0])
-                self.macro.warning("Cannot connect to '%s'" % servers[0])
-        else:
-            self.__nexuswriter_device = None
 
-        if self.__nexuswriter_device is None:
-            from nxswriter import TangoDataWriter
-            self.__nexuswriter_device = TangoDataWriter.TangoDataWriter()
+            if self.__nexuswriter_device is None:
+                from nxswriter import TangoDataWriter
+                self.__nexuswriter_device = TangoDataWriter.TangoDataWriter()
 
     ## provides a device alias
     # \param name device name
@@ -631,7 +632,12 @@ class NXS_FileRecorder(BaseFileRecorder):
         keyFound = set()
 
         ## check datasources / get require components with give datasources
-        cmps = list(set(nexuscomponents) | set(self.__availableComponents()))
+        if cfm:
+            cmps = list(set(nexuscomponents) | 
+                        set(self.__availableComponents()))
+        else:
+            cmps = list(set(nexuscomponents) & 
+                        set(self.__availableComponents()))
         self.__clientSources = []
         nds = self.__getServerVar("dataSources", [], False,
                             pass_default=self.__oddmntgrp)
