@@ -703,7 +703,7 @@ class NXS_FileRecorder(BaseFileRecorder):
                             "Warning: '%s' will not be stored. " % ds
                             + "It was not found in User Components!"
                             + " Consider setting: NeXusDynamicComponents=True")
-        return (dsNotFound, cpReq, list(missingKeys))
+        return (nds, dsNotFound, cpReq, list(missingKeys))
 
     def __createConfiguration(self, userdata):
         cfm = self.__getConfVar("ComponentsFromMntGrp",
@@ -741,7 +741,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.info("Available Components %s" % str(
                 self.__availableComponents()))
 
-        dsNotFound, cpReq, missingKeys = self.__searchDataSources(
+        nds, dsNotFound, cpReq, missingKeys = self.__searchDataSources(
             list(set(nexuscomponents) | set(mandatory)),
             cfm, dyncp, userdata.keys())
 
@@ -774,9 +774,6 @@ class NXS_FileRecorder(BaseFileRecorder):
                 alias = self.__get_alias(str(dd.name))
                 if alias:
                     toswitch.add(alias)
-            nds = self.__getServerVar("dataSources", [], False,
-                                pass_default=self.__oddmntgrp)
-            nds = nds if nds else []
             toswitch.update(set(nds))
             self.debug("Switching to STEP mode: %s" % toswitch)
             oldtoswitch = self.__getServerVar("stepdatasources", [], False)
