@@ -597,16 +597,17 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.debug("DSS: %s" % dss)
         envRec = self.recordlist.getEnviron()
         lddict = []
+        tdss =  [ds for ds in dss if not ds.startswith("tango://")]
         for dd in envRec['datadesc']:
             alias = self.__get_alias(str(dd.name))
-            if alias in dss:
+            if alias in tdss:
                 mdd = {}
                 mdd["name"] = dd.name
                 mdd["shape"] = dd.shape
                 mdd["dtype"] = dd.dtype
                 lddict.append(mdd)
         jddict = json.dumps(lddict, cls=NXS_FileRecorder.numpyEncoder)
-        jdss = json.dumps(dss, cls=NXS_FileRecorder.numpyEncoder)
+        jdss = json.dumps(tdss, cls=NXS_FileRecorder.numpyEncoder)
         jkeys = json.dumps(keys, cls=NXS_FileRecorder.numpyEncoder)
         self.debug("JDD: %s" % jddict)
         self.__dynamicCP = \
@@ -747,6 +748,10 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.debug("DataSources Not Found : %s" % dsNotFound)
         self.debug("Components required : %s" % cpReq)
         self.debug("Missing User Data : %s" % missingKeys)
+        ids = self.__getConfVar("InitDataSources",
+                            None, True, pass_default=self.__oddmntgrp)
+        if ids:
+            missingKeys.extend(list(ids))
         self.__createDynamicComponent(dsNotFound if dyncp else [], missingKeys)
         nexuscomponents.append(str(self.__dynamicCP))
 
