@@ -355,7 +355,17 @@ class SardanaDevice(Device_4Impl, Logger):
 
             data_type = attr.get_data_type()
             if w_value is not None and isinstance(attr, WAttribute):
-                attr.set_write_value(w_value)
+                # TODO: Remove the try/except protection when Sardana 
+                # feature request #286 has been implemented.  
+                #286: Solve inconsistencies between user position limits and
+                #dial position limits 
+                ################################################################
+                try:
+                    attr.set_write_value(w_value)
+                except DevFailed:
+                    msg = 'Unable to update "wvalue" because the position  is out of limits'
+                    self.warning(msg)
+                ################################################################
             if fire_event:
                 if data_type == ArgType.DevEncoded:
                     fmt, data = value
