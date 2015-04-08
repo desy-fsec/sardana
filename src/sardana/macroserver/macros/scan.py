@@ -307,6 +307,9 @@ class dNscan(aNscan):
         self.info("Returning to start positions...")
         self._motion.move(self.originalPositions)
 
+    def on_stop(self):
+        self.do_restore()
+
 
 class ascan(aNscan, Macro): 
     """Do an absolute scan of the specified motor.
