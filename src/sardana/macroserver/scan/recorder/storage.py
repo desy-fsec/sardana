@@ -356,6 +356,23 @@ class NXS_FileRecorder(BaseFileRecorder):
             if "ScanID" in self.__env.keys() else -1
         appendentry = not self.__setFileName(
             self.__base_filename, not appendentry, scanID)
+    
+    def __command(self, server, command, *args):
+        if server and command:
+            if hasattr(server, 'command_inout'):
+                if args:
+                    return server.command_inout(command, args[0])
+                else:
+                    return server.command_inout(command)
+                    
+            else:
+                res = getattr(server, command)
+                return res(*args)
+        else:
+            self.warning("%s.%s cannot be found" % (server, command))
+            self.macro.warning(
+                "%s.%s cannot be found" % (server, command))
+            return default
 
     def __getConfVar(self, var, default, decode=False, pass_default=False):
         if pass_default:
@@ -374,9 +391,9 @@ class NXS_FileRecorder(BaseFileRecorder):
             else:
                 return res
         else:
-            self.warning("%s = '%s' cannot be found" % (var, res))
+            self.warning("%s cannot be found" % (var))
             self.macro.warning(
-                "%s = '%s' cannot be found" % (var, res))
+                "%s cannot be found" % (var))
             return default
 
     def __getServerVar(self, attr, default, decode=False, pass_default=False):
@@ -396,9 +413,9 @@ class NXS_FileRecorder(BaseFileRecorder):
             else:
                 return res
         else:
-            self.warning("%s = '%s' cannot be found" % (attr, res))
+            self.warning("%s cannot be found" % (attr))
             self.macro.warning(
-                "%s = '%s' cannot be found" % (attr, res))
+                "%s  cannot be found" % (attr))
             return default
 
     def __getEnvVar(self, var, default, pass_default=False):
@@ -492,7 +509,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         amntgrp = self.__getEnvVar("ActiveMntGrp", None)
         if mntgrp and amntgrp != mntgrp:
             self.__nexussettings_device.mntgrp = amntgrp
-        if amntgrp not in self.__nexussettings_device.availableSelections():
+        if amntgrp not in self.__command(
+            self.__nexussettings_device, "availableSelections"):
             self.warning(
                 ("Active Measurement Group '%s'" % amntgrp)
                 + (" differs from NeXusMntGrp '%s'." % mntgrp))
@@ -511,12 +529,12 @@ class NXS_FileRecorder(BaseFileRecorder):
                 )
             self.__oddmntgrp = True
         else:
-            self.__nexussettings_device.fetchConfiguration()
+            self.__command(self.__nexussettings_device, "fetchConfiguration")
 
         self.__conf = self.__getServerVar("configuration", {}, True)
         if not self.__oddmntgrp and not onlyconfig:
-            self.__nexussettings_device.importMntGrp()
-            self.__nexussettings_device.updateMntGrp()
+            self.__command(self.__nexussettings_device, "importMntGrp")
+            self.__command(self.__nexussettings_device, "updateMntGrp")
 
         if not onlyconfig:
             vl = self.__getConfVar("WriterDevice", None)
@@ -611,15 +629,18 @@ class NXS_FileRecorder(BaseFileRecorder):
         jkeys = json.dumps(keys, cls=NXS_FileRecorder.numpyEncoder)
         self.debug("JDD: %s" % jddict)
         self.__dynamicCP = \
-            self.__nexussettings_device.createDynamicComponent(
-            [jdss, jddict, jkeys])
+            self.__command(self.__nexussettings_device, 
+                           "createDynamicComponent", 
+                           [jdss, jddict, jkeys])
 
     def __removeDynamicComponent(self):
-        self.__nexussettings_device.removeDynamicComponent(
-            str(self.__dynamicCP))
+        self.__command(self.__nexussettings_device, 
+                       "removeDynamicComponent",
+                       str(self.__dynamicCP))
 
     def __availableComponents(self):
-        cmps = self.__nexussettings_device.availableComponents()
+        cmps = self.__command(self.__nexussettings_device,
+                              "availableComponents")
         if self.__availableComps:
             return list(set(cmps) & set(self.__availableComps))
         else:
@@ -646,7 +667,9 @@ class NXS_FileRecorder(BaseFileRecorder):
         for cp in cmps:
             try:
                 cpdss = json.loads(
-                    self.__nexussettings_device.clientSources([cp]))
+                    self.__command(self.__nexussettings_device, 
+                                   "clientSources", 
+                                   [cp]))
                 self.__clientSources.extend(cpdss)
                 dss = [ds["dsname"]
                        for ds in cpdss if ds["strategy"] == 'STEP']
@@ -714,7 +737,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         envRec = self.recordlist.getEnviron()
         self.__collectAliases(envRec)
 
-        mandatory = self.__nexussettings_device.mandatoryComponents()
+        mandatory = self.__command(self.__nexussettings_device,
+                                   "mandatoryComponents")
         self.info("Default Components %s" % str(mandatory))
 
         nexuscomponents = []
@@ -769,7 +793,8 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.__nexussettings_device.configVariables = json.dumps(
                 dict(self.__vars["vars"], **nexusvariables),
                 cls=NXS_FileRecorder.numpyEncoder)
-            self.__nexussettings_device.updateConfigVariables()
+            self.__command(self.__nexussettings_device,
+                           "updateConfigVariables")
 
             self.info("Components %s" % list(
                     set(nexuscomponents) | set(mandatory)))
@@ -782,8 +807,9 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.debug("Switching to STEP mode: %s" % toswitch)
             oldtoswitch = self.__getServerVar("stepdatasources", [], False)
             self.__nexussettings_device.stepdatasources = list(toswitch)
-            cnfxml = self.__nexussettings_device.createConfiguration(
-                nexuscomponents)
+            cnfxml = self.__command(
+                        self.__nexussettings_device, "createConfiguration",
+                        nexuscomponents)
         finally:
             self.__nexussettings_device.configVariables = json.dumps(
                 nexusvariables)
@@ -825,15 +851,15 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.__vars["data"]["scan_title"] = envRec["title"]
 
             if hasattr(self.__nexuswriter_device, 'Init'):
-                self.__nexuswriter_device.Init()
+                self.__command(self.__nexuswriter_device, "Init")
             self.__nexuswriter_device.fileName = str(self.filename)
-            self.__nexuswriter_device.openFile()
+            self.__command(self.__nexuswriter_device, "openFile")
             self.__nexuswriter_device.xmlsettings = cnfxml
 
             self.debug('START_DATA: %s' % str(envRec))
 
             self.__nexuswriter_device.jsonrecord = rec
-            self.__nexuswriter_device.openEntry()
+            self.__command(self.__nexuswriter_device, "openEntry")
         except:
             self.__removeDynamicComponent()
             raise
@@ -875,7 +901,8 @@ class NXS_FileRecorder(BaseFileRecorder):
                 record.data,
                 cls=NXS_FileRecorder.numpyEncoder)
             self.debug("JSON!!: %s" % jsonString)
-            self.__nexuswriter_device.record(jsonString)
+            self.__command(self.__nexuswriter_device, "record",
+                        jsonString)
         except:
             self.__removeDynamicComponent()
             raise
@@ -915,8 +942,8 @@ class NXS_FileRecorder(BaseFileRecorder):
             rec = json.dumps(
                 envrecord, cls=NXS_FileRecorder.numpyEncoder)
             self.__nexuswriter_device.jsonrecord = rec
-            self.__nexuswriter_device.closeEntry()
-            self.__nexuswriter_device.closeFile()
+            self.__command(self.__nexuswriter_device, "closeEntry")
+            self.__command(self.__nexuswriter_device, "closeFile")
 
         finally:
             self.__removeDynamicComponent()
