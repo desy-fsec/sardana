@@ -36,12 +36,9 @@ import re
 
 import numpy
 import json
-
-from datetime import datetime
 import pytz 
 
 import PyTango
-import xml.dom.minidom 
 
 from sardana.taurus.core.tango.sardana import PlotType
 from sardana.macroserver.macro import Type
@@ -356,7 +353,7 @@ class NXS_FileRecorder(BaseFileRecorder):
             if "ScanID" in self.__env.keys() else -1
         appendentry = not self.__setFileName(
             self.__base_filename, not appendentry, scanID)
-    
+
     def __command(self, server, command, *args):
         if server and command:
             if hasattr(server, 'command_inout'):
@@ -364,7 +361,6 @@ class NXS_FileRecorder(BaseFileRecorder):
                     return server.command_inout(command, args[0])
                 else:
                     return server.command_inout(command)
-                    
             else:
                 res = getattr(server, command)
                 return res(*args)
@@ -372,7 +368,6 @@ class NXS_FileRecorder(BaseFileRecorder):
             self.warning("%s.%s cannot be found" % (server, command))
             self.macro.warning(
                 "%s.%s cannot be found" % (server, command))
-            return default
 
     def __getConfVar(self, var, default, decode=False, pass_default=False):
         if pass_default:
@@ -548,7 +543,8 @@ class NXS_FileRecorder(BaseFileRecorder):
                     and servers[0] != self.__moduleLabel:
                 try:
                     self.__nexuswriter_device = PyTango.DeviceProxy(servers[0])
-                    self.__nexuswriter_device.set_timeout_millis(self.__timeout)
+                    self.__nexuswriter_device.set_timeout_millis(
+                        self.__timeout)
                     self.__nexuswriter_device.ping()
                 except Exception:
                     self.__nexuswriter_device = None
@@ -615,7 +611,7 @@ class NXS_FileRecorder(BaseFileRecorder):
         self.debug("DSS: %s" % dss)
         envRec = self.recordlist.getEnviron()
         lddict = []
-        tdss =  [ds for ds in dss if not ds.startswith("tango://")]
+        tdss = [ds for ds in dss if not ds.startswith("tango://")]
         for dd in envRec['datadesc']:
             alias = self.__get_alias(str(dd.name))
             if alias in tdss:
@@ -629,12 +625,12 @@ class NXS_FileRecorder(BaseFileRecorder):
         jkeys = json.dumps(keys, cls=NXS_FileRecorder.numpyEncoder)
         self.debug("JDD: %s" % jddict)
         self.__dynamicCP = \
-            self.__command(self.__nexussettings_device, 
-                           "createDynamicComponent", 
+            self.__command(self.__nexussettings_device,
+                           "createDynamicComponent",
                            [jdss, jddict, jkeys])
 
     def __removeDynamicComponent(self):
-        self.__command(self.__nexussettings_device, 
+        self.__command(self.__nexussettings_device,
                        "removeDynamicComponent",
                        str(self.__dynamicCP))
 
@@ -654,10 +650,10 @@ class NXS_FileRecorder(BaseFileRecorder):
 
         ## check datasources / get require components with give datasources
         if cfm:
-            cmps = list(set(nexuscomponents) | 
+            cmps = list(set(nexuscomponents) |
                         set(self.__availableComponents()))
         else:
-            cmps = list(set(nexuscomponents) & 
+            cmps = list(set(nexuscomponents) &
                         set(self.__availableComponents()))
         self.__clientSources = []
         nds = self.__getServerVar("dataSources", [], False,
@@ -667,8 +663,8 @@ class NXS_FileRecorder(BaseFileRecorder):
         for cp in cmps:
             try:
                 cpdss = json.loads(
-                    self.__command(self.__nexussettings_device, 
-                                   "clientSources", 
+                    self.__command(self.__nexussettings_device,
+                                   "clientSources",
                                    [cp]))
                 self.__clientSources.extend(cpdss)
                 dss = [ds["dsname"]
@@ -1987,6 +1983,3 @@ def FileRecorder(filename, macro, **pars):
     else:
         klass = SPEC_FileRecorder
     return klass(filename=filename, macro=macro, **pars)
-
-
-
