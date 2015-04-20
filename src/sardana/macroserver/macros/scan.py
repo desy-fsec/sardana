@@ -715,6 +715,114 @@ class dmesh(mesh):
         self._motion.move(self.originalPositions)
 
 
+class mesh_repeat(mesh):
+    '''same as mesh but repeating each point'''
+
+    hints = copy.deepcopy(mesh.hints)
+    hints['scan'] = 'mesh_repeat'
+    
+    env = copy.deepcopy(mesh.env)
+
+    
+    param_def = [
+       ['motor1',      Type.Moveable,   None, 'First motor to move'],
+       ['m1_start_pos',Type.Float,   None, 'Scan start position for first motor'],
+       ['m1_final_pos',Type.Float,   None, 'Scan final position for first motor'],
+       ['m1_nr_interv',Type.Integer, None, 'Number of scan intervals'],
+       ['motor2',      Type.Moveable,   None, 'Second motor to move'],
+       ['m2_start_pos',Type.Float,   None, 'Scan start position for second motor'],
+       ['m2_final_pos',Type.Float,   None, 'Scan final position for second motor'],
+       ['m2_nr_interv',Type.Integer, None, 'Number of scan intervals'],
+       ['integ_time',  Type.Float,   None, 'Integration time'],
+       ['nb_repetitions', Type.Integer, 1, 'Number of repetions per point'],
+       ['bidirectional',   Type.Boolean, False, 'Save time by scanning s-shaped']
+    ]
+    
+  
+    def prepare(self, m1, m1_start_pos, m1_final_pos, m1_nr_interv,
+                m2, m2_start_pos, m2_final_pos, m2_nr_interv, integ_time,
+                nb_repetitions, bidirectional, **opts):
+
+        self.nb_repetitions = nb_repetitions
+
+        mesh.prepare(self, m1, m1_start_pos, m1_final_pos, m1_nr_interv,
+                m2, m2_start_pos, m2_final_pos, m2_nr_interv, integ_time,
+                bidirectional, **opts)
+
+    
+    def _generator(self):
+        step = {}
+        step["integ_time"] =  self.integ_time
+        step["pre-move-hooks"] = self.getHooks('pre-move')
+        step["post-move-hooks"] = self.getHooks('post-move')
+        step["pre-acq-hooks"] = self.getHooks('pre-acq')
+        step["post-acq-hooks"] = self.getHooks('post-acq') +  self.getHooks('_NOHINTS_')
+        step["post-step-hooks"] = self.getHooks('post-step')
+        step["check_func"] = []
+        m1start,m2start=self.starts
+        m1end,m2end=self.finals
+        points1,points2=self.nr_intervs+1
+        point_no=1
+        m1_space = numpy.linspace(m1start,m1end,points1)
+        m1_space_inv = numpy.linspace(m1end,m1start,points1)
+                                
+        for i, m2pos in enumerate(numpy.linspace(m2start,m2end,points2)):
+            space = m1_space
+            if i % 2 != 0 and self.bidirectional_mode:
+                space = m1_space_inv
+            for m1pos in space:
+                for j in range(0,self.nb_repetitions):
+                    step["positions"] = numpy.array([m1pos,m2pos])
+                    step["point_id"]= point_no  #TODO: maybe another ID would be better? (e.g. "(A,B)")
+                    point_no+=1
+                    yield step
+
+
+class dmesh_repeat(mesh_repeat): 
+    '''same as mesh but it interprets the positions as being relative to the
+    current positions and upon completion, it returns the motors to their
+    original positions'''
+
+    hints = copy.deepcopy(mesh_repeat.hints)
+    hints['scan'] = 'dmesh_repeat'
+
+    env = copy.deepcopy(mesh_repeat.env)
+ 
+    param_def = [
+       ['motor1',      Type.Moveable,   None, 'First motor to move'],
+       ['m1_start_pos',Type.Float,   None, 'Scan start position for first motor'],
+       ['m1_final_pos',Type.Float,   None, 'Scan final position for first motor'],
+       ['m1_nr_interv',Type.Integer, None, 'Number of scan intervals'],
+       ['motor2',      Type.Moveable,   None, 'Second motor to move'],
+       ['m2_start_pos',Type.Float,   None, 'Scan start position for second motor'],
+       ['m2_final_pos',Type.Float,   None, 'Scan final position for second motor'],
+       ['m2_nr_interv',Type.Integer, None, 'Number of scan intervals'],
+       ['integ_time',  Type.Float,   None, 'Integration time'],
+       ['nb_repetitions', Type.Integer, 1, 'Number of repetions per point'],
+       ['bidirectional',   Type.Boolean, False, 'Save time by scanning s-shaped']
+    ]
+
+
+    def prepare(self, m1, m1_start_pos, m1_final_pos, m1_nr_interv,
+                m2, m2_start_pos, m2_final_pos, m2_nr_interv, integ_time,
+                nb_repetitions, bidirectional, **opts):
+        self._motion=self.getMotion( [m1,m2] )
+        self.originalPositions = numpy.array(self._motion.readPosition(force=True))
+        start1 = self.originalPositions[0] +  m1_start_pos
+        start2 =  self.originalPositions[1] +  m2_start_pos
+        final1 = self.originalPositions[0] +  m1_final_pos
+        final2 =  self.originalPositions[1] +  m2_final_pos
+        mesh_repeat.prepare(self, m1, start1, final1, m1_nr_interv,
+                m2, start2, final2, m2_nr_interv, integ_time, nb_repetitions,
+                bidirectional, **opts)
+
+    def do_restore(self):
+        self.info("Returning to start positions...")
+        self.info(self.originalPositions)
+        self._motion.move(self.originalPositions)
+
+
+
 class fscan(Macro,Hookable):
     '''N-dimensional scan along user defined paths.
     The motion path for each motor is defined through the evaluation of a
