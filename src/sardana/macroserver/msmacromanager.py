@@ -183,9 +183,11 @@ class MacroManager(MacroServerManager):
         self._macro_path = p
 
         macro_file_names = self._findMacroLibNames()
-        for mod_name in macro_file_names:
+        for mod_name, file_name in macro_file_names.iteritems():
+            dir_name = os.path.dirname(file_name)
+            path = [dir_name]
             try:
-                self.reloadMacroLib(mod_name)
+                self.reloadMacroLib(mod_name, path)
             except:
                 pass
 
@@ -483,7 +485,8 @@ class MacroManager(MacroServerManager):
                 except:
                     self.error("Error adding macro %s", macro.__name__)
                     self.debug("Details:", exc_info=1)
-        self._modules[module_name] = macro_lib
+        if macro_lib.has_macros():
+            self._modules[module_name] = macro_lib
         return macro_lib
 
     def addMacro(self, macro_lib, macro):
