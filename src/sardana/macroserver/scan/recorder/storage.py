@@ -193,7 +193,7 @@ class FIO_FileRecorder(BaseFileRecorder):
                 
         if not fioList is None:
             for elm in fioList:
-                self.macro.info( "list: %s" % (str(elm)))
+                # self.macro.info( "list: %s" % (str(elm)))
                 self.fd.write( "%s\n" % (str(elm)))                
         self.fd.flush()
         #
@@ -203,7 +203,7 @@ class FIO_FileRecorder(BaseFileRecorder):
         self.fd.flush()
         if not fioDict is None:
             for k in sorted( fioDict.keys()):
-                self.macro.info( "dict: %s = %s" % (str(k), str(fioDict[k])))                
+                # self.macro.info( "dict: %s = %s" % (str(k), str(fioDict[k])))                
                 self.fd.write( "%s = %s\n" % (str(k), str(fioDict[k])))                
             
         if env.has_key( 'FlagFioWriteMotorPositions') and env['FlagFioWriteMotorPositions'] == True:
@@ -1083,6 +1083,7 @@ class SPEC_FileRecorder(BaseFileRecorder):
                }
         #Compatibility with PyMca
         # +++
+        header = ''
         if not os.path.exists(self.filename):
             header = '#F %s\n' % self.filename 
 
