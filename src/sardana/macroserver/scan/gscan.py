@@ -4,7 +4,7 @@
 ##
 ## This file is part of Sardana
 ##
-## http://www.sardana-controls.org/
+## http://www.tango-controls.org/static/sardana/latest/doc/html/index.html
 ##
 ## Copyright 2011 CELLS / ALBA Synchrotron, Bellaterra, Spain
 ## 
@@ -55,6 +55,23 @@ from sardana.macroserver.scan.scandata import ColumnDesc, MoveableDesc, \
 from sardana.macroserver.scan.recorder import OutputRecorder, JsonRecorder, \
     SharedMemoryRecorder, FileRecorder
 from sardana.taurus.core.tango.sardana.pool import Ready
+
+# Not needed, one have to put the file in a dir from PYTHONPATH
+import sys, os
+#
+# find the local user
+#
+gh_flagImported = 0
+locus = os.popen("cat /home/etc/local_user").read().strip()
+dirName = "/home/%s/sardanaMacros/generalFunctions" % locus
+if (len(locus) > 0) and (dirName not in sys.path):
+    sys.path.append( dirName)
+
+try:
+    import general_functions
+    gh_flagImported = 1
+except:
+    gh_flagImported = 0
 
 
 class ScanSetupError(Exception):
@@ -317,6 +334,19 @@ class GScan(Logger):
         # Setup environment
         # ----------------------------------------------------------------------
         self._setupEnvironment(env)
+        
+        #-----------------------------------------
+        # General functions
+        #-----------------------------------------
+        if 'general_functions' in sys.modules:
+            reload( general_functions)
+
+        global gh_flagImported
+        self.gh_flag = True
+        if gh_flagImported:
+            if __builtins__.has_key( 'gh_flagIsEnabled'):
+                if not __builtins__['gh_flagIsEnabled']:
+                    self.gh_flag = False
 
     def _getExtraColumns(self):
         ret = []
@@ -344,7 +374,7 @@ class GScan(Logger):
                     colname = kw.get('label', str(i))
                     self.macro.warning("Extra column %s is invalid: %s",
                                        colname, str(colexcept))
-        except InterruptException:
+        except InterruptException: 
             raise
         except Exception:
             self.macro.warning('ExtraColumns has invalid value. Must be a '
@@ -841,11 +871,17 @@ class SScan(GScan):
             scream = True
         else:
             yield 0.0
-        
+
+        if self.gh_flag:
+            try:
+                general_functions.gh_pre_scan(macro)
+            except:
+                pass
+
         if hasattr(macro, 'getHooks'):
             for hook in macro.getHooks('pre-scan'):
                 hook()
-        
+
         self._sum_motion_time = 0
         self._sum_acq_time = 0
         
@@ -856,6 +892,13 @@ class SScan(GScan):
             lstep = step
             if scream:
                 yield ((i + 1) / nr_points) * 100.0
+                         
+
+        if self.gh_flag:
+            try:
+                general_functions.gh_post_scan(macro)
+            except:
+                pass
 
         if hasattr(macro, 'getHooks'):
             for hook in macro.getHooks('post-scan'):
@@ -870,7 +913,13 @@ class SScan(GScan):
     def stepUp(self, n, step, lstep):
         motion, mg = self.motion, self.measurement_group
         startts = self._env['startts']
-        
+                  
+        if self.gh_flag:
+            try:
+                general_functions.gh_pre_move(self.macro)
+            except:
+                pass
+
         #pre-move hooks
         for hook in step.get('pre-move-hooks',()):
             hook()
@@ -896,7 +945,13 @@ class SScan(GScan):
         
         curr_time = time.time()
         dt = curr_time - startts
-        
+
+        if self.gh_flag:
+            try:
+                general_functions.gh_post_move(self.macro)
+            except:
+                pass
+            
         #post-move hooks
         for hook in step.get('post-move-hooks',()):
             hook()
@@ -915,7 +970,13 @@ class SScan(GScan):
             m = "Scan aborted after problematic motion: " \
                 "Motion ended with %s\n" % str(state)
             raise ScanException({ 'msg' : m })
-        
+                      
+        if self.gh_flag:    
+            try:
+                general_functions.gh_pre_acq(self.macro)
+            except:
+                pass
+
         #pre-acq hooks
         for hook in step.get('pre-acq-hooks',()):
             hook()
@@ -933,6 +994,12 @@ class SScan(GScan):
             data_line[ec.getName()] = ec.read()
         self.debug("[ END ] acquisition")
         self._sum_acq_time += integ_time
+                      
+        if self.gh_flag:     
+            try:
+                general_functions.gh_post_acq(self.macro)
+            except:
+                pass
 
         #post-acq hooks
         for hook in step.get('post-acq-hooks', ()):
@@ -968,7 +1035,13 @@ class SScan(GScan):
         if step.has_key('extrainfo'): data_line.update(step['extrainfo'])
         
         self.data.addRecord(data_line)
-    
+                      
+        if self.gh_flag:          
+            try:
+                general_functions.gh_post_step(self.macro)
+            except:
+                pass
+
         #post-step hooks
         for hook in step.get('post-step-hooks', ()):
             hook()
@@ -1003,12 +1076,6 @@ class CScan(GScan):
         self._moveables_trees, \
         physical_moveables_names, \
         self._physical_moveables = data_structures
-        # The physical motion object contains only physical motors - no pseudo
-        # motors (in case the pseudomotors are involved in the scan,
-        # it comprarises the underneath physical motors)
-        # This is due to the fact that the CTScan coordinates the
-        # pseudomotors' underneeth physical motors on on their constant
-        # velocity in contrary to the the CScan which do not coordinate them
         self._physical_motion = self.macro.getMotion(physical_moveables_names)
         
     def populate_moveables_data_structures(self, moveables):
@@ -1083,7 +1150,8 @@ class CScan(GScan):
         if restore_positions is not None:
             self._setFastMotions()
             self.macro.info("Correcting overshoot...")
-            self.motion.move(restore_positions)
+            self._physical_motion.move(restore_positions)
+            #self.motion.move(restore_positions)
         self.do_restore()
         self.motion_end_event.set()        
         self.motion_event.set()
@@ -1259,6 +1327,7 @@ class CScan(GScan):
         except ValueError:
             min_dec_time = motor.getDeceleration()
         return min_dec_time
+
  
     def set_max_top_velocity(self, motor):
         """Helper method to set the maximum top velocity for the motor to 
@@ -1422,7 +1491,13 @@ class CSScan(CScan):
             motion_paths, delta_start, acq_duration = waypoint_info
             
             self.acq_duration = acq_duration
-                        
+                           
+            if self.gh_flag:                  
+                try:
+                    general_functions.gh_cs_pre_move(macro)
+                except:
+                    pass
+       
             #execute pre-move hooks
             for hook in waypoint.get('pre-move-hooks',[]): 
                 hook()
@@ -1466,7 +1541,13 @@ class CSScan(CScan):
 
             if macro.isStopped():
                 return self.on_waypoints_end()
-            
+                           
+            if self.gh_flag:             
+                try:
+                    general_functions.gh_cs_post_move(macro)
+                except:
+                    pass
+
             #execute post-move hooks
             for hook in waypoint.get('post-move-hooks',[]):
                 hook()
@@ -1498,7 +1579,13 @@ class CSScan(CScan):
         period_steps = self.period_steps
         point_nb, step = -1, None
         data = self.data
-        
+                       
+        if self.gh_flag:             
+            try:
+                general_functions.gh_cs_pre_scan(macro)
+            except:
+                pass
+
         if hasattr(macro, 'getHooks'):
             for hook in macro.getHooks('pre-scan'):
                 hook()
@@ -1547,7 +1634,13 @@ class CSScan(CScan):
                 if elapsed_time + integ_time > self.acq_duration:
                     motion_event.clear()
                     break;                
-                
+                              
+                if self.gh_flag:              
+                    try:
+                        general_functions.gh_cs_pre_acq(self.macro)
+                    except:
+                        pass
+
                 #pre-acq hooks
                 for hook in step.get('pre-acq-hooks',()):
                     hook()
@@ -1580,7 +1673,13 @@ class CSScan(CScan):
                     for ec in self._extra_columns:
                         data_line[ec.getName()] = ec.read()
                     self.debug("[ END ] acquisition")
-                    
+                                  
+                    if self.gh_flag:              
+                        try:
+                            general_functions.gh_cs_post_acq(macro)
+                        except:
+                            pass
+
                     #post-acq hooks
                     for hook in step.get('post-acq-hooks',()):
                         hook()
@@ -1612,6 +1711,12 @@ class CSScan(CScan):
                 sum_delay += (curr_time - old_curr_time) - integ_time
 
         self.motion_end_event.wait()
+                       
+        if self.gh_flag:     
+            try:
+                general_functions.gh_cs_post_scan(macro)
+            except:
+                pass
 
         if hasattr(macro, 'getHooks'):
             for hook in macro.getHooks('post-scan'):
@@ -1899,7 +2004,8 @@ class CTScan(CScan):
             motion_paths, delta_start, acq_duration = waypoint_info
             
             self.acq_duration = acq_duration
-                        
+ 
+            
             #execute pre-move hooks
             for hook in waypoint.get('pre-move-hooks',[]): 
                 hook()
@@ -2032,7 +2138,7 @@ class CTScan(CScan):
                     name = moveable.moveable.getName()
                     for point_nr, position in enumerate(np.linspace(start, \
                                                         final, nr_of_points)):
-                        positions_records[point_nr][name] = position    
+                        positions_records[point_nr][name] = position  
                     
                 return positions_records
             
@@ -2050,24 +2156,8 @@ class CTScan(CScan):
         self.on_waypoints_end(positions)
         
     def on_waypoints_end(self, restore_positions=None):
-        """To be called by the waypoint thread to handle the end of waypoints
-        (either because no more waypoints or because a macro abort was
-        triggered)
-
-        .. todo:: Unify this method for all the continuous scans. Hint: use
-                  the motion property and return the _physical_motion member
-                  instead of _motion or in both cases: CSScan and CTScan
-                  coordinate the physical motors' velocit.
-        """
         self.macro.debug("on_waypoints_end() entering...")
-        self.set_all_waypoints_finished(True)
-        if restore_positions is not None:
-            self._setFastMotions()
-            self.macro.info("Correcting overshoot...")
-            self._physical_motion.move(restore_positions)
-        self.do_restore()
-        self.motion_end_event.set()        
-        self.motion_event.set()
+        CScan.on_waypoints_end(self, restore_positions=restore_positions)
         self.cleanup()
 
     def scan_loop(self):        
