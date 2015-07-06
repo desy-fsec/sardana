@@ -67,6 +67,23 @@ asyncexc = ctypes.pythonapi.PyThreadState_SetAsyncExc
 asyncexc.argtypes = (ctypes.c_long, ctypes.py_object)
 
 
+# Not needed: general_functions should be in PYTHONPATH
+import os
+#
+# find the local user
+#
+gs_flagImported = 0
+locus = os.popen("cat /home/etc/local_user").read().strip()
+dirName = "/home/%s/sardanaMacros/generalFunctions" % locus
+if (len(locus) > 0) and (dirName not in sys.path):
+    sys.path.append( dirName)
+
+try:
+    import general_functions
+    gs_flagImported = 1
+except:
+    gs_flagImported = 0
+    
 class OverloadPrint(object):
 
     def __init__(self, m):
@@ -2229,6 +2246,30 @@ class Macro(Logger):
     def _stopOnError(self):
         """**Internal method**. The stop procedure. Calls the user 'on_abort'
         protecting it against exceptions"""
+        try:
+            if 'general_functions' in sys.modules:
+                reload( general_functions)
+                global gs_flagImported 
+                
+                gs_flag = False
+                if gs_flagImported:
+                    if __builtins__.has_key( 'gs_flagIsEnabled'):
+                        if __builtins__['gs_flagIsEnabled']:
+                            gs_flag = True
+
+                if gs_flag:
+                    try:
+                        general_functions.general_on_stop(self)
+                    except Exception:
+                        Logger.error(self, "Error in general_on_stop(): %s", traceback.format_exc())
+                        Logger.debug(self, "Details: ", exc_info=1) 
+                if __builtins__.has_key( 'gs_selector'):
+                    if __builtins__['gs_selector'] == "scan":
+                        __builtins__['gs_selector'] = "general"
+        except:
+            Logger.debug(self, "Exception checking general_fuunctions")
+            Logger.debug(self, "Details: ", exc_info=1)
+            
         try:
             self.on_stop()
         except Exception:

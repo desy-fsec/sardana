@@ -338,15 +338,18 @@ class GScan(Logger):
         #-----------------------------------------
         # General functions
         #-----------------------------------------
+ 
+        __builtins__['gs_selector'] = "scan"
+        
         if 'general_functions' in sys.modules:
             reload( general_functions)
 
         global gh_flagImported
-        self.gh_flag = True
+        self.gh_flag = False
         if gh_flagImported:
             if __builtins__.has_key( 'gh_flagIsEnabled'):
-                if not __builtins__['gh_flagIsEnabled']:
-                    self.gh_flag = False
+                if __builtins__['gh_flagIsEnabled']:
+                    self.gh_flag = True
 
     def _getExtraColumns(self):
         ret = []
@@ -817,6 +820,9 @@ class GScan(Logger):
             scan_history.pop(0)
         self.macro.setEnv('ScanHistory', scan_history)
 
+        # Reset the general stop selector flag to general
+        __builtins__['gs_selector'] = "general"
+        
     def scan(self):
         for _ in self.step_scan():
             pass

@@ -136,11 +136,11 @@ class aNscan(Hookable):
             reload( general_functions)
 
         global gc_flagImported
-        self.gc_flag = True
+        self.gc_flag = False
         if gc_flagImported:
             if __builtins__.has_key( 'gc_flagIsEnabled'):
-                if not __builtins__['gc_flagIsEnabled']:
-                    self.gc_flag = False
+                if __builtins__['gc_flagIsEnabled']:
+                    self.gc_flag = True
         
         if mode == StepMode:
             self.nr_interv = scan_length
@@ -674,11 +674,11 @@ class mesh(Macro,Hookable):
             reload( general_functions)
 
         global gc_flagImported
-        self.gc_flag = True
+        self.gc_flag = False
         if gc_flagImported:
             if __builtins__.has_key( 'gc_flagIsEnabled'):
-                if not __builtins__['gc_flagIsEnabled']:
-                    self.gc_flag = False
+                if __builtins__['gc_flagIsEnabled']:
+                    self.gc_flag = True
 
         generator=self._generator
         moveables=self.motors
