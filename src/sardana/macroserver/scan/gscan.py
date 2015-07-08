@@ -62,10 +62,6 @@ import sys, os
 # find the local user
 #
 gh_flagImported = 0
-locus = os.popen("cat /home/etc/local_user").read().strip()
-dirName = "/home/%s/sardanaMacros/generalFunctions" % locus
-if (len(locus) > 0) and (dirName not in sys.path):
-    sys.path.append( dirName)
 
 try:
     import general_functions
