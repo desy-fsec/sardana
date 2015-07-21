@@ -2244,6 +2244,8 @@ class Macro(Logger):
         protecting it against exceptions"""
         try:
             if 'general_functions' in sys.modules:
+                
+                import general_functions # It is necessary to import here, if not can not be reloaded
                 reload( general_functions)
                 global gs_flagImported 
                 
