@@ -160,42 +160,42 @@ class FIO_FileRecorder(BaseFileRecorder):
                     self.macro.warning( "fioRecorder: %s does not exist" % fName)
                 else:
                     fioAdds = json.loads( os.popen( 'python %s ' % fName).read())
-        #
-        # allowed: list, dict, [list], [dict], [list, dict], [dict, list]
-        #
-        if type( fioAdds) is dict:
-            fioDict = fioAdds
-        elif type( fioAdds) is list:
-            if len(fioAdds) == 1:
-                if type(fioAdds[0]) is list:
-                    fioList = fioAdds[0]
-                elif type( fioAdds[0]) is dict:
-                    fioDict = fioAdds[0]
+                #
+                # allowed: list, dict, [list], [dict], [list, dict], [dict, list]
+                #
+                if type( fioAdds) is dict:
+                    fioDict = fioAdds
+                elif type( fioAdds) is list:
+                    if len(fioAdds) == 1:
+                        if type(fioAdds[0]) is list:
+                            fioList = fioAdds[0]
+                        elif type( fioAdds[0]) is dict:
+                            fioDict = fioAdds[0]
+                        else:
+                            fioList = fioAdds
+                    elif len( fioAdds) != 2:
+                        fioList = fioAdds
+                    else:
+                        if type( fioAdds[0]) is list:
+                            fioList = fioAdds[0]
+                            if not fioAdds[1] is dict:
+                                self.macro.output( "fio-recorder: bad output from %s (1)" % fName)
+                            fioDict = fioAdds[1]
+                        elif type( fioAdds[0]) is dict:
+                            fioDict = fioAdds[0]
+                            if not fioAdds[1] is list:
+                                self.macro.output( "fio-recorder: bad output from %s (2)" % fName)
+                            fioList = fioAdds[1]
+                        else:
+                            fioList = fioAdds
                 else:
-                    fioList = fioAdds
-            elif len( fioAdds) != 2:
-                fioList = fioAdds
-            else:
-                if type( fioAdds[0]) is list:
-                    fioList = fioAdds[0]
-                    if not fioAdds[1] is dict:
-                        self.output( "fio-recorder: bad output from %s (1)" % fName)
-                    fioDict = fioAdds[1]
-                elif type( fioAdds[0]) is dict:
-                    fioDict = fioAdds[0]
-                    if not fioAdds[1] is list:
-                        self.output( "fio-recorder: bad output from %s (2)" % fName)
-                    fioList = fioAdds[1]
-                else:
-                    fioList = fioAdds
-        else:
-            self.output( "fio-recorder: bad output from %s (3)" % fName)
+                    self.macro.output( "fio-recorder: bad output from %s (3)" % fName)
                 
-        if not fioList is None:
-            for elm in fioList:
-                # self.macro.info( "list: %s" % (str(elm)))
-                self.fd.write( "%s\n" % (str(elm)))                
-        self.fd.flush()
+                if not fioList is None:
+                    for elm in fioList:
+                        # self.macro.info( "list: %s" % (str(elm)))
+                        self.fd.write( "%s\n" % (str(elm)))                
+                self.fd.flush()
         #
         # write the parameter section, including the motor positions, if needed
         #
