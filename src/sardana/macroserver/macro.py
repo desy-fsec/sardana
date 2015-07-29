@@ -38,6 +38,7 @@ __docformat__ = 'restructuredtext'
 
 import sys
 import time
+import copy
 import types
 import ctypes
 import weakref
@@ -1811,24 +1812,32 @@ class Macro(Logger):
     @mAPI
     def getViewOption(self, name):
         return self._getViewOption(name)
-    
+
     @mAPI
     def getViewOptions(self):
-        return self._getViewOptions()
+        vo = self._getViewOptions()
+        # ensure that all view options known by sardana are present, in case
+        # there were missing ones, update _ViewOptions dictionary after 
+        # initializing missing options with the default values
+        ivo = copy.deepcopy(vo)
+        ViewOption.init_options(ivo)
+        if vo != ivo:
+            self.setEnv('_ViewOptions', vo)
+        return ivo
 
     @mAPI
     def setViewOption(self, name, value):
         vo = self._getViewOptions()
         vo[name] = value
         self.setEnv('_ViewOptions', vo)
-    
+
     @mAPI
     def resetViewOption(self, name):
         vo = self._getViewOptions()
         ViewOption.reset_option(vo, name)
         self.setEnv('_ViewOptions', vo)
         return vo.get(name)
-    
+
     #@}
 
     ## @name Unofficial Macro API
@@ -1840,7 +1849,6 @@ class Macro(Logger):
     #  consider informing the MacroServer developer so he may expose this in a
     #  safe way.
     #@{
-    
     def _getViewOptions(self):
         '''Gets _ViewOption dictionary. If it is not defined in the environment,
         sets it with the default values dictionary and returns it.
@@ -1858,7 +1866,7 @@ class Macro(Logger):
             vo = ViewOption.init_options(dict())
             self.setEnv('_ViewOptions', vo)
         return vo
-    
+
     def _getViewOption(self, name):
         '''Gets _ViewOption of a given name. If it is not defined in 
         the environment, sets it to a default value and returns it.
@@ -2244,6 +2252,8 @@ class Macro(Logger):
         protecting it against exceptions"""
         try:
             if 'general_functions' in sys.modules:
+                
+                import general_functions # It is necessary to import here, if not can not be reloaded
                 reload( general_functions)
                 global gs_flagImported 
                 
