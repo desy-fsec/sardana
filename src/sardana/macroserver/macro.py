@@ -68,12 +68,12 @@ asyncexc = ctypes.pythonapi.PyThreadState_SetAsyncExc
 asyncexc.argtypes = (ctypes.c_long, ctypes.py_object)
 
 
-# Not needed: general_functions should be in PYTHONPATH
 import os
-#
-# find the local user
-#
+
 gs_flagImported = 0
+
+# general_functions has to be in a directory included in
+# PYTHONPATH or in the property PythonPath of the MacroServer device
 
 try:
     import general_functions
@@ -2252,7 +2252,6 @@ class Macro(Logger):
         protecting it against exceptions"""
         try:
             if 'general_functions' in sys.modules:
-                
                 import general_functions # It is necessary to import here, if not can not be reloaded
                 reload( general_functions)
                 global gs_flagImported 

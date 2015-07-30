@@ -69,10 +69,11 @@ HybridMode = 'h'
 
 
 import sys
-#
-# find the local user
-#
 gc_flagImported = 0
+
+
+# general_functions has to be in a directory included in
+# PYTHONPATH or in the property PythonPath of the MacroServer device
 
 try:
     import general_functions
@@ -122,6 +123,7 @@ class aNscan(Hookable):
 
         env = opts.get('env',{})
         constrains = [getCallable(cns) for cns in opts.get('constrains',[UNCONSTRAINED])]
+
         extrainfodesc = opts.get('extrainfodesc',[])
 
         #Hooks are not always set at this point. We will call getHooks later on in the scan_loop
@@ -129,6 +131,7 @@ class aNscan(Hookable):
         #self.post_scan_hooks = self.getHooks('post-scan'
 
         if 'general_functions' in sys.modules:
+            import general_functions # It is necessary to import here, if not can not be reloaded
             reload( general_functions)
 
         global gc_flagImported

@@ -56,12 +56,12 @@ from sardana.macroserver.scan.recorder import OutputRecorder, JsonRecorder, \
     SharedMemoryRecorder, FileRecorder
 from sardana.taurus.core.tango.sardana.pool import Ready
 
-# Not needed, one have to put the file in a dir from PYTHONPATH
+
 import sys, os
-#
-# find the local user
-#
 gh_flagImported = 0
+
+# general_functions has to be in a directory included in
+# PYTHONPATH or in the property PythonPath of the MacroServer device
 
 try:
     import general_functions
@@ -338,6 +338,7 @@ class GScan(Logger):
         __builtins__['gs_selector'] = "scan"
         
         if 'general_functions' in sys.modules:
+            import general_functions # It is necessary to import here, if not can not be reloaded
             reload( general_functions)
 
         global gh_flagImported
