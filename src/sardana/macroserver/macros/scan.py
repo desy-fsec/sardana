@@ -68,19 +68,6 @@ ContinuousHwTimeMode = 'ct'
 HybridMode = 'h'
 
 
-import sys
-gc_flagImported = 0
-
-
-# general_functions has to be in a directory included in
-# PYTHONPATH or in the property PythonPath of the MacroServer device
-
-try:
-    import general_functions
-    gc_flagImported = 1
-except:
-    gc_flagImported = 0
-
 
 
 def getCallable(repr):
@@ -123,23 +110,12 @@ class aNscan(Hookable):
 
         env = opts.get('env',{})
         constrains = [getCallable(cns) for cns in opts.get('constrains',[UNCONSTRAINED])]
-
         extrainfodesc = opts.get('extrainfodesc',[])
 
         #Hooks are not always set at this point. We will call getHooks later on in the scan_loop
         #self.pre_scan_hooks = self.getHooks('pre-scan')
         #self.post_scan_hooks = self.getHooks('post-scan'
 
-        if 'general_functions' in sys.modules:
-            import general_functions # It is necessary to import here, if not can not be reloaded
-            reload( general_functions)
-
-        global gc_flagImported
-        self.gc_flag = False
-        if gc_flagImported:
-            if __builtins__.has_key( 'gc_flagIsEnabled'):
-                if __builtins__['gc_flagIsEnabled']:
-                    self.gc_flag = True
         
         if mode == StepMode:
             self.nr_interv = scan_length
@@ -189,22 +165,10 @@ class aNscan(Hookable):
         step["post-step-hooks"] = self.getHooks('post-step')
         
         step["check_func"] = []
-        point_id = 0
-        point_no = 0
-        while point_no < self.nr_points:
-            if self.gc_flag:
-               ic = general_functions.check_condition(self)
-               if point_no == 0 and point_id == 0:
-                   ic = 0
-               if ic:
-                   point_no = point_no - 1 
-               step["point_id"] = point_id
-            else:
-                step["point_id"] = point_no
+        for point_no in xrange(self.nr_points):
             step["positions"] = self.starts + point_no * self.interv_sizes
-            point_id = point_id + 1
-            point_no = point_no + 1
-            yield step 
+            step["point_id"] = point_no
+            yield step
             
     
     def _waypoint_generator(self):
@@ -668,16 +632,7 @@ class mesh(Macro,Hookable):
         self.bidirectional_mode = bidirectional
         
         self.name=opts.get('name','mesh')
-        
-        if 'general_functions' in sys.modules:
-            reload( general_functions)
 
-        global gc_flagImported
-        self.gc_flag = False
-        if gc_flagImported:
-            if __builtins__.has_key( 'gc_flagIsEnabled'):
-                if __builtins__['gc_flagIsEnabled']:
-                    self.gc_flag = True
 
         generator=self._generator
         moveables=self.motors
@@ -690,7 +645,6 @@ class mesh(Macro,Hookable):
 
         self._gScan=SScan(self, generator, moveables, env, constrains)
  
-
     def _generator(self):
         step = {}
         step["integ_time"] =  self.integ_time
@@ -706,46 +660,16 @@ class mesh(Macro,Hookable):
         point_no=1
         m1_space = numpy.linspace(m1start,m1end,points1)
         m1_space_inv = numpy.linspace(m1end,m1start,points1)
-             
-        m2_space = numpy.linspace(m2start,m2end,points2)
- 
-        if self.gc_flag:
-            point_no_2 = 0
-            point_no_1 = 0
-            point_id = point_no
-            ic = 0
-            while point_no_2 < m2_space.size:
-                flag_start_ext_loop = 1
-                while point_no_1 < m1_space.size:
-                    ic = general_functions.check_condition(self)
-                    if point_no_2 == 0 and point_no_1 == 0 and point_id == 1: # chequear esto
-                        ic = 0
-                    if flag_start_ext_loop:
-                        if ic:
-                            if point_no_2 != 0:
-                                point_no_2 = point_no_2 - 1
-                            point_no_1 = m1_space.size - 1
-                    else:
-                        if ic and point_no_1 != 0:
-                            point_no_1 = point_no_1 - 1
-                    flag_start_ext_loop = 0 
-                    step["positions"] = numpy.array([m1_space.item(point_no_1),m2_space.item(point_no_2)])
-                    step["point_id"] = point_id
-                    point_id = point_id + 1
-                    point_no_1 = point_no_1 + 1
-                    yield step
-                point_no_1 = 0
-                point_no_2 = point_no_2 + 1
-        else:
-            for i, m2pos in enumerate(numpy.linspace(m2start,m2end,points2)):
-                space = m1_space
-                if i % 2 != 0 and self.bidirectional_mode:
-                    space = m1_space_inv
-                for m1pos in space:
-                    step["positions"] = numpy.array([m1pos,m2pos])
-                    step["point_id"]= point_no  #TODO: maybe another ID would be better? (e.g. "(A,B)")
-                    point_no+=1
-                    yield step
+                                
+        for i, m2pos in enumerate(numpy.linspace(m2start,m2end,points2)):
+            space = m1_space
+            if i % 2 != 0 and self.bidirectional_mode:
+                space = m1_space_inv
+            for m1pos in space:
+                step["positions"] = numpy.array([m1pos,m2pos])
+                step["point_id"]= point_no  #TODO: maybe another ID would be better? (e.g. "(A,B)")
+                point_no+=1
+                yield step
     
     def run(self,*args):
         for step in self._gScan.step_scan():

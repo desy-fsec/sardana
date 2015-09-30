@@ -57,17 +57,18 @@ from sardana.macroserver.scan.recorder import OutputRecorder, JsonRecorder, \
 from sardana.taurus.core.tango.sardana.pool import Ready
 
 
-import sys, os
-gh_flagImported = 0
+import sys
 
-# general_functions has to be in a directory included in
-# PYTHONPATH or in the property PythonPath of the MacroServer device
+gh_flagImported = 0
+gc_flagImported = 0
 
 try:
     import general_functions
     gh_flagImported = 1
+    gc_flagImported = 1
 except:
     gh_flagImported = 0
+    gc_flagImported = 0
 
 
 class ScanSetupError(Exception):
@@ -338,7 +339,7 @@ class GScan(Logger):
         __builtins__['gs_selector'] = "scan"
         
         if 'general_functions' in sys.modules:
-            import general_functions # It is necessary to import here, if not can not be reloaded
+            import general_functions  # It is necessary to import here, if not can not be reloaded
             reload( general_functions)
 
         global gh_flagImported
@@ -347,6 +348,12 @@ class GScan(Logger):
             if __builtins__.has_key( 'gh_flagIsEnabled'):
                 if __builtins__['gh_flagIsEnabled']:
                     self.gh_flag = True
+
+        self.gc_flag = False
+        if gc_flagImported:
+            if __builtins__.has_key( 'gc_flagIsEnabled'):
+                if __builtins__['gc_flagIsEnabled']:
+                    self.gc_flag = True
 
     def _getExtraColumns(self):
         ret = []
@@ -945,9 +952,6 @@ class SScan(GScan):
             self.dump_information(n, step)
             raise
         self.debug("[ END ] motion")
-        
-        curr_time = time.time()
-        dt = curr_time - startts
 
         if self.gh_flag:
             try:
@@ -964,62 +968,54 @@ class SScan(GScan):
                 raise
             except:
                 pass
+                
+        ic = 1
+        while ic:
         
-        # allow scan to be stopped between motion and data acquisition
-        self.macro.checkPoint()
+            curr_time = time.time()
+            dt = curr_time - startts
+
+            # allow scan to be stopped between motion and data acquisition
+            self.macro.checkPoint()
         
-        if state != Ready:
-            self.dump_information(n, step)
-            m = "Scan aborted after problematic motion: " \
-                "Motion ended with %s\n" % str(state)
-            raise ScanException({ 'msg' : m })
+            if state != Ready:
+                self.dump_information(n, step)
+                m = "Scan aborted after problematic motion: " \
+                    "Motion ended with %s\n" % str(state)
+                raise ScanException({ 'msg' : m })
                       
-        if self.gh_flag:    
-            try:
-                general_functions.gh_pre_acq(self.macro)
-            except:
-                pass
+            if self.gh_flag:    
+                try:
+                    general_functions.gh_pre_acq(self.macro)
+                except:
+                    pass
 
         #pre-acq hooks
-        for hook in step.get('pre-acq-hooks',()):
-            hook()
-            try:
-                step['extrainfo'].update(hook.getStepExtraInfo())
-            except InterruptException:
-                raise
-            except: pass
+            for hook in step.get('pre-acq-hooks',()):
+                hook()
+                try:
+                    step['extrainfo'].update(hook.getStepExtraInfo())
+                except InterruptException:
+                    raise
+                except: pass
         
-        integ_time = step['integ_time']
+            integ_time = step['integ_time']
         # Acquire data
-        self.debug("[START] acquisition")
-        state, data_line = mg.count(integ_time)
-        for ec in self._extra_columns:
-            data_line[ec.getName()] = ec.read()
-        self.debug("[ END ] acquisition")
-        self._sum_acq_time += integ_time
+            self.debug("[START] acquisition")
+            state, data_line = mg.count(integ_time)
+            for ec in self._extra_columns:
+                data_line[ec.getName()] = ec.read()
+            self.debug("[ END ] acquisition")
+            self._sum_acq_time += integ_time
                       
-        if self.gh_flag:     
-            try:
-                general_functions.gh_post_acq(self.macro)
-            except:
-                pass
+            if self.gh_flag:     
+                try:
+                    general_functions.gh_post_acq(self.macro)
+                except:
+                    pass
 
         #post-acq hooks
-        for hook in step.get('post-acq-hooks', ()):
-            hook()
-            try:
-                step['extrainfo'].update(hook.getStepExtraInfo())
-            except InterruptException:
-                raise
-            except:
-                pass
-        
-        #hooks for backwards compatibility:
-        if step.has_key('hooks'):
-            self.macro.info('Deprecation warning: you should use '
-                            '"post-acq-hooks" instead of "hooks" in the step '
-                            'generator')
-            for hook in step.get('hooks', ()):
+            for hook in step.get('post-acq-hooks', ()):
                 hook()
                 try:
                     step['extrainfo'].update(hook.getStepExtraInfo())
@@ -1028,33 +1024,56 @@ class SScan(GScan):
                 except:
                     pass
         
-        # Add final moveable positions
-        data_line['point_nb'] = n
-        data_line['timestamp'] = dt
-        for i, m in enumerate(self.moveables):
-            data_line[m.moveable.getName()] = positions[i]
-        
-        #Add extra data coming in the step['extrainfo'] dictionary
-        if step.has_key('extrainfo'): data_line.update(step['extrainfo'])
-        
-        self.data.addRecord(data_line)
-                      
-        if self.gh_flag:          
-            try:
-                general_functions.gh_post_step(self.macro)
-            except:
-                pass
+        #hooks for backwards compatibility:
+            if step.has_key('hooks'):
+                self.macro.info('Deprecation warning: you should use '
+                                '"post-acq-hooks" instead of "hooks" in the step '
+                                'generator')
+                for hook in step.get('hooks', ()):
+                    hook()
+                    try:
+                        step['extrainfo'].update(hook.getStepExtraInfo())
+                    except InterruptException:
+                        raise
+                    except:
+                        pass
 
-        #post-step hooks
-        for hook in step.get('post-step-hooks', ()):
-            hook()
-            try:
-                step['extrainfo'].update(hook.getStepExtraInfo())
-            except InterruptException:
-                raise
-            except:
-                pass
+            # Add final moveable positions
+            data_line['point_nb'] = n
+            data_line['timestamp'] = dt
+            for i, m in enumerate(self.moveables):
+                data_line[m.moveable.getName()] = positions[i]
         
+            #Add extra data coming in the step['extrainfo'] dictionary
+            if step.has_key('extrainfo'): data_line.update(step['extrainfo'])
+
+            self.data.addRecord(data_line)
+                      
+            if self.gh_flag:          
+                try:
+                    general_functions.gh_post_step(self.macro)
+                except:
+                    pass
+
+            #post-step hooks
+            for hook in step.get('post-step-hooks', ()):
+                hook()
+                try:
+                    step['extrainfo'].update(hook.getStepExtraInfo())
+                except InterruptException:
+                    raise
+                except:
+                    pass
+
+            if self.gc_flag:
+                try:
+                    ic = general_functions.check_condition(self.macro)
+                except:
+                    ic = 0
+            else:
+                ic = 0
+
+
     def dump_information(self, n, step):
         moveables = self.motion.moveable_list
         msg = ["Report: Stopped at step #" + str(n) + " with:"]
