@@ -895,6 +895,7 @@ class SScan(GScan):
         self._sum_motion_time = 0
         self._sum_acq_time = 0
         
+        self.point_id = 0
         for i, step in self.steps:
             # allow scan to be stopped between points
             macro.checkPoint()
@@ -949,7 +950,8 @@ class SScan(GScan):
         except InterruptException:
             raise
         except:
-            self.dump_information(n, step)
+            #self.dump_information(n, step)
+            self.dump_information(self.point_id, step)
             raise
         self.debug("[ END ] motion")
 
@@ -971,7 +973,6 @@ class SScan(GScan):
                 
         ic = 1
         while ic:
-        
             curr_time = time.time()
             dt = curr_time - startts
 
@@ -979,7 +980,8 @@ class SScan(GScan):
             self.macro.checkPoint()
         
             if state != Ready:
-                self.dump_information(n, step)
+                #self.dump_information(n, step)
+                self.dump_information(self.point_id, step)
                 m = "Scan aborted after problematic motion: " \
                     "Motion ended with %s\n" % str(state)
                 raise ScanException({ 'msg' : m })
@@ -1039,7 +1041,8 @@ class SScan(GScan):
                         pass
 
             # Add final moveable positions
-            data_line['point_nb'] = n
+            #data_line['point_nb'] = n
+            data_line['point_nb'] = self.point_id
             data_line['timestamp'] = dt
             for i, m in enumerate(self.moveables):
                 data_line[m.moveable.getName()] = positions[i]
@@ -1072,6 +1075,9 @@ class SScan(GScan):
                     ic = 0
             else:
                 ic = 0
+        
+            self.point_id = self.point_id + 1
+
 
 
     def dump_information(self, n, step):
