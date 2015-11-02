@@ -68,18 +68,13 @@ asyncexc = ctypes.pythonapi.PyThreadState_SetAsyncExc
 asyncexc.argtypes = (ctypes.c_long, ctypes.py_object)
 
 
-import os
-
-gs_flagImported = 0
-
-# general_functions has to be in a directory included in
-# PYTHONPATH or in the property PythonPath of the MacroServer device
-
+# This call is done before PythonPath MacroServer property is added to
+# the sys.path, so the import here fails, but it will be done before
+# the general_functions need to be used
 try:
     import general_functions
-    gs_flagImported = 1
 except:
-    gs_flagImported = 0
+    pass
     
 class OverloadPrint(object):
 
@@ -2252,15 +2247,14 @@ class Macro(Logger):
         protecting it against exceptions"""
         try:
             if 'general_functions' in sys.modules:
-                import general_functions # It is necessary to import here, if not can not be reloaded
+                
+                import general_functions # It is necessary to import here, since at the beginning this module was not in system path
                 reload( general_functions)
-                global gs_flagImported 
                 
                 gs_flag = False
-                if gs_flagImported:
-                    if __builtins__.has_key( 'gs_flagIsEnabled'):
-                        if __builtins__['gs_flagIsEnabled']:
-                            gs_flag = True
+                if __builtins__.has_key( 'gs_flagIsEnabled'):
+                    if __builtins__['gs_flagIsEnabled']:
+                        gs_flag = True
 
                 if gs_flag:
                     try:

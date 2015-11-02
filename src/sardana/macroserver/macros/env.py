@@ -30,6 +30,8 @@ __docformat__ = 'restructuredtext'
 from taurus.console.list import List
 from sardana.macroserver.macro import *
 
+import re
+
 ################################################################################
 #
 # Environment related macros
@@ -97,41 +99,52 @@ class usetvo(Macro):
 
             
 class lsenv(Macro):
-    """Lists the environment in alphabetical order"""
+    """Lists the environment in alphabetical order. 
+    The environment of a macro will be listed using 
+    macro_name\\.filter_pattern"""
     
     param_def = [
-        ['macro_list',
-         ParamRepeat(['macro', Type.MacroClass, None, 'macro name'], min=0),
-         None, 'List of macros to show environment'],
+        ['filter_str', Type.String, '.*', 'a regular expression filter'],
     ]
     
-    def prepare(self, *macro_list, **opts):
+    def prepare(self, filter_str, **opts):
         self.table_opts = opts
         
-    def run(self, *macro_list):
+    def run(self, filter_str):
+        macro = None
+        if filter_str.find("\.") != -1:
+            macro_name, filter = filter_str.split("\.")
+            macro = self.getObj(macro_name)
+        else:
+            filter = filter_str
+
+        expr = re.compile(filter, re.IGNORECASE)
+
         # list the environment for the current door
-        if len(macro_list) == 0:
+        if macro == None:
             # list All the environment for the current door
             out = List(['Name', 'Value', 'Type'])
             env = self.getAllDoorEnv()
             names_list = list(env.keys())
             names_list.sort(key=str.lower)
             for k in names_list:
+                if expr.match(k) is None:
+                    continue
                 str_val = self.reprValue(env[k])
                 type_name = type(env[k]).__name__
                 out.appendRow([k, str_val, type_name])
-        # list the environment for the current door for the given macros
+        # list the environment for the current door for the given macro
         else:            
             out = List(['Macro', 'Name', 'Value', 'Type']) 
-            for macro in macro_list:
-                names_list = []
-                env = self.getEnv(key=None, macro_name=macro.name)
-                names_list = list(env.keys())
-                names_list.sort(key=str.lower)
-                for k in names_list:
-                    str_val = self.reprValue(env[k])
-                    type_name = type(env[k]).__name__
-                    out.appendRow([macro.name, k, str_val, type_name])
+            env = self.getEnv(key=None, macro_name=macro.name)
+            names_list = list(env.keys())
+            names_list.sort(key=str.lower)
+            for k in names_list:
+                if expr.match(k) is None:
+                    continue
+                str_val = self.reprValue(env[k])
+                type_name = type(env[k]).__name__
+                out.appendRow([macro.name, k, str_val, type_name])
 
         for line in out.genOutput():
             self.output(line)
