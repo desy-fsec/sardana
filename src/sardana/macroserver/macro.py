@@ -75,7 +75,8 @@ try:
     import general_functions
 except:
     pass
-    
+
+
 class OverloadPrint(object):
 
     def __init__(self, m):
@@ -2247,10 +2248,10 @@ class Macro(Logger):
         protecting it against exceptions"""
         try:
             if 'general_functions' in sys.modules:
-                
+
                 import general_functions # It is necessary to import here, since at the beginning this module was not in system path
                 reload( general_functions)
-                
+
                 gs_flag = False
                 if __builtins__.has_key( 'gs_flagIsEnabled'):
                     if __builtins__['gs_flagIsEnabled']:
@@ -2261,14 +2262,14 @@ class Macro(Logger):
                         general_functions.general_on_stop(self)
                     except Exception:
                         Logger.error(self, "Error in general_on_stop(): %s", traceback.format_exc())
-                        Logger.debug(self, "Details: ", exc_info=1) 
+                        Logger.debug(self, "Details: ", exc_info=1)
                 if __builtins__.has_key( 'gs_selector'):
                     if __builtins__['gs_selector'] == "scan":
                         __builtins__['gs_selector'] = "general"
         except:
             Logger.debug(self, "Exception checking general_fuunctions")
             Logger.debug(self, "Details: ", exc_info=1)
-            
+
         try:
             self.on_stop()
         except Exception:

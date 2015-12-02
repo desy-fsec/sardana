@@ -326,7 +326,7 @@ class Door(SardanaDevice):
         attr.set_value(self._last_result)
     
     def read_RunningMacros(self, attr):
-        
+
         running_macros = []
         nb_macros = 0
         macro = self.getRunningMacro()
@@ -399,7 +399,7 @@ class Door(SardanaDevice):
         self.macro_executor.resume()
         
     def is_ResumeMacro_allowed(self):
-        return self.get_state() == Macro.Pause 
+        return self.get_state() == Macro.Pause
     
     def RunMacro(self, par_str_list):
         #first empty all the buffers

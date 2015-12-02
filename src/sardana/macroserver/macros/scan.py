@@ -116,7 +116,6 @@ class aNscan(Hookable):
         #self.pre_scan_hooks = self.getHooks('pre-scan')
         #self.post_scan_hooks = self.getHooks('post-scan'
 
-        
         if mode == StepMode:
             self.nr_interv = scan_length
             self.nr_points = self.nr_interv+1
@@ -169,8 +168,8 @@ class aNscan(Hookable):
             step["positions"] = self.starts + point_no * self.interv_sizes
             step["point_id"] = point_no
             yield step
-            
-    
+
+
     def _waypoint_generator(self):
         step = {}
         step["pre-move-hooks"] = self.getHooks('pre-move')
@@ -644,7 +643,7 @@ class mesh(Macro,Hookable):
         #self.post_scan_hooks = self.getHooks('post-scan')
 
         self._gScan=SScan(self, generator, moveables, env, constrains)
- 
+
     def _generator(self):
         step = {}
         step["integ_time"] =  self.integ_time
@@ -736,10 +735,10 @@ class mesh_repeat(mesh):
 
     hints = copy.deepcopy(mesh.hints)
     hints['scan'] = 'mesh_repeat'
-    
+
     env = copy.deepcopy(mesh.env)
 
-    
+
     param_def = [
        ['motor1',      Type.Moveable,   None, 'First motor to move'],
        ['m1_start_pos',Type.Float,   None, 'Scan start position for first motor'],
@@ -753,8 +752,8 @@ class mesh_repeat(mesh):
        ['nb_repetitions', Type.Integer, 1, 'Number of repetions per point'],
        ['bidirectional',   Type.Boolean, False, 'Save time by scanning s-shaped']
     ]
-    
-  
+
+
     def prepare(self, m1, m1_start_pos, m1_final_pos, m1_nr_interv,
                 m2, m2_start_pos, m2_final_pos, m2_nr_interv, integ_time,
                 nb_repetitions, bidirectional, **opts):
@@ -765,7 +764,7 @@ class mesh_repeat(mesh):
                 m2, m2_start_pos, m2_final_pos, m2_nr_interv, integ_time,
                 bidirectional, **opts)
 
-    
+
     def _generator(self):
         step = {}
         step["integ_time"] =  self.integ_time
@@ -781,7 +780,7 @@ class mesh_repeat(mesh):
         point_no=1
         m1_space = numpy.linspace(m1start,m1end,points1)
         m1_space_inv = numpy.linspace(m1end,m1start,points1)
-                                
+
         for i, m2pos in enumerate(numpy.linspace(m2start,m2end,points2)):
             space = m1_space
             if i % 2 != 0 and self.bidirectional_mode:
@@ -794,7 +793,7 @@ class mesh_repeat(mesh):
                     yield step
 
 
-class dmesh_repeat(mesh_repeat): 
+class dmesh_repeat(mesh_repeat):
     '''same as mesh but it interprets the positions as being relative to the
     current positions and upon completion, it returns the motors to their
     original positions'''
@@ -803,7 +802,7 @@ class dmesh_repeat(mesh_repeat):
     hints['scan'] = 'dmesh_repeat'
 
     env = copy.deepcopy(mesh_repeat.env)
- 
+
     param_def = [
        ['motor1',      Type.Moveable,   None, 'First motor to move'],
        ['m1_start_pos',Type.Float,   None, 'Scan start position for first motor'],

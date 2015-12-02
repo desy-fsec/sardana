@@ -23,13 +23,11 @@
 
 """This is the standard macro module"""
 
-__all__ = ["ct", "logmacro_off", "logmacro_on", "logmacro_restart", 
-           "mstate", "mv", "mvr",  "pwa", "pwm", "set_lim", "set_lm", 
+__all__ = ["ct", "mstate", "mv", "mvr", "pwa", "pwm", "set_lim",
+           "logmacro_off", "logmacro_on", "logmacro_restart",
+           "adjust_lim", "adjust_lim_single", "set_lim_pool",
            "set_pos", "settimer", "uct", "umv", "umvr", "wa", "wm"]
 
-__all__ = ["ct", "logmacro_off", "logmacro_on", "logmacro_restart", 
-           "mstate", "mv", "mvr",  "pwa", "pwm", "set_lim", "adjust_lim", "adjust_lim_single",
-           "set_pos", "settimer", "uct", "umv", "umvr", "wa", "wm"]
 
 __docformat__ = 'restructuredtext'
 
@@ -257,7 +255,7 @@ class set_lim(Macro):
     ]
 
     def run(self, motor, low, high):
-       
+
         limits_changed = 1
 
         name = motor.getName()
@@ -268,8 +266,8 @@ class set_lim(Macro):
         except:
             limits_changed = 0
             self.info("UnitLimitMin/UnitLimitMax has not be written. They probably only readable (ex. many VmExecutors)")
-            self.info("Limits not changed") 
-  
+            self.info("Limits not changed")
+
         if limits_changed == 1:
             set_lim, pars= self.createMacro("set_lim_pool", motor, low, high)
             self.runMacro(set_lim)
@@ -281,31 +279,31 @@ class adjust_lim(Macro):
 
     def prepare(self, **opts):
         self.all_motors = self.findObjs('.*', type_class=Type.Moveable)
-       
+
     def run(self):
         nr_motors = len(self.all_motors)
         if nr_motors == 0:
             self.output('No motor defined')
             return
-    
+
         for motor in self.all_motors:
             adjust_lim, pars= self.createMacro("adjust_lim_single", motor)
             self.runMacro(adjust_lim)
 
 class adjust_lim_single(Macro):
     """Sets Pool motor limits to the values in the Tango Device for a single motor"""
- 
+
     param_def = [
         ['motor', Type.Moveable, None, 'Motor name']
     ]
-       
+
     def run(self, motor):
         name = motor.getName()
         motor_device = DeviceProxy(name)
         try:
             high = motor_device.UnitLimitMax
             low  = motor_device.UnitLimitMin
-            
+
             # do not set attribute configuration limits if UnitLimitMax/~Min can not be written
             adjust_limits = 1
             try:
@@ -313,13 +311,13 @@ class adjust_lim_single(Macro):
                 motor_device.UnitLimitMin = low
             except:
                 adjust_limits = 0
-                self.info("Limits for motor %s not adjusted. UnitLimitMax/~Min only readable" % name) 
+                self.info("Limits for motor %s not adjusted. UnitLimitMax/~Min only readable" % name)
             if adjust_limits == 1:
                 set_lim, pars= self.createMacro("set_lim_pool", motor, low, high)
                 self.runMacro(set_lim)
         except:
-            self.warning("Limits for motor %s not adjusted. Error reading UnitLimitMax/~Min" % name) 
-            
+            self.warning("Limits for motor %s not adjusted. Error reading UnitLimitMax/~Min" % name)
+
 #class set_lm(Macro):
 #    """Sets the dial limits on the specified motor"""
 #    param_def = [
@@ -327,7 +325,7 @@ class adjust_lim_single(Macro):
 #        ['low',   Type.Float, None, 'lower limit'],
 #        ['high',   Type.Float, None, 'upper limit']
 #    ]
-#    
+#
 #    def run(self, motor, low, high):
 #        name = motor.getName()
 #        self.debug("Setting dial limits for %s" % name)
@@ -348,8 +346,8 @@ class set_pos(Macro):
         motor.definePosition(pos)
         self.output("%s reset from %.4f to %.4f" % (name, old_pos, pos))
         adjust_lim, pars= self.createMacro("adjust_lim_single", motor)
-        self.runMacro(adjust_lim)   
-        
+        self.runMacro(adjust_lim)
+
 #class set_user_pos(Macro):
 #    """Sets the USER position of the motor to the specified value (by changing OFFSET and keeping DIAL)"""
     
@@ -763,12 +761,13 @@ def report(self, *message):
     """Logs a new record into the message report system (if active)"""
     self.report(' '.join(message))
 
+
 class logmacro_off(Macro):
     """ Set off the logging of the spock output """
 
     def run(self):
         self.setEnv('LogMacroOnOff', False)
-        
+
 
 class logmacro_on(Macro):
     """ Set on the logging of the spock output """
@@ -781,4 +780,3 @@ class logmacro_restart(Macro):
 
     def run(self):
         self.setEnv('LogMacroMode', True)
-    
