@@ -47,6 +47,7 @@ from sardana.macroserver.scan.recorder import (BaseFileRecorder,
 from taurus.core.util.containers import chunks
 
 
+
 class FIO_FileRecorder(BaseFileRecorder):
     """ Saves data to a file """
 
@@ -107,10 +108,13 @@ class FIO_FileRecorder(BaseFileRecorder):
         self.motorNames = envRec[ 'ref_moveables']
         self.mcaNames = []
         self.ctNames = []
+        self.twoDNames = []
         for e in envRec['datadesc']:
-            if len( e.shape) == 1:
+            if len( e.shape) == 2:
+                self.twoDNames.append( e.name)
+            elif len( e.shape) == 1:
                 self.mcaNames.append( e.name)
-            else:
+            elif len( e.shape) == 0:
                 self.ctNames.append( e.name)
         #
         # we need the aliases for the column description
@@ -120,20 +124,77 @@ class FIO_FileRecorder(BaseFileRecorder):
             lst = mca.split("/")
             self.mcaAliases.append( self.db.get_alias( "/".join( lst[1:])))
 
+        env = self.macro.getAllEnv()
         # self.names = [ e.name for e in envRec['datadesc'] ]
         self.fd = open( self.filename,'w')
         #
         # write the comment section of the header
         #
-        self.fd.write("!\n! Comments\n!\n%%c\n %s\nuser %s Acquisition started at %s\n" % 
+        self.fd.write("!\n! Comments\n!\n%%c\n%s\nuser %s Acquisition started at %s\n" % 
                       (envRec['title'], envRec['user'], start_time.ctime()))
-        self.fd.flush()
+        #
+        # FioAdditions points to a .py file which produces
+        # a json encoded list or dictionary.
+        # the list goes to the comment section,
+        # the dictionary to the parameter section
+        #
+        fioAdds = None
+        fioList = None
+        fioDict = None
+        if env.has_key( 'FioAdditions'):
+            fName = env['FioAdditions']
+            if not fName is None:
+                if not os.path.exists( fName):
+                    self.warning( "fioRecorder: %s does not exist" % fName)
+                    self.macro.warning( "fioRecorder: %s does not exist" % fName)
+                else:
+                    fioAdds = json.loads( os.popen( 'python %s ' % fName).read())
+                #
+                # allowed: list, dict, [list], [dict], [list, dict], [dict, list]
+                #
+                if type( fioAdds) is dict:
+                    fioDict = fioAdds
+                elif type( fioAdds) is list:
+                    if len(fioAdds) == 1:
+                        if type(fioAdds[0]) is list:
+                            fioList = fioAdds[0]
+                        elif type( fioAdds[0]) is dict:
+                            fioDict = fioAdds[0]
+                        else:
+                            fioList = fioAdds
+                    elif len( fioAdds) != 2:
+                        fioList = fioAdds
+                    else:
+                        if type( fioAdds[0]) is list:
+                            fioList = fioAdds[0]
+                            if not fioAdds[1] is dict:
+                                self.macro.output( "fio-recorder: bad output from %s (1)" % fName)
+                            fioDict = fioAdds[1]
+                        elif type( fioAdds[0]) is dict:
+                            fioDict = fioAdds[0]
+                            if not fioAdds[1] is list:
+                                self.macro.output( "fio-recorder: bad output from %s (2)" % fName)
+                            fioList = fioAdds[1]
+                        else:
+                            fioList = fioAdds
+                else:
+                    self.macro.output( "fio-recorder: bad output from %s (3)" % fName)
+                
+                if not fioList is None:
+                    for elm in fioList:
+                        # self.macro.info( "list: %s" % (str(elm)))
+                        self.fd.write( "%s\n" % (str(elm)))                
+                self.fd.flush()
         #
         # write the parameter section, including the motor positions, if needed
         #
         self.fd.write("!\n! Parameter\n!\n%p\n")
         self.fd.flush()
-        env = self.macro.getAllEnv()
+        if not fioDict is None:
+            for k in sorted( fioDict.keys()):
+                # self.macro.info( "dict: %s = %s" % (str(k), str(fioDict[k])))                
+                self.fd.write( "%s = %s\n" % (str(k), str(fioDict[k])))                
+            
         if env.has_key( 'FlagFioWriteMotorPositions') and env['FlagFioWriteMotorPositions'] == True:
             all_motors = self.macro.findObjs('.*', type_class=Type.Motor)
             all_motors.sort()
@@ -142,7 +203,7 @@ class FIO_FileRecorder(BaseFileRecorder):
                 if pos is None:
                     record = "%s = nan\n" % (mot)
                 else:
-                    record = "%s = %g\n" % (mot, mot.getPosition())
+                    record = "%s = %s\n" % (mot, repr( mot.getPosition()))
                     
                 self.fd.write( record)
             self.fd.flush()
@@ -157,6 +218,12 @@ class FIO_FileRecorder(BaseFileRecorder):
                 continue
             if col.name == 'timestamp':
                 continue
+            #
+            # MCAs must not appear in the data section, they have len( col.shape) == 1
+            # TwoD output appears at the end
+            #
+            if len( col.shape) != 0:
+                continue
             dType = 'FLOAT'
             if col.dtype == 'float64':
                 dType = 'DOUBLE'
@@ -168,7 +235,6 @@ class FIO_FileRecorder(BaseFileRecorder):
         #
         outLine = " Col %d %s %s\n" % ( i, 'timestamp', 'DOUBLE')
         self.fd.write( outLine)
-
         self.fd.flush()
 
     def _writeRecord(self, record):
@@ -180,6 +246,7 @@ class FIO_FileRecorder(BaseFileRecorder):
             if c == "timestamp" or c == "point_nb":
                 continue
             outstr += ' ' + str(record.data.get(c, nan))
+
         #
         # 11.9.2012 timestamp to the end
         #
