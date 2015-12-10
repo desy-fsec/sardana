@@ -74,7 +74,7 @@ asyncexc.argtypes = (ctypes.c_long, ctypes.py_object)
 try:
     import general_functions
 except:
-    pass
+    general_functions = None
 
 
 class OverloadPrint(object):
@@ -2246,10 +2246,10 @@ class Macro(Logger):
     def _stopOnError(self):
         """**Internal method**. The stop procedure. Calls the user 'on_abort'
         protecting it against exceptions"""
+        global general_functions
         try:
             if 'general_functions' in sys.modules:
-
-                import general_functions # It is necessary to import here, since at the beginning this module was not in system path
+                general_functions = sys.modules['general_functions']
                 reload( general_functions)
 
                 gs_flag = False
