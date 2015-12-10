@@ -70,7 +70,7 @@ try:
 except:
     gh_flagImported = 0
     gc_flagImported = 0
-
+    general_functions = None
 
 class ScanSetupError(Exception):
     pass
@@ -341,12 +341,16 @@ class GScan(Logger):
         #-----------------------------------------
 
         __builtins__['gs_selector'] = "scan"
+        global gh_flagImported
+        global gc_flagImported
+        global general_functions
 
         if 'general_functions' in sys.modules:
-            import general_functions  # It is necessary to import here, if not can not be reloaded
+            general_functions = sys.modules["general_functions"]
             reload( general_functions)
+            gh_flagImported = 1
+            gc_flagImported = 1
 
-        global gh_flagImported
         self.gh_flag = False
         if gh_flagImported:
             if __builtins__.has_key( 'gh_flagIsEnabled'):
