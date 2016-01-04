@@ -7,17 +7,17 @@
 ## http://www.sardana-controls.org/
 ##
 ## Copyright 2011 CELLS / ALBA Synchrotron, Bellaterra, Spain
-## 
+##
 ## Sardana is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU Lesser General Public License as published by
 ## the Free Software Foundation, either version 3 of the License, or
 ## (at your option) any later version.
-## 
+##
 ## Sardana is distributed in the hope that it will be useful,
 ## but WITHOUT ANY WARRANTY; without even the implied warranty of
 ## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ## GNU Lesser General Public License for more details.
-## 
+##
 ## You should have received a copy of the GNU Lesser General Public License
 ## along with Sardana.  If not, see <http://www.gnu.org/licenses/>.
 ##
@@ -63,11 +63,11 @@ class FIO_FileRecorder(BaseFileRecorder):
             self.setFileName(self.base_filename)
 
     def setFileName(self, filename):
-        if self.fd != None: 
+        if self.fd != None:
             self.fd.close()
-   
+
         dirname = os.path.dirname(filename)
-        
+
         if not os.path.isdir(dirname):
             try:
                 os.makedirs(dirname)
@@ -91,20 +91,20 @@ class FIO_FileRecorder(BaseFileRecorder):
 
     def getFormat(self):
         return DataFormats.whatis(DataFormats.fio)
-    
+
     def _startRecordList(self, recordlist):
 
         if self.base_filename is None:
             return
 
         self.setFileName(self.base_filename)
-        
+
         envRec = recordlist.getEnviron()
 
         self.sampleTime = envRec['estimatedtime'] / (envRec['total_scan_intervals'] + 1)
         #datetime object
         start_time = envRec['starttime']
-        
+
         self.motorNames = envRec[ 'ref_moveables']
         self.mcaNames = []
         self.ctNames = []
@@ -130,7 +130,7 @@ class FIO_FileRecorder(BaseFileRecorder):
         #
         # write the comment section of the header
         #
-        self.fd.write("!\n! Comments\n!\n%%c\n%s\nuser %s Acquisition started at %s\n" % 
+        self.fd.write("!\n! Comments\n!\n%%c\n%s\nuser %s Acquisition started at %s\n" %
                       (envRec['title'], envRec['user'], start_time.ctime()))
         #
         # FioAdditions points to a .py file which produces
@@ -179,11 +179,11 @@ class FIO_FileRecorder(BaseFileRecorder):
                             fioList = fioAdds
                 else:
                     self.macro.output( "fio-recorder: bad output from %s (3)" % fName)
-                
+
                 if not fioList is None:
                     for elm in fioList:
                         # self.macro.info( "list: %s" % (str(elm)))
-                        self.fd.write( "%s\n" % (str(elm)))                
+                        self.fd.write( "%s\n" % (str(elm)))
                 self.fd.flush()
         #
         # write the parameter section, including the motor positions, if needed
@@ -192,9 +192,9 @@ class FIO_FileRecorder(BaseFileRecorder):
         self.fd.flush()
         if not fioDict is None:
             for k in sorted( fioDict.keys()):
-                # self.macro.info( "dict: %s = %s" % (str(k), str(fioDict[k])))                
-                self.fd.write( "%s = %s\n" % (str(k), str(fioDict[k])))                
-            
+                # self.macro.info( "dict: %s = %s" % (str(k), str(fioDict[k])))
+                self.fd.write( "%s = %s\n" % (str(k), str(fioDict[k])))
+
         if env.has_key( 'FlagFioWriteMotorPositions') and env['FlagFioWriteMotorPositions'] == True:
             all_motors = self.macro.findObjs('.*', type_class=Type.Motor)
             all_motors.sort()
@@ -204,7 +204,7 @@ class FIO_FileRecorder(BaseFileRecorder):
                     record = "%s = nan\n" % (mot)
                 else:
                     record = "%s = %s\n" % (mot, repr( mot.getPosition()))
-                    
+
                 self.fd.write( record)
             self.fd.flush()
         #
@@ -252,7 +252,7 @@ class FIO_FileRecorder(BaseFileRecorder):
         #
         outstr += ' ' + str(record.data.get('timestamp', nan))
         outstr += '\n'
-        
+
         fd.write( outstr )
         fd.flush()
 
@@ -279,7 +279,7 @@ class FIO_FileRecorder(BaseFileRecorder):
             except:
                 self.mcaDirName = None
                 return
-        currDir = os.getenv( 'PWD')
+        currDir = os.getcwd()
         os.chdir( self.mcaDirName)
 
         serial = self.recordlist.getEnvironValue('serialno')
@@ -290,7 +290,7 @@ class FIO_FileRecorder(BaseFileRecorder):
 
         mcaFileName = "%s_%05d_mca_s%d.fio" % (scanFile.split('.')[0], serial, record.data['point_nb'] + 1)
         fd = open( mcaFileName,'w')
-        fd.write("!\n! Comments\n!\n%%c\n Position %g, Index %d \n" % 
+        fd.write("!\n! Comments\n!\n%%c\n Position %g, Index %d \n" %
                       ( record.data[ self.motorNames[0]], record.data[ 'point_nb']))
         fd.write("!\n! Parameter \n%%p\n Sample_time = %g \n" % ( self.sampleTime))
         self.fd.flush()
@@ -312,7 +312,7 @@ class FIO_FileRecorder(BaseFileRecorder):
             for mca in self.mcaNames:
                 if len(record.data[ mca]) > lMax:
                     lMax = len(record.data[ mca])
-                    
+
             for i in range( 0, lMax):
                 line = ""
                 for mca in self.mcaNames:
@@ -322,12 +322,12 @@ class FIO_FileRecorder(BaseFileRecorder):
                         line = line + " " + str( record.data[ mca][i])
                 line = line + "\n"
                 fd.write(line)
-            
+
             fd.close()
         else:
             #print "+++storage.py, recordno", record.recordno, "data None"
             pass
-            
+
         os.chdir( currDir)
 
 class SPEC_FileRecorder(BaseFileRecorder):
@@ -342,13 +342,13 @@ class SPEC_FileRecorder(BaseFileRecorder):
         BaseFileRecorder.__init__(self)
         if filename:
             self.setFileName(filename)
-    
+
     def setFileName(self, filename):
         if self.fd != None:
             self.fd.close()
-   
+
         dirname = os.path.dirname(filename)
-        
+
         if not os.path.isdir(dirname):
             try:
                 os.makedirs(dirname)
@@ -360,19 +360,19 @@ class SPEC_FileRecorder(BaseFileRecorder):
 
     def getFormat(self):
         return DataFormats.whatis(DataFormats.Spec)
-    
+
     def _startRecordList(self, recordlist):
         '''Prepares and writes the scan header.'''
         if self.filename is None:
             return
 
         env = recordlist.getEnviron()
-        
+
         #datetime object
         start_time = env['starttime']
         epoch = time.mktime(start_time.timetuple())
         serialno = env['serialno']
-        
+
         #store names for performance reason
         labels = []
         names = []
@@ -383,7 +383,7 @@ class SPEC_FileRecorder(BaseFileRecorder):
                 labels.append(sanitizedlabel)
                 names.append(e.name)
         self.names = names
-        
+
         # prepare pre-scan snapshot
         snapshot_labels, snapshot_values = self._preparePreScanSnapshot(env)
         # format scan header
@@ -410,18 +410,18 @@ class SPEC_FileRecorder(BaseFileRecorder):
         header += self._prepareMultiLines('P', ' ', snapshot_values)
         header += '#N %(nocols)s\n'
         header += '#L %(labels)s\n'
-        
+
         self.fd = open(self.filename,'a')
         self.fd.write(header % data )
         self.fd.flush()
-        
+
     def _prepareMultiLines(self, character, sep, items_list):
         '''Translate list of lists of items into multiple line string
-        
+
         :param character (string): each line will start #<character><line_nr>
         :sep: separator (string): separator to use between items
         :param items_list (list):list of lists of items
-        
+
         :return multi_lines (string): string with all the items'''
         multi_lines = ''
         for nr, items in enumerate(items_list):
@@ -429,18 +429,18 @@ class SPEC_FileRecorder(BaseFileRecorder):
             items_str = sep.join(map(str, items))
             end = '\n'
             line = start + items_str + end
-            multi_lines += line 
+            multi_lines += line
         return multi_lines
-    
+
     def _preparePreScanSnapshot(self, env):
-        '''Extract pre-scan snapshot, filters elements of shape different 
+        '''Extract pre-scan snapshot, filters elements of shape different
         than scalar and split labels and values into chunks of 8 items.
-        
+
         :param: env (dict) scan environment
-        
+
         :return: labels, values (tuple<list,list>)
-                 labels - list of chunks with 8 elements containing labels 
-                 values - list of chunks with 8 elements containing values    
+                 labels - list of chunks with 8 elements containing labels
+                 values - list of chunks with 8 elements containing values
         '''
         # preScanSnapShot is a list o ColumnDesc objects
         pre_scan_snapshot = env.get('preScanSnapShot',[])
@@ -465,12 +465,12 @@ class SPEC_FileRecorder(BaseFileRecorder):
         labels_chunks = list(chunks(labels, 8))
         values_chunks = list(chunks(values, 8))
         return labels_chunks, values_chunks
-        
+
     def _writeRecord(self, record):
         if self.filename is None:
             return
         nan, names, fd = float('nan'), self.names, self.fd
-        
+
         d = []
         for c in names:
             data = record.data.get(c)
@@ -478,7 +478,7 @@ class SPEC_FileRecorder(BaseFileRecorder):
             d.append(str(data))
         outstr  = ' '.join(d)
         outstr += '\n'
-        
+
         fd.write( outstr )
         fd.flush()
 
@@ -492,13 +492,13 @@ class SPEC_FileRecorder(BaseFileRecorder):
         self.fd.flush()
         self.fd.close()
 
-                    
+
     def _addCustomData(self, value, name, **kwargs):
         '''
-        The custom data will be added as a comment line in the form:: 
-        
+        The custom data will be added as a comment line in the form::
+
         #C name : value
-        
+
         ..note:: non-scalar values (or name/values containing end-of-line) will not be written
         '''
         if self.filename is None:
@@ -511,7 +511,7 @@ class SPEC_FileRecorder(BaseFileRecorder):
         if '\n' in v or '\n' in name: #ignore if name or the string representation of the value contains end-of-line
             self.info('Custom data "%s" will not be stored in SPEC file. Reason: unsupported format',name)
             return
-        
+
         fileWasClosed = self.fd is None or self.fd.closed
         if fileWasClosed:
             try:
@@ -527,24 +527,24 @@ class SPEC_FileRecorder(BaseFileRecorder):
 
 class NXscan_FileRecorder(BaseNAPI_FileRecorder):
     """saves data to a nexus file that follows the NXscan application definition
-    
+
         """
 
     def __init__(self, filename=None, macro=None, overwrite=False, **pars):
         BaseNAPI_FileRecorder.__init__(self, filename=filename, macro=macro, overwrite=overwrite, **pars)
-            
+
     def _startRecordList(self, recordlist):
         nxs = self.nxs
         nxfilemode = self.getFormat()
-        
+
         if self.filename is None:
             return
-        
+
         self.currentlist = recordlist
         env = self.currentlist.getEnviron()
         serialno = env["serialno"]
         self._dataCompressionRank = env.get("DataCompressionRank", self._dataCompressionRank)
-        
+
         if not self.overwrite and os.path.exists(self.filename): nxfilemode='rw'
         self.fd = nxs.open(self.filename, nxfilemode)
         self.entryname = "entry%d" % serialno
@@ -552,7 +552,7 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
             self.fd.makegroup(self.entryname,"NXentry")
         except self.nxs.NeXusError:
             entrynames = self.fd.getentries().keys()
-            
+
             #===================================================================
             ##Warn and abort
             if self.entryname in entrynames:
@@ -564,9 +564,9 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
                                     '  * change the file name (%s will be in both files containing different data)\n'%self.entryname+
                                     '\nPlease report this problem.'))
             else:
-                raise              
+                raise
             #===================================================================
-            
+
             #===================================================================
             ## Warn and continue writing to another entry
             #if self.entryname in entrynames:
@@ -580,10 +580,10 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
             #    self.entryname = newname
             #    self.fd.makegroup(self.entryname,"NXentry")
             #===================================================================
-            
-        self.fd.opengroup(self.entryname,"NXentry") 
-        
-        
+
+        self.fd.opengroup(self.entryname,"NXentry")
+
+
         #adapt the datadesc to the NeXus requirements
         self.datadesc = []
         for dd in env['datadesc']:
@@ -596,14 +596,14 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
                 self.datadesc.append(dd)
             else:
                 self.warning('%s will not be stored. Reason: type %s not supported',dd.name,dd.dtype)
-                        
+
         #make a dictionary out of env['instrumentlist'] (use fullnames -paths- as keys)
         self.instrDict = {}
         for inst in env.get('instrumentlist', []):
             self.instrDict[inst.getFullName()] = inst
         if self.instrDict is {}:
             self.warning("missing information on NEXUS structure. Nexus Tree won't be created")
-        
+
         self.debug("starting new recording %d on file %s", env['serialno'], self.filename)
 
         #populate the entry with some data
@@ -619,7 +619,7 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
         self.fd.opengroup("user","NXuser")
         self._writeData("name",env['user'],'char')
         self.fd.closegroup()
-        
+
         #prepare the "measurement" group
         self._createBranch("measurement:NXcollection")
         if self.savemode == SaveModes.Record:
@@ -630,15 +630,15 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
                     self.fd.opendata(dd.label)
                     self.fd.putattr('units', dd.data_units)
                     self.fd.closedata()
-                    
+
         else:
             #leave the creation of the datasets to _writeRecordList (when we actually know the length of the data to write)
             pass
-        
+
         self._createPreScanSnapshot(env)
-            
+
         self.fd.flush()
-    
+
     def _createPreScanSnapshot(self, env):
         #write the pre-scan snapshot in the "measurement:NXcollection/pre_scan_snapshot:NXcollection" group
         self.preScanSnapShot = env.get('preScanSnapShot',[])
@@ -657,14 +657,14 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
                 links[label] = nid
             else:
                 self.warning('Pre-scan snapshot of %s will not be stored. Reason: type %s not supported',dd.name, dtype)
-                
+
         self.fd.closegroup() #we are back at the measurement group
-        
+
         measurement_entries = self.fd.getentries()
         for label,nid in links.items():
             if label not in measurement_entries:
                 self.fd.makelink(nid)
-         
+
     def _writeRecord(self, record):
         if self.filename is None:
             return
@@ -672,12 +672,12 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
         fd, debug, warning = self.fd, self.debug, self.warning
         nparray, npshape = numpy.array, numpy.shape
         rec_data, rec_nb = record.data, record.recordno
-        
+
         for dd in self.datadesc:
             if record.data.has_key( dd.name ):
                 data = rec_data[dd.name]
                 fd.opendata(dd.label)
-                
+
                 if data is None:
                     data = numpy.zeros(dd.shape, dtype=dd.dtype)
                 if not hasattr(data, 'shape'):
@@ -694,7 +694,7 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
                 except:
                     warning("Could not write <%s> with shape %s", data, shape)
                     raise
-                    
+
                 ###Note: the following 3 lines of code were substituted by the one above.
                 ###      (now we trust the datadesc info instead of asking the nxs file each time)
                 #shape,dtype=self.fd.getinfo()
@@ -709,7 +709,7 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
 
         if self.filename is None:
             return
-        
+
         self._populateInstrumentInfo()
         self._createNXData()
 
@@ -737,7 +737,7 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
                 #if not all the records contain this field, we cannot write it as a block.. so do it record by record (but only this field!)
                 for record in recordlist.records:
                     if record.data.has_key( dd.label ):
-                        self.fd.putslab(record.data[dd.label],[record.recordno]+[0]*len(dd.shape),[1]+list(dd.shape)) 
+                        self.fd.putslab(record.data[dd.label],[record.recordno]+[0]*len(dd.shape),[1]+list(dd.shape))
                     else:
                         self.debug("missing data for label '%s' in record %i", dd.label, record.recordno)
             self.fd.closedata()
@@ -756,7 +756,7 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
                     self.fd.makelink(nid)
                 except Exception,e:
                     self.warning("Could not create link to '%s' in '%s'. Reason: %s",datapath, dd.instrument, repr(e))
-                    
+
         for dd in self.preScanSnapShot:
             if getattr(dd,'instrument', None):
                 try:
@@ -768,10 +768,10 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
                     self.fd.makelink(nid)
                 except Exception,e:
                     self.warning("Could not create link to '%s' in '%s'. Reason: %s",datapath, dd.instrument, repr(e))
-                
+
     def _createNXData(self):
-        '''Creates groups of type NXdata by making links to the corresponding datasets 
-        '''        
+        '''Creates groups of type NXdata by making links to the corresponding datasets
+        '''
         #classify by type of plot:
         plots1d = {}
         plots1d_names = {}
@@ -790,7 +790,7 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
                     i += 1
             else:
                 continue  #@todo: implement support for images and other
-        
+
         #write the 1D NXdata group
         for axes, v in plots1d.items():
             self.fd.openpath("/%s:NXentry" % (self.entryname))
@@ -813,21 +813,21 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
                     self._nxln(src, dst)
                 except:
                     self.warning("cannot create link for '%s'. Skipping",axis)
-                    
+
     def _addCustomData(self, value, name, nxpath=None, dtype=None, **kwargs):
         '''
         apart from value and name, this recorder can use the following optional parameters:
-        
+
         :param nxpath: (str) a nexus path (optionally using name:nxclass notation for
                        the group names). See the rules for automatic nxclass
                        resolution used by
                        :meth:`NXscan_FileRecorder._createBranch`.
-                       If None given, it defaults to 
+                       If None given, it defaults to
                        nxpath='custom_data:NXcollection'
-                       
+
         :param dtype: name of data type (it is inferred from value if not given)
-                       
-        '''           
+
+        '''
         if nxpath is None:
             nxpath = 'custom_data:NXcollection'
         if dtype is None:
@@ -836,15 +836,15 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
                 if numpy.issubdtype(dtype, str):
                     dtype = 'char'
                 if dtype == 'bool':
-                    value, dtype = int(value), 'int8' 
+                    value, dtype = int(value), 'int8'
             else:
                 value = numpy.array(value)
                 dtype = value.dtype.name
-            
+
         if dtype not in self.supported_dtypes and dtype != 'char':
             self.warning("cannot write '%s'. Reason: unsupported data type",name)
             return
-        #open the file if necessary 
+        #open the file if necessary
         fileWasClosed = self.fd is None or not self.fd.isopen
         if fileWasClosed:
             if not self.overwrite and os.path.exists(self.filename): nxfilemode = 'rw'
