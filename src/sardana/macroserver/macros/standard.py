@@ -26,7 +26,8 @@
 __all__ = ["ct", "mstate", "mv", "mvr", "pwa", "pwm", "set_lim",
            "logmacro_off", "logmacro_on", "logmacro_restart",
            "adjust_lim", "adjust_lim_single", "set_lim_pool",
-           "set_pos", "settimer", "uct", "umv", "umvr", "wa", "wm"]
+           "set_pos", "settimer", "uct", "umv", "umvr", "wa", "wm",
+           "read_unitlimit_attrs"]
 
 
 __docformat__ = 'restructuredtext'
@@ -62,6 +63,7 @@ class _wm(Macro):
         motors = {} # dict(motor name: motor obj)
         requests = {} # dict(motor name: request id)
         data = {} # dict(motor name: list of motor data)
+
         # sending asynchronous requests: neither Taurus nor Sardana extensions
         # allow asynchronous requests - use PyTango asynchronous request model
         for motor in motor_list:
@@ -273,7 +275,6 @@ class set_lim(Macro):
             self.runMacro(set_lim)
 
 
-
 class adjust_lim(Macro):
     """Sets Pool motor limits to the values in the Tango Device"""
 
@@ -289,6 +290,7 @@ class adjust_lim(Macro):
         for motor in self.all_motors:
             adjust_lim, pars= self.createMacro("adjust_lim_single", motor)
             self.runMacro(adjust_lim)
+
 
 class adjust_lim_single(Macro):
     """Sets Pool motor limits to the values in the Tango Device for a single motor"""
@@ -348,6 +350,28 @@ class set_pos(Macro):
         adjust_lim, pars= self.createMacro("adjust_lim_single", motor)
         self.runMacro(adjust_lim)
 
+
+class read_unitlimit_attrs(Macro):
+    """Read UnitLimitMin and UnitLimitMax for adjusting limits"""
+
+    param_def = [
+        ['motor_list',
+         ParamRepeat(['motor', Type.Moveable, None, 'Motor to read']),
+         None, 'List of motors to read'],
+    ]
+
+    def run(self, *motor_list):
+
+        for motor in motor_list:
+            name = motor.getName()
+            motor_device = DeviceProxy(name)
+            try:
+                motor_device.read_attribute("UnitLimitMax")
+                motor_device.read_attribute("UnitLimitMin")
+            except:<
+                pass
+
+
 #class set_user_pos(Macro):
 #    """Sets the USER position of the motor to the specified value (by changing OFFSET and keeping DIAL)"""
     
@@ -387,6 +411,8 @@ class wm(Macro):
         show_ctrlaxis = self.getViewOption(ViewOption.ShowCtrlAxis)
         pos_format = self.getViewOption(ViewOption.PosFormat)
  
+        self.execMacro("read_unitlimit_attrs", *motor_list)
+
         for motor in motor_list:
                    
             max_len = 0
