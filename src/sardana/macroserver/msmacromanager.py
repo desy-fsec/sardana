@@ -42,6 +42,7 @@ from lxml import etree
 
 from PyTango import DevFailed
 
+from taurus.external.ordereddict import OrderedDict
 from taurus.core.util.log import Logger
 from taurus.core.util.codecs import  CodecFactory
 
@@ -216,7 +217,7 @@ class MacroManager(MacroServerManager):
 
     def _findMacroLibNames(self, path=None):
         path = path or self.getMacroPath()
-        ret = {}
+        ret = OrderedDict()
         for p in reversed(path):
             try:
                 for f in os.listdir(p):
@@ -1080,10 +1081,10 @@ class MacroExecutor(Logger):
         try:
             self.__runStatelessXML()
             self.sendState(Macro.Finished)
-        except AbortException:
+        except (StopException, AbortException):
             self.sendState(Macro.Abort)
         except Exception:
-            self.sendState(Macro.Abort)
+            self.sendState(Macro.Exception)
         finally:
             self._macro_stack = None
             self._xml_stack = None
