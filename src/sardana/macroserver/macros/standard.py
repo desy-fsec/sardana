@@ -368,7 +368,7 @@ class read_unitlimit_attrs(Macro):
             try:
                 motor_device.read_attribute("UnitLimitMax")
                 motor_device.read_attribute("UnitLimitMin")
-            except:<
+            except:
                 pass
 
 
