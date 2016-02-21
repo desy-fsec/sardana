@@ -40,7 +40,7 @@ UNITTEST_POOL_NAME = "pool/demo1/1"
 #:Size and number of rotating backups of the log files.
 #:The Pool and MacroServer Device servers will use these values for their logs. 
 LOG_FILES_SIZE = 1e7
-LOG_BCK_COUNT = 5
+LOG_BCK_COUNT = 400
 
 #:Input handler for spock interactive macros. Accepted values are:
 #: - "CLI": Input via spock command line. This is the default.
