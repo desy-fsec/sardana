@@ -169,7 +169,7 @@ class senv(Macro):
                   None, 'value(s). one item will eval to a single element. More than one item will eval to a tuple of elements'],
                 ]
 
-    def run(self, env, *value):
+    def run(self, env, value):
         if len(value) == 1: 
             value = value[0]
         else:
@@ -186,7 +186,7 @@ class usenv(Macro):
          None, 'List of environment items to be removed'],
     ]    
     
-    def run(self, *env):
+    def run(self, env):
         self.unsetEnv(env)
         self.output("Success!")
         
