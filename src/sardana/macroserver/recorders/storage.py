@@ -142,6 +142,7 @@ class FIO_FileRecorder(BaseFileRecorder):
         fioDict = None
         if env.has_key( 'FioAdditions'):
             fName = env['FioAdditions']
+            import json
             if not fName is None:
                 if not os.path.exists( fName):
                     self.warning( "fioRecorder: %s does not exist" % fName)
@@ -171,7 +172,7 @@ class FIO_FileRecorder(BaseFileRecorder):
                             fioDict = fioAdds[1]
                         elif type( fioAdds[0]) is dict:
                             fioDict = fioAdds[0]
-                            if not fioAdds[1] is list:
+                            if not type( fioAdds[1]) is list:
                                 self.macro.output( "fio-recorder: bad output from %s (2)" % fName)
                             fioList = fioAdds[1]
                         else:
