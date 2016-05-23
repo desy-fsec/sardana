@@ -361,7 +361,7 @@ class read_unitlimit_attrs(Macro):
          None, 'List of motors to read'],
     ]
 
-    def run(self, *motor_list):
+    def run(self, motor_list):
 
         for motor in motor_list:
             name = motor.getName()
@@ -412,7 +412,7 @@ class wm(Macro):
         show_ctrlaxis = self.getViewOption(ViewOption.ShowCtrlAxis)
         pos_format = self.getViewOption(ViewOption.PosFormat)
  
-        self.execMacro("read_unitlimit_attrs", *motor_list)
+        self.execMacro("read_unitlimit_attrs", motor_list)
 
         for motor in motor_list:
                    
