@@ -60,18 +60,7 @@ from sardana.taurus.core.tango.sardana.pool import Ready
 
 import sys
 
-gh_flagImported = 0
-gc_flagImported = 0
-
-try:
-    import general_functions
-    gh_flagImported = 1
-    gc_flagImported = 1
-except:
-    gh_flagImported = 0
-    gc_flagImported = 0
-    general_functions = None
-
+    
 class ScanSetupError(Exception):
     pass
 
@@ -336,33 +325,7 @@ class GScan(Logger):
         # ----------------------------------------------------------------------
         self._setupEnvironment(env)
 
-        #-----------------------------------------
-        # General functions
-        #-----------------------------------------
-
-        __builtins__['gs_selector'] = "scan"
-        global gh_flagImported
-        global gc_flagImported
-        global general_functions
-
-        if 'general_functions' in sys.modules:
-            general_functions = sys.modules["general_functions"]
-            reload( general_functions)
-            gh_flagImported = 1
-            gc_flagImported = 1
-
-        self.gh_flag = False
-        if gh_flagImported:
-            if __builtins__.has_key( 'gh_flagIsEnabled'):
-                if __builtins__['gh_flagIsEnabled']:
-                    self.gh_flag = True
-
-        self.gc_flag = False
-        if gc_flagImported:
-            if __builtins__.has_key( 'gc_flagIsEnabled'):
-                if __builtins__['gc_flagIsEnabled']:
-                    self.gc_flag = True
-
+                
     def _getExtraColumns(self):
         ret = []
         try:
@@ -861,9 +824,6 @@ class GScan(Logger):
             scan_history.pop(0)
         self.macro.setEnv('ScanHistory', scan_history)
 
-        # Reset the general stop selector flag to general
-        __builtins__['gs_selector'] = "general"
-
     def scan(self):
         for _ in self.step_scan():
             pass
@@ -919,16 +879,97 @@ class SScan(GScan):
         else:
             yield 0.0
 
-        if self.gh_flag:
-            try:
-                general_functions.gh_pre_scan(macro)
-            except:
-                pass
+        #-----------------------------------------
+        # General condition
+        #-----------------------------------------
+
+        general_condition = macro.getGeneralCondition()
+        self.condition_macro = None
+        if general_condition != None:
+            self.condition_macro, pars = self.macro.createMacro(general_condition)
+            
+        #-----------------------------------------
+        # General hooks inside steps
+        #-----------------------------------------           
+
+        tmp_hook = macro.getGeneralHooks("pre-move")
+        self.general_hooks_premove = []
+        if tmp_hook != None:
+            for elem in tmp_hook:
+                if isinstance(elem, str):
+                    elem = (elem,)
+                cmd = ""
+                for mem in elem:
+                    cmd = cmd + str(mem) + " "
+                self.general_hooks_premove.append(cmd)
+
+        tmp_hook = macro.getGeneralHooks("post-move")
+        self.general_hooks_postmove = []
+        if tmp_hook != None:
+            for elem in tmp_hook:
+                if isinstance(elem, str):
+                    elem = (elem,)
+                cmd = ""
+                for mem in elem:
+                    cmd = cmd + str(mem) + " "
+                self.general_hooks_postmove.append(cmd)
+
+        tmp_hook = macro.getGeneralHooks("pre-acq")
+        self.general_hooks_preacq = []
+        if tmp_hook != None:
+            for elem in tmp_hook:
+                if isinstance(elem, str):
+                    elem = (elem,)
+                cmd = ""
+                for mem in elem:
+                    cmd = cmd + str(mem) + " "
+                self.general_hooks_preacq.append(cmd)
+
+        tmp_hook = macro.getGeneralHooks("post-acq")
+        self.general_hooks_postacq = []
+        if tmp_hook != None:
+            for elem in tmp_hook:
+                if isinstance(elem, str):
+                    elem = (elem,)
+                cmd = ""
+                for mem in elem:
+                    cmd = cmd + str(mem) + " "
+                self.general_hooks_postacq.append(cmd)
+
+        tmp_hook = macro.getGeneralHooks("post-step")
+        self.general_hooks_poststep = []
+        if tmp_hook != None:
+            for elem in tmp_hook:
+                if isinstance(elem, str):
+                    elem = (elem,)
+                cmd = ""
+                for mem in elem:
+                    cmd = cmd + str(mem) + " "
+                self.general_hooks_poststep.append(cmd)
+
+        #        
+        # Start scan
+        #
+        
+        tmp_hook = macro.getGeneralHooks("pre-scan")
+        if tmp_hook != None:
+            for elem in tmp_hook:
+                if isinstance(elem, str):
+                    elem = (elem,)
+                cmd = ""
+                for mem in elem:
+                    cmd = cmd + str(mem) + " "
+                try:
+                    macro.execMacro(cmd)
+                except:
+                    macro.warning("Error executing general pre-scan hook. Scan continues")
+          
 
         if hasattr(macro, 'getHooks'):
             for hook in macro.getHooks('pre-scan'):
                 hook()
 
+                
         self._sum_motion_time = 0
         self._sum_acq_time = 0
 
@@ -942,11 +983,18 @@ class SScan(GScan):
             if scream:
                 yield ((i + 1) / nr_points) * 100.0
 
-        if self.gh_flag:
-            try:
-                general_functions.gh_post_scan(macro)
-            except:
-                pass
+        tmp_hook = macro.getGeneralHooks("post-scan")
+        if tmp_hook != None:
+            for elem in tmp_hook:
+                if isinstance(elem, str):
+                    elem = (elem,)
+                cmd = ""
+                for mem in elem:
+                    cmd = cmd + str(mem) + " "
+                try:
+                    macro.execMacro(cmd)
+                except:
+                    macro.warning("Error executing general post-scan hook. Scan continues")
 
         if hasattr(macro, 'getHooks'):
             for hook in macro.getHooks('post-scan'):
@@ -962,11 +1010,11 @@ class SScan(GScan):
         motion, mg = self.motion, self.measurement_group
         startts = self._env['startts']
 
-        if self.gh_flag:
+        for cmd in self.general_hooks_premove:
             try:
-                general_functions.gh_pre_move(self.macro)
+                self.macro.execMacro(cmd)
             except:
-                pass
+                self.macro.warning("Error executing general pre-move hook. Scan continues")
 
         #pre-move hooks
         for hook in step.get('pre-move-hooks',()):
@@ -992,11 +1040,12 @@ class SScan(GScan):
             raise
         self.debug("[ END ] motion")
 
-        if self.gh_flag:
+        for cmd in self.general_hooks_postmove:
             try:
-                general_functions.gh_post_move(self.macro)
+                self.macro.execMacro(cmd)
             except:
-                pass
+                self.macro.warning("Error executing general post-move hook. Scan continues")
+            
 
         curr_time = time.time()
         dt = curr_time - startts
@@ -1026,11 +1075,11 @@ class SScan(GScan):
                     "Motion ended with %s\n" % str(state)
                 raise ScanException({ 'msg' : m })
 
-            if self.gh_flag:
+            for cmd in self.general_hooks_preacq:
                 try:
-                    general_functions.gh_pre_acq(self.macro)
+                    self.macro.execMacro(cmd)
                 except:
-                    pass
+                    self.macro.warning("Error executing general pre-acq hook. Scan continues")
 
         #pre-acq hooks
             for hook in step.get('pre-acq-hooks',()):
@@ -1050,11 +1099,11 @@ class SScan(GScan):
             self.debug("[ END ] acquisition")
             self._sum_acq_time += integ_time
 
-            if self.gh_flag:
+            for cmd in self.general_hooks_postacq:
                 try:
-                    general_functions.gh_post_acq(self.macro)
+                    self.macro.execMacro(cmd)
                 except:
-                    pass
+                    self.macro.warning("Error executing general post-acq hook. Scan continues")
 
         #post-acq hooks
             for hook in step.get('post-acq-hooks', ()):
@@ -1092,11 +1141,12 @@ class SScan(GScan):
 
             self.data.addRecord(data_line)
 
-            if self.gh_flag:
+            for cmd in self.general_hooks_poststep:
                 try:
-                    general_functions.gh_post_step(self.macro)
+                    self.macro.execMacro(cmd)
                 except:
-                    pass
+                    self.macro.warning("Error executing general post-step hook. Scan continues")
+                
 
             #post-step hooks
             for hook in step.get('post-step-hooks', ()):
@@ -1108,9 +1158,10 @@ class SScan(GScan):
                 except:
                     pass
 
-            if self.gc_flag:
+
+            if self.condition_macro != None:
                 try:
-                    ic = general_functions.check_condition(self.macro)
+                    ic = self.macro.runMacro(self.condition_macro)
                 except:
                     ic = 0
             else:
@@ -1124,7 +1175,6 @@ class SScan(GScan):
         for moveable in moveables:
             msg.append(moveable.information())
         self.macro.info("\n".join(msg))
-
 
 class CScan(GScan):
     """Continuous scan abstract class. Implements helper methods."""
@@ -1563,11 +1613,20 @@ class CSScan(CScan):
 
             self.acq_duration = acq_duration
 
-            if self.gh_flag:
-                try:
-                    general_functions.gh_cs_pre_move(macro)
-                except:
-                    pass
+            tmp_hook = macro.getGeneralHooksC("pre-move")
+            if tmp_hook != None:
+                for elem in tmp_hook:
+                    if isinstance(elem, str):
+                        elem = (elem,)
+                    cmd = ""
+                    for mem in elem:
+                        cmd = cmd + str(mem) + " "
+                    try:
+                        macro.execMacro(cmd)
+                    except:
+                        macro.warning("Error executing general pre-move hook. Scan continues")
+                        
+                
 
             #execute pre-move hooks
             for hook in waypoint.get('pre-move-hooks',[]):
@@ -1613,11 +1672,19 @@ class CSScan(CScan):
             if macro.isStopped():
                 return self.on_waypoints_end()
 
-            if self.gh_flag:
-                try:
-                    general_functions.gh_cs_post_move(macro)
-                except:
-                    pass
+
+            tmp_hook = macro.getGeneralHooksC("post-move")
+            if tmp_hook != None:
+                for elem in tmp_hook:
+                    if isinstance(elem, str):
+                        elem = (elem,)
+                    cmd = ""
+                    for mem in elem:
+                        cmd = cmd + str(mem) + " "
+                    try:
+                        macro.execMacro(cmd)
+                    except:
+                        macro.warning("Error executing general post-move hook. Scan continues")
 
             #execute post-move hooks
             for hook in waypoint.get('post-move-hooks',[]):
@@ -1651,11 +1718,19 @@ class CSScan(CScan):
         point_nb, step = -1, None
         data = self.data
 
-        if self.gh_flag:
-            try:
-                general_functions.gh_cs_pre_scan(macro)
-            except:
-                pass
+        tmp_hook = macro.getGeneralHooksC("pre-scan")
+        if tmp_hook != None:
+            for elem in tmp_hook:
+                if isinstance(elem, str):
+                    elem = (elem,)
+                cmd = ""
+                for mem in elem:
+                    cmd = cmd + str(mem) + " "
+                try:
+                    macro.execMacro(cmd)
+                except:
+                    macro.warning("Error executing general pre-scan hook. Scan continues")
+                    
 
         if hasattr(macro, 'getHooks'):
             for hook in macro.getHooks('pre-scan'):
@@ -1706,11 +1781,18 @@ class CSScan(CScan):
                     motion_event.clear()
                     break
 
-                if self.gh_flag:
-                    try:
-                        general_functions.gh_cs_pre_acq(self.macro)
-                    except:
-                        pass
+                tmp_hook = macro.getGeneralHooksC("pre-acq")
+                if tmp_hook != None:
+                    for elem in tmp_hook:
+                        if isinstance(elem, str):
+                            elem = (elem,)
+                        cmd = ""
+                        for mem in elem:
+                            cmd = cmd + str(mem) + " "
+                        try:
+                            macro.execMacro(cmd)
+                        except:
+                            macro.warning("Error executing general pre-acq hook. Scan continues")
 
                 #pre-acq hooks
                 for hook in step.get('pre-acq-hooks',()):
@@ -1745,11 +1827,19 @@ class CSScan(CScan):
                         data_line[ec.getName()] = ec.read()
                     self.debug("[ END ] acquisition")
 
-                    if self.gh_flag:
-                        try:
-                            general_functions.gh_cs_post_acq(macro)
-                        except:
-                            pass
+                    tmp_hook = macro.getGeneralHooksC("post-acq")
+                    if tmp_hook != None:
+                        for elem in tmp_hook:
+                            if isinstance(elem, str):
+                                elem = (elem,)
+                            cmd = ""
+                            for mem in elem:
+                                cmd = cmd + str(mem) + " "
+                            try:
+                                macro.execMacro(cmd)
+                            except:
+                                macro.warning("Error executing general post-acq hook. Scan continues")
+                        
 
                     #post-acq hooks
                     for hook in step.get('post-acq-hooks',()):
@@ -1783,11 +1873,19 @@ class CSScan(CScan):
 
         self.motion_end_event.wait()
 
-        if self.gh_flag:
-            try:
-                general_functions.gh_cs_post_scan(macro)
-            except:
-                pass
+        tmp_hook = macro.getGeneralHooksC("post-scan")
+        if tmp_hook != None:
+            for elem in tmp_hook:
+                if isinstance(elem, str):
+                    elem = (elem,)
+                cmd = ""
+                for mem in elem:
+                    cmd = cmd + str(mem) + " "
+                try:
+                    macro.execMacro(cmd)
+                except:
+                    macro.warning("Error executing general post-scan hook. Scan continues")
+                            
 
         if hasattr(macro, 'getHooks'):
             for hook in macro.getHooks('post-scan'):

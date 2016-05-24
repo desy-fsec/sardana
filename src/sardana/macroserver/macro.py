@@ -67,16 +67,6 @@ asyncexc = ctypes.pythonapi.PyThreadState_SetAsyncExc
 # absolutely necessary for 64 bits machines.
 asyncexc.argtypes = (ctypes.c_long, ctypes.py_object)
 
-
-# This call is done before PythonPath MacroServer property is added to
-# the sys.path, so the import here fails, but it will be done before
-# the general_functions need to be used
-try:
-    import general_functions
-except:
-    general_functions = None
-
-
 class OverloadPrint(object):
 
     def __init__(self, m):
@@ -386,6 +376,7 @@ class Macro(Logger):
 
     #: internal variable
     Exception = State.Alarm
+
 
     #: Constant used to specify all elements in a parameter
     All = ParamType.All
@@ -2280,29 +2271,19 @@ class Macro(Logger):
     def _stopOnError(self):
         """**Internal method**. The stop procedure. Calls the user 'on_abort'
         protecting it against exceptions"""
-        global general_functions
-        try:
-            if 'general_functions' in sys.modules:
-                general_functions = sys.modules['general_functions']
-                reload( general_functions)
-
-                gs_flag = False
-                if __builtins__.has_key( 'gs_flagIsEnabled'):
-                    if __builtins__['gs_flagIsEnabled']:
-                        gs_flag = True
-
-                if gs_flag:
-                    try:
-                        general_functions.general_on_stop(self)
-                    except Exception:
-                        Logger.error(self, "Error in general_on_stop(): %s", traceback.format_exc())
-                        Logger.debug(self, "Details: ", exc_info=1)
-                if __builtins__.has_key( 'gs_selector'):
-                    if __builtins__['gs_selector'] == "scan":
-                        __builtins__['gs_selector'] = "general"
-        except:
-            Logger.debug(self, "Exception checking general_fuunctions")
-            Logger.debug(self, "Details: ", exc_info=1)
+        general_on_stop = self.getGeneralOnStopFunction()
+        if general_on_stop != None:
+            if self.module_to_import in sys.modules:
+                gs_module = sys.modules[self.module_to_import]
+                reload(gs_module)
+            else:
+                gs_module = __import__(self.module_to_import)
+                
+            try:
+                eval(general_on_stop)
+            except:
+                Logger.warning(self, "Error in general_on_stop(): %s", traceback.format_exc())
+                Logger.debug(self, "Details: ", exc_info=1)
 
         try:
             self.on_stop()
@@ -2401,6 +2382,45 @@ class Macro(Logger):
         setattr(self, name, f)
         return f
 
+    def getGeneralHooks(self, pos):
+        try:
+            general_hooks = self.getEnv("GeneralHooks")
+            if pos in general_hooks.keys():
+                return general_hooks[pos]
+            else:
+                return None
+        except:
+            return None
+            
+    def getGeneralHooksC(self, pos):
+        try:
+            general_hooks = self.getEnv("GeneralHooksC")
+            if pos in general_hooks.keys():
+                return general_hooks[pos]
+            else:
+                return None
+        except:
+            return None
+
+    def getGeneralCondition(self):
+        try:
+            general_condition = self.getEnv("GeneralCondition")
+            return general_condition
+        except:
+            return None
+
+    def getGeneralOnStopFunction(self):
+        try:
+            general_on_stop = self.getEnv("GeneralOnStopFunction")
+            if general_on_stop.find("(") == -1 and general_on_stop.find(")") == -1:
+                general_on_stop = general_on_stop + "()"
+            elif general_on_stop.find(")") == -1:
+                general_on_stop = general_on_stop + ")"
+            self.module_to_import = general_on_stop.rsplit(".",1)[0]
+            general_on_stop = general_on_stop.replace(self.module_to_import, "gs_module")
+            return general_on_stop
+        except:
+            return None
 
 class iMacro(Macro):
 
