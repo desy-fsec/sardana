@@ -878,6 +878,8 @@ class Macro(Logger):
 
         if logging_onoff:
             try:
+                if type(msg) == list:
+                    msg = ' '.join(msg)
                 Logger.loggingtofile(self, msg, logging_mode, logging_path, *args, **kwargs)
             except:
                 self.warning("Not able to write log file. Check if the path for logging %s exist." % logging_path)
