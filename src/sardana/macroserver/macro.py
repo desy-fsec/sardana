@@ -877,8 +877,11 @@ class Macro(Logger):
                 logging_path = self.getEnv("LogMacroPath")
 
         if logging_onoff:
+            msgstr = msg
             try:
-                Logger.loggingtofile(self, msg, logging_mode, logging_path, *args, **kwargs)
+                if type(msgstr) == list:
+                    msgstr = ' '.join(msgstr)
+                Logger.loggingtofile(self, msgstr, logging_mode, logging_path, *args, **kwargs)
             except:
                 self.warning("Not able to write log file. Check if the path for logging %s exist." % logging_path)
 
