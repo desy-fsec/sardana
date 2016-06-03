@@ -181,10 +181,7 @@ class MacroSequenceTreeModel(Qt.QAbstractItemModel):
                     index = index.parent()
                     node = self.nodeFromIndex(index)
                     if isinstance(node, macro.MacroNode):
-                        for i in range(self.columnCount(index) + 1):
-                            iindex = index.sibling(index.row(), i)
-                            self.emit(Qt.SIGNAL("dataChanged(QModelIndex, QModelIndex)"),
-                                      iindex, iindex)
+                        self.emit(Qt.SIGNAL("dataChanged(QModelIndex,QModelIndex)"), index, index.sibling(index.row(), self.columnCount(index)-1))
                         break
         elif index.column() == 2:
             progress = Qt.from_qvariant(value, float)
