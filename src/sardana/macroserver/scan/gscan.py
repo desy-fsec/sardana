@@ -1013,6 +1013,8 @@ class SScan(GScan):
         for cmd in self.general_hooks_premove:
             try:
                 self.macro.execMacro(cmd)
+            except InterruptException:
+                raise
             except:
                 self.macro.warning("Error executing general pre-move hook. Scan continues")
 
@@ -1043,6 +1045,8 @@ class SScan(GScan):
         for cmd in self.general_hooks_postmove:
             try:
                 self.macro.execMacro(cmd)
+            except InterruptException:
+                raise
             except:
                 self.macro.warning("Error executing general post-move hook. Scan continues")
             
@@ -1078,6 +1082,8 @@ class SScan(GScan):
             for cmd in self.general_hooks_preacq:
                 try:
                     self.macro.execMacro(cmd)
+                except InterruptException:
+                    raise
                 except:
                     self.macro.warning("Error executing general pre-acq hook. Scan continues")
 
@@ -1102,9 +1108,11 @@ class SScan(GScan):
             for cmd in self.general_hooks_postacq:
                 try:
                     self.macro.execMacro(cmd)
+                except InterruptException:
+                    raise
                 except:
                     self.macro.warning("Error executing general post-acq hook. Scan continues")
-
+                    
         #post-acq hooks
             for hook in step.get('post-acq-hooks', ()):
                 hook()
@@ -1144,6 +1152,8 @@ class SScan(GScan):
             for cmd in self.general_hooks_poststep:
                 try:
                     self.macro.execMacro(cmd)
+                except InterruptException:
+                    raise
                 except:
                     self.macro.warning("Error executing general post-step hook. Scan continues")
                 
@@ -1623,6 +1633,8 @@ class CSScan(CScan):
                         cmd = cmd + str(mem) + " "
                     try:
                         macro.execMacro(cmd)
+                    except InterruptException:
+                        raise
                     except:
                         macro.warning("Error executing general pre-move hook. Scan continues")
                         
@@ -1683,6 +1695,8 @@ class CSScan(CScan):
                         cmd = cmd + str(mem) + " "
                     try:
                         macro.execMacro(cmd)
+                    except InterruptException:
+                        raise
                     except:
                         macro.warning("Error executing general post-move hook. Scan continues")
 
@@ -1728,6 +1742,8 @@ class CSScan(CScan):
                     cmd = cmd + str(mem) + " "
                 try:
                     macro.execMacro(cmd)
+                except InterruptException:
+                    raise
                 except:
                     macro.warning("Error executing general pre-scan hook. Scan continues")
                     
@@ -1791,6 +1807,9 @@ class CSScan(CScan):
                             cmd = cmd + str(mem) + " "
                         try:
                             macro.execMacro(cmd)
+                        except InterruptException:
+                            self._all_waypoints_finished = True
+                            raise
                         except:
                             macro.warning("Error executing general pre-acq hook. Scan continues")
 
@@ -1837,6 +1856,9 @@ class CSScan(CScan):
                                 cmd = cmd + str(mem) + " "
                             try:
                                 macro.execMacro(cmd)
+                            except InterruptException:
+                                self._all_waypoints_finished = True
+                                raise
                             except:
                                 macro.warning("Error executing general post-acq hook. Scan continues")
                         
