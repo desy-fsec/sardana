@@ -171,9 +171,6 @@ class _diffrac:
         if mat:
             return regx.sub(repl, ch)
 
-# TODO: Revrite this macro in order to use events instead of polling to obtain 
-# the position updates. See umv macro as an example
-# TODO: H, K, L parameters should be of type float and not string
 class br(Macro, _diffrac):
     """Move the diffractometer to the reciprocal space coordinates given by 
     H, K and L. 
@@ -187,13 +184,15 @@ class br(Macro, _diffrac):
         ['L', Type.String, None, "L value"],
         ['AnglesIndex', Type.Integer, -1, "Angles index"],
         ['FlagNotBlocking', Type.Integer,  0,
-         "If 1 not block. Return without finish movement"]
+         "If 1 not block. Return without finish movement"],
+        ['FlagPrinting', Type.Integer,  0,
+         "If 1 printing. Used by ubr"]
     ]
 
-    def prepare(self, H, K, L, AnglesIndex, FlagNotBlocking):
+    def prepare(self, H, K, L, AnglesIndex, FlagNotBlocking, FlagPrinting):
         _diffrac.prepare(self)
 
-    def run(self, H, K, L, AnglesIndex, FlagNotBlocking):
+    def run(self, H, K, L, AnglesIndex, FlagNotBlocking, FlagPrinting):
 
         if AnglesIndex != -1:
             sel_tr = AnglesIndex
@@ -225,23 +224,32 @@ class br(Macro, _diffrac):
         self.diffrac.write_attribute("computetrajectoriessim", hkl_values)
 
         angles_list = self.diffrac.trajectorylist[sel_tr]
-
+        
         i = 0
-        for angle in self.angle_names:
-            angle_dev = self.getDevice(self.angle_device_names[angle])
-            angle_dev.write_attribute("Position", angles_list[i])
-            i = i + 1
-            self.checkPoint()
-
-        self.checkPoint()
-
         if FlagNotBlocking == 0:
-            self.execMacro('_blockprintmove', 0)
+            cmd_umv = "umv"
+            cmd_mv = "mv"            
+            for angle in self.angle_names:
+                cmd_umv = cmd_umv + " " + str(self.angle_device_names[angle])
+                cmd_umv = cmd_umv + " " + str(angles_list[i])
+                cmd_mv = cmd_mv + " " + str(self.angle_device_names[angle])
+                cmd_mv = cmd_mv + " " + str(angles_list[i])
+                i = i + 1
+            if FlagPrinting == 1:
+                self.execMacro(cmd_umv)
+            else:
+                self.execMacro(cmd_mv)
+        else:
+            my_angles = []
+            for angle in self.angle_names:
+                my_angles.append(self.angle_device_names[angle])
+                angle_dev = self.getObj(self.angle_device_names[angle])
+                angle_dev.write_attribute("Position", angles_list[i])
+                i = i + 1
 
         self.setEnv('Q', [hkl_values[0], hkl_values[1],
                           hkl_values[2], self.diffrac.WaveLength])
 
-# TODO: hh, kk, ll parameters should be of type float and not string
 class ubr(Macro, _diffrac):
     """Move the diffractometer to the reciprocal space coordinates given by 
     H, K and L und update.
@@ -269,9 +277,8 @@ class ubr(Macro, _diffrac):
                 return
 
         if ll != "Not set":
-            br, pars = self.createMacro("br", hh, kk, ll, AnglesIndex, 1)
+            br, pars = self.createMacro("br", hh, kk, ll, AnglesIndex, 0, 1)
             self.runMacro(br)
-            self.execMacro('_blockprintmove', 1)
         else:
             self.output("usage:  ubr H K L [Trajectory]")
 
