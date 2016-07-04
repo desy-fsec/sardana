@@ -27,6 +27,7 @@ import numpy as np
 
 from sardana.macroserver.macro import *
 from sardana.macroserver.macros.scan import aNscan
+from sardana.macroserver.msexception import UnknownEnv
 
 from taurus.core.util.log import Logger
 
@@ -193,6 +194,7 @@ class br(Macro, _diffrac):
         _diffrac.prepare(self)
 
     def run(self, H, K, L, AnglesIndex, FlagNotBlocking, FlagPrinting):
+        h_idx = 0; k_idx = 1; l_idx = 2
 
         if AnglesIndex != -1:
             sel_tr = AnglesIndex
@@ -204,51 +206,41 @@ class br(Macro, _diffrac):
         if H in hkl_labels or K in hkl_labels or L in hkl_labels:
             try:
                 q_vector = self.getEnv('Q')
-                q_dict = {}
-                q_dict["H"] = q_vector[0]
-                q_dict["K"] = q_vector[1]
-                q_dict["L"] = q_vector[2]
-
-                if H in hkl_labels:
-                    H = float(q_dict[H])
-                if K in hkl_labels:
-                    K = float(q_dict[K])
-                if L in hkl_labels:
-                    L = float(q_dict[L])
-            except:
+            except UnknownEnv:
                 self.error("Environment Q not defined. Run wh to define it")
                 return
-
+            try:
+                if H in hkl_labels:
+                    H = float(q_vector[h_idx])
+                if K in hkl_labels:
+                    K = float(q_vector[k_idx])
+                if L in hkl_labels:
+                    L = float(q_vector[l_idx])
+            except:
+                self.error("Wrong format of Q vector")
+                return
         hkl_values = [float(H), float(K), float(L)]
 
         self.diffrac.write_attribute("computetrajectoriessim", hkl_values)
 
         angles_list = self.diffrac.trajectorylist[sel_tr]
-        
-        i = 0
-        if FlagNotBlocking == 0:
-            cmd_umv = "umv"
-            cmd_mv = "mv"            
-            for angle in self.angle_names:
-                cmd_umv = cmd_umv + " " + str(self.angle_device_names[angle])
-                cmd_umv = cmd_umv + " " + str(angles_list[i])
-                cmd_mv = cmd_mv + " " + str(self.angle_device_names[angle])
-                cmd_mv = cmd_mv + " " + str(angles_list[i])
-                i = i + 1
-            if FlagPrinting == 1:
-                self.execMacro(cmd_umv)
-            else:
-                self.execMacro(cmd_mv)
-        else:
-            my_angles = []
-            for angle in self.angle_names:
-                my_angles.append(self.angle_device_names[angle])
-                angle_dev = self.getObj(self.angle_device_names[angle])
-                angle_dev.write_attribute("Position", angles_list[i])
-                i = i + 1
 
-        self.setEnv('Q', [hkl_values[0], hkl_values[1],
-                          hkl_values[2], self.diffrac.WaveLength])
+        if FlagNotBlocking == 0:
+            cmd = "mv"
+            for name, angle in zip(self.angle_names, angles_list):
+                cmd = cmd + " " + str(self.angle_device_names[name])
+                cmd = cmd + " " + str(angle)
+            if FlagPrinting == 1:
+                cmd = "u" + cmd
+            self.execMacro(cmd)
+        else:
+            for name, angle in zip(self.angle_names, angles_list):
+                angle_dev = self.getObj(self.angle_device_names[name])
+                angle_dev.write_attribute("Position", angle)
+
+        self.setEnv('Q', [hkl_values[h_idx], hkl_values[k_idx],
+                          hkl_values[l_idx], self.diffrac.WaveLength])
+
 
 class ubr(Macro, _diffrac):
     """Move the diffractometer to the reciprocal space coordinates given by 
@@ -266,19 +258,8 @@ class ubr(Macro, _diffrac):
         _diffrac.prepare(self)
 
     def run(self, hh, kk, ll, AnglesIndex):
-
-        hkl_labels = ["H", "K", "L"]
-
-        if hh in hkl_labels or kk in hkl_labels or ll in hkl_labels:  # Needs to be checked also here
-            try:
-                q_vector = self.getEnv('Q')
-            except:
-                self.error("Environment Q not defined. Run wh to define it")
-                return
-
         if ll != "Not set":
-            br, pars = self.createMacro("br", hh, kk, ll, AnglesIndex, 0, 1)
-            self.runMacro(br)
+            self.execMacro("br", hh, kk, ll, AnglesIndex, 0, 1)
         else:
             self.output("usage:  ubr H K L [Trajectory]")
 
