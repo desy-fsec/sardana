@@ -748,6 +748,9 @@ class DiffracBasis(PseudoMotorController):
         #         (len(values),
         #          len(self.engine.pseudo_axis_names_get()),
         #          self.engine.name_get())
+              
+        self.getWavelength()
+            
         curr_physical_pos = self.geometry.axis_values_get(USER)
         solutions = self._solutions(values, curr_physical_pos)
         self.trajectorylist = [item.geometry_get().axis_values_get(USER)
