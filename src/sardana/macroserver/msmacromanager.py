@@ -1207,6 +1207,7 @@ class MacroExecutor(Logger):
     _runXMLMacro = __runXMLMacro
 
     def runMacro(self, macro_obj):
+        self.debug("RUNMACRO")
         name = macro_obj._getName()
         desc = macro_obj._getDescription()
         door = self.door
@@ -1269,6 +1270,7 @@ class MacroExecutor(Logger):
         # AbortException if an Abort has been performed.
         if macro_exp is not None:
             if not self._stopped and not self._aborted:
+                self.debug("ERROR SENDMACRO : %s:  %s" % (type(exc_info[2]), exc_info))
                 self.sendMacroStatusException(exc_info)
             self.debug("[ENDEX] (%s) runMacro %s" % (macro_exp.__class__.__name__, name))
             if isinstance(macro_exp, MacroServerException) and macro_obj.parent_macro is None:

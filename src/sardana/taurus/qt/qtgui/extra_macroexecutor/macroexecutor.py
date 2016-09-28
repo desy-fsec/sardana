@@ -926,8 +926,10 @@ class TaurusMacroExecutorWidget(TaurusWidget):
             self.stopMacroAction.setEnabled(False)
             shortMessage = "Macro %s error." % macroName
             exc_value, exc_stack = data['exc_value'], data['exc_stack']
-            exceptionDialog = TaurusMessageBox(MacroRunException, exc_value, exc_stack)
-            exceptionDialog.exec_()
+#            exceptionDialog = TaurusMessageBox(MacroRunException, exc_value, exc_stack)
+#            exceptionDialog.exec_()
+            print("ERROR VALUE %s: `%s`" % (type(exc_value), exc_value))
+            print("ERROR STACK %s: `%s`" % (type(exc_stack), exc_stack))
         elif state == "abort":
             self.playMacroAction.setText("Start macro")
             self.playMacroAction.setToolTip("Start macro")
