@@ -60,7 +60,6 @@ class DoorOutput(Qt.QPlainTextEdit):
         txt = "<font color=\"Blue\">"
         if info is None:
             return
-
         for i, line in enumerate(info):
             if i > 0:
                 txt += "<br/>"
