@@ -162,6 +162,8 @@ class MacroServerMessageErrorHandler(TaurusMessageErrorHandler):
         :type error: object"""
 
         msgbox = self._msgbox
+        if err_value and len(err_value) > 1000:
+            err_value = err_value[:1000] + '\n(...)'
         msgbox.setText(err_value)
         msg = "<html><body><pre>%s</pre></body></html>" % err_value
         msgbox.setDetailedHtml(msg)
