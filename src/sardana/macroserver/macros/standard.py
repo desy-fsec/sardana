@@ -350,7 +350,8 @@ class set_pos(Macro):
         self.output("%s reset from %.4f to %.4f" % (name, old_pos, pos))
         adjust_lim, pars= self.createMacro("adjust_lim_single", motor)
         self.runMacro(adjust_lim)
-
+        new_pos = motor.getPosition(force=True)
+        self.execMacro('mv', motor.getName(), new_pos) 
 
 class read_unitlimit_attrs(Macro):
     """Read UnitLimitMin and UnitLimitMax for adjusting limits"""
