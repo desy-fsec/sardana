@@ -854,7 +854,16 @@ class PseudoMotor(PoolElement, Moveable):
         if operator.isSequenceType(new_pos):
            new_pos = new_pos[0]
         try:
-            self.write_attribute('position', new_pos)
+            try:
+                self.write_attribute('position', new_pos)
+            except:
+                try:
+                    self.write_attribute('position', new_pos)
+                except:
+                    try:
+                        self.write_attribute('position', new_pos)
+                    except:
+                        pass
         except DevFailed, df:
             for err in df:
                 if err.reason == 'API_AttrNotAllowed':
