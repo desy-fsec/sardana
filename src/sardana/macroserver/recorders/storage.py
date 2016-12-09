@@ -111,9 +111,9 @@ class FIO_FileRecorder(BaseFileRecorder):
         for e in envRec['datadesc']:
             if len( e.shape) == 2:
                 self.twoDNames.append( e.name)
-            elif len( e.shape) == 1:
+            elif len( e.shape) == 1 and e.shape[0] != 1:
                 self.mcaNames.append( e.name)
-            elif len( e.shape) == 0:
+            elif len( e.shape) == 0 or (len(e.shape) == 1 and e.shape[0] == 1):
                 self.ctNames.append( e.name)
         #
         # we need the aliases for the column description
@@ -219,17 +219,18 @@ class FIO_FileRecorder(BaseFileRecorder):
             if col.name == 'timestamp':
                 continue
             #
-            # MCAs must not appear in the data section, they have len( col.shape) == 1
-            # TwoD output appears at the end
+            # OneD and TwoD must not appear in the data, they have len(col.shape) == 1 or 2
             #
             if len( col.shape) != 0:
                 continue
             dType = 'FLOAT'
             if col.dtype == 'float64':
                 dType = 'DOUBLE'
+                
             outLine = " Col %d %s %s\n" % ( i, col.label, dType)
             self.fd.write( outLine)
             i += 1
+            
         #
         # 11.9.2012 timestamp to the end
         #
@@ -245,8 +246,16 @@ class FIO_FileRecorder(BaseFileRecorder):
         for c in ctNames:
             if c == "timestamp" or c == "point_nb":
                 continue
-            outstr += ' ' + str(record.data.get(c, nan))
-
+            data = record.data.get(c, nan)
+            data_len = None
+            try: # We are sure we get the 1d even with different types
+                data_len =  len(data)
+                if data_len > 0:
+                    outstr += ' ' + str(data[0])
+                else:
+                    outstr += ' ' + str(data)                    
+            except:
+                outstr += ' ' + str(data)
         #
         # 11.9.2012 timestamp to the end
         #
@@ -475,7 +484,15 @@ class SPEC_FileRecorder(BaseFileRecorder):
         for c in names:
             data = record.data.get(c)
             if data is None: data = nan
-            d.append(str(data))
+            data_len = None
+            try: # We are sure we get the 1d even with different types
+                data_len =  len(data)
+                if data_len > 0:
+                    d.append(str(data[0]))
+                else:
+                    d.append(str(data))
+            except:
+                d.append(str(data))
         outstr  = ' '.join(d)
         outstr += '\n'
 

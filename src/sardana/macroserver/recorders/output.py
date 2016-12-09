@@ -249,7 +249,10 @@ class OutputRecorder(DataRecorder):
         for i, (name, cell) in enumerate(self._scan_line_t):
             cell_data = record.data[name]
             if isinstance(cell_data, numpy.ndarray):
-                cell = str(cell_data.shape)
+                if len(cell_data) == 1:
+                    cell = str(cell_data[0])
+                else:
+                    cell = str(cell_data.shape)
             elif cell_data is None:
                 cell = "<nodata>"
             elif isinstance(cell_data, (str, unicode)):
