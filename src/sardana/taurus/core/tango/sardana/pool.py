@@ -65,6 +65,7 @@ from taurus.core.tango import TangoDevice, FROM_TANGO_TO_STR_TYPE
 
 from .sardana import BaseSardanaElementContainer, BaseSardanaElement
 from .motion import Moveable, MoveableSource
+from .sardana.pool.poolcontrollers.HklPseudoMotorController import DiffracBasis
 
 Ready = Standby = DevState.ON
 Counting = Acquiring = Moving = DevState.MOVING
@@ -853,16 +854,19 @@ class PseudoMotor(PoolElement, Moveable):
         if operator.isSequenceType(new_pos):
            new_pos = new_pos[0]
         try:
-            try:
+            if not isinstance(self, DiffracBasis):
                 self.write_attribute('position', new_pos)
-            except:
+            else:
                 try:
                     self.write_attribute('position', new_pos)
                 except:
                     try:
                         self.write_attribute('position', new_pos)
                     except:
-                        pass
+                        try:
+                            self.write_attribute('position', new_pos)
+                        except:
+                            pass
         except DevFailed, df:
             for err in df:
                 if err.reason == 'API_AttrNotAllowed':
