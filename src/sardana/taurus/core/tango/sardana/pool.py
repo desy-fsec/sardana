@@ -854,6 +854,7 @@ class PseudoMotor(PoolElement, Moveable):
         if operator.isSequenceType(new_pos):
            new_pos = new_pos[0]
         try:
+            # workaround for motor problems
             if not isinstance(self, DiffracBasis):
                 self.write_attribute('position', new_pos)
             else:
@@ -866,7 +867,9 @@ class PseudoMotor(PoolElement, Moveable):
                         try:
                             self.write_attribute('position', new_pos)
                         except:
-                            pass
+                            self.error(
+                                "Problems in setting %s position"
+                                % self.getFullName())
         except DevFailed, df:
             for err in df:
                 if err.reason == 'API_AttrNotAllowed':
