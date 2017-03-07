@@ -7,7 +7,17 @@ This file follows the formats and conventions from [keepachangelog.com]
 ## [Unreleased]
 
 ### Added
--
+- New spock syntax based on the square brackets to use repeat parameters
+  without limitations (#405)
+- Tooltip with parameters description in the macro execution widgets:
+  MacroExecutor and Sequencer (#302)
+- Generic main to the macrobutton widget that allows to execute "any" macro
+
+### Fixed
+- Macro execution widgets connecting to the MacroServer in a Tango database
+  different than the default one e.g. using `--tango-host` option
+- macrobutton widget working with the string parameters containing white spaces
+  (#423)
 
 ## [2.2.3] - 2017-01-12
 For a full log of commits between versions run (in your git repo):
