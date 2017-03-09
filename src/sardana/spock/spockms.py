@@ -574,7 +574,7 @@ class SpockMacroServer(BaseMacroServer):
         # IPython < 1 magic commands have different API
         if genutils.get_ipython_version_list() < [1, 0]:
             def macro_fn(shell, parameter_s='', name=macro_name):
-                parameters = split_macro_parameters(parameter_s)
+                parameters = genutils.arg_split(parameter_s, posix=True)
                 door = genutils.get_door()
                 door.runMacro(macro_name, parameters, synch=True)
                 macro = door.getLastRunningMacro()
@@ -582,7 +582,7 @@ class SpockMacroServer(BaseMacroServer):
                     return macro.getResult()
         else:
             def macro_fn(parameter_s='', name=macro_name):
-                parameters = split_macro_parameters(parameter_s)
+                parameters = genutils.arg_split(parameter_s, posix=True)
                 door = genutils.get_door()
                 door.runMacro(macro_name, parameters, synch=True)
                 macro = door.getLastRunningMacro()
