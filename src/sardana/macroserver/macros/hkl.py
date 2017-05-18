@@ -542,23 +542,36 @@ class wh(Macro, _diffrac):
         self.output("%s %7.5f" % ("Wavelength = ", self.diffrac.WaveLength))
         self.output("")
 
-        str_pos1 = "%7.5f" % self.getDevice(
-            self.angle_device_names[self.labelmotor["Delta"]]).Position
-        str_pos2 = "%7.5f" % self.getDevice(
-            self.angle_device_names[self.labelmotor["Theta"]]).Position
-        str_pos3 = "%7.5f" % self.getDevice(
-            self.angle_device_names[self.labelmotor["Chi"]]).Position
-        str_pos4 = "%7.5f" % self.getDevice(
-            self.angle_device_names[self.labelmotor["Phi"]]).Position
-        str_pos5 = "%7.5f" % self.getDevice(
-            self.angle_device_names[self.labelmotor["Mu"]]).Position
-        str_pos6 = "%7.5f" % self.getDevice(
-            self.angle_device_names[self.labelmotor["Gamma"]]).Position
-
-        self.output("%10s %11s %12s %11s %10s %11s" %
-                    ("Delta", "Theta", "Chi", "Phi", "Mu", "Gamma"))
-        self.output("%10s %11s %12s %11s %10s %11s" %
-                    (str_pos1, str_pos2, str_pos3, str_pos4, str_pos5, str_pos6))
+        if self.nb_motors == 6:
+            str_pos1 = "%7.5f" % self.getDevice(
+                self.angle_device_names[self.labelmotor["Delta"]]).Position
+            str_pos2 = "%7.5f" % self.getDevice(
+                self.angle_device_names[self.labelmotor["Theta"]]).Position
+            str_pos3 = "%7.5f" % self.getDevice(
+                self.angle_device_names[self.labelmotor["Chi"]]).Position
+            str_pos4 = "%7.5f" % self.getDevice(
+                self.angle_device_names[self.labelmotor["Phi"]]).Position
+            str_pos5 = "%7.5f" % self.getDevice(
+                self.angle_device_names[self.labelmotor["Mu"]]).Position
+            str_pos6 = "%7.5f" % self.getDevice(
+                self.angle_device_names[self.labelmotor["Gamma"]]).Position
+            self.output("%10s %11s %12s %11s %10s %11s" %
+                        ("Delta", "Theta", "Chi", "Phi", "Mu", "Gamma"))
+            self.output("%10s %11s %12s %11s %10s %11s" %
+                        (str_pos1, str_pos2, str_pos3, str_pos4, str_pos5, str_pos6))
+        elif self.nb_motors == 4:
+            str_pos1 = "%7.5f" % self.getDevice(
+                self.angle_device_names[self.labelmotor["Tth"]]).Position
+            str_pos2 = "%7.5f" % self.getDevice(
+                self.angle_device_names[self.labelmotor["Omega"]]).Position
+            str_pos3 = "%7.5f" % self.getDevice(
+                self.angle_device_names[self.labelmotor["Chi"]]).Position
+            str_pos4 = "%7.5f" % self.getDevice(
+                self.angle_device_names[self.labelmotor["Phi"]]).Position
+            self.output("%10s %11s %12s %11s" %
+                        ("Tth", "Omega", "Chi", "Phi"))
+            self.output("%10s %11s %12s %11s" %
+                        (str_pos1, str_pos2, str_pos3, str_pos4))
 
         self.setEnv('Q', [self.h_device.position, self.k_device.position,
                           self.l_device.position, self.diffrac.WaveLength])
