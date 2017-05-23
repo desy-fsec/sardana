@@ -43,12 +43,13 @@ import taurus
 from taurus.core.util.log import Logger
 from taurus.core.util.user import USER_NAME
 from taurus.core.tango import FROM_TANGO_TO_STR_TYPE
+from taurus.core.util.enumeration import Enumeration
 
 from sardana.util.tree import BranchNode, LeafNode, Tree
 from sardana.util.motion import Motor as VMotor
 from sardana.util.motion import MotionPath
 from sardana.macroserver.msexception import MacroServerException, UnknownEnv, \
-    InterruptException
+    InterruptException, StopException, AbortException
 from sardana.macroserver.msparameter import Type
 from sardana.macroserver.scan.scandata import ColumnDesc, MoveableDesc, \
     ScanFactory, ScanDataEnvironment
@@ -60,7 +61,11 @@ from sardana.taurus.core.tango.sardana.pool import Ready
 
 import sys
 
-    
+# ScanEndStatus enumeration indicates the reason of the scan end.
+ScanEndStatus = Enumeration("ScanEndStatus",
+                            ["Normal", "Stop", "Abort", "Exception"])
+
+
 class ScanSetupError(Exception):
     pass
 
@@ -325,7 +330,7 @@ class GScan(Logger):
         # ----------------------------------------------------------------------
         self._setupEnvironment(env)
 
-                
+
     def _getExtraColumns(self):
         ret = []
         try:
@@ -831,6 +836,7 @@ class GScan(Logger):
                        deadtime=env['deadtime'], title=env['title'],
                        serialno=env['serialno'], user=env['user'],
                        ScanFile=scan_file, ScanDir=env['ScanDir'],
+                       endstatus=ScanEndStatus.whatis(env['endstatus']),
                        channels=names)
         scan_history.append(history)
         while len(scan_history) > self.MAX_SCAN_HISTORY:
@@ -844,18 +850,22 @@ class GScan(Logger):
     def step_scan(self):
         self.start()
         try:
-            ex = None
-            try:
-                for i in self.scan_loop():
-                    self.macro.pausePoint()
-                    yield i
-            except ScanException, e:
-                #self.macro.warning(e.msg)
-                ex = e
-            self.end()
-            if not ex is None: raise e
+            for i in self.scan_loop():
+                self.macro.pausePoint()
+                yield i
+            endstatus = ScanEndStatus.Normal
+        except ScanException, e:
+            endstatus = ScanEndStatus.Stop
+        except AbortException, e:
+            endstatus = ScanEndStatus.Abort
+        except Exception, e:
+            endstatus = ScanEndStatus.Exception
         finally:
+            self._env["endstatus"] = endstatus
+            self.end()
             self.do_restore()
+            if endstatus != ScanEndStatus.Normal:
+                raise e
 
     def scan_loop(self):
         raise NotImplementedError('Scan method cannot be called by '
@@ -900,10 +910,10 @@ class SScan(GScan):
         self.condition_macro = None
         if general_condition != None:
             self.condition_macro, pars = self.macro.createMacro(general_condition)
-            
+
         #-----------------------------------------
         # General hooks inside steps
-        #-----------------------------------------           
+        #-----------------------------------------
 
         tmp_hook = macro.getGeneralHooks("pre-move")
         self.general_hooks_premove = []
@@ -960,10 +970,10 @@ class SScan(GScan):
                     cmd = cmd + str(mem) + " "
                 self.general_hooks_poststep.append(cmd)
 
-        #        
+        #
         # Start scan
         #
-        
+
         tmp_hook = macro.getGeneralHooks("pre-scan")
         if tmp_hook != None:
             for elem in tmp_hook:
@@ -976,13 +986,13 @@ class SScan(GScan):
                     macro.execMacro(cmd)
                 except:
                     macro.warning("Error executing general pre-scan hook. Scan continues")
-          
+
 
         if hasattr(macro, 'getHooks'):
             for hook in macro.getHooks('pre-scan'):
                 hook()
 
-                
+
         self._sum_motion_time = 0
         self._sum_acq_time = 0
 
@@ -1047,6 +1057,7 @@ class SScan(GScan):
         try:
             state, positions = motion.move(step['positions'])
             self._sum_motion_time += time.time() - move_start_time
+            self._env['motiontime'] = self._sum_motion_time
         except InterruptException:
             raise
         except:
@@ -1062,7 +1073,7 @@ class SScan(GScan):
                 raise
             except:
                 self.macro.warning("Error executing general post-move hook. Scan continues")
-            
+
 
         curr_time = time.time()
         dt = curr_time - startts
@@ -1117,6 +1128,7 @@ class SScan(GScan):
                 data_line[ec.getName()] = ec.read()
             self.debug("[ END ] acquisition")
             self._sum_acq_time += integ_time
+            self._env['acqtime'] = self._sum_acq_time
 
             for cmd in self.general_hooks_postacq:
                 try:
@@ -1125,7 +1137,7 @@ class SScan(GScan):
                     raise
                 except:
                     self.macro.warning("Error executing general post-acq hook. Scan continues")
-                    
+
         #post-acq hooks
             for hook in step.get('post-acq-hooks', ()):
                 hook()
@@ -1169,7 +1181,7 @@ class SScan(GScan):
                     raise
                 except:
                     self.macro.warning("Error executing general post-step hook. Scan continues")
-                
+
 
             #post-step hooks
             for hook in step.get('post-step-hooks', ()):
@@ -1650,8 +1662,8 @@ class CSScan(CScan):
                         raise
                     except:
                         macro.warning("Error executing general pre-move hook. Scan continues")
-                        
-                
+
+
 
             #execute pre-move hooks
             for hook in waypoint.get('pre-move-hooks',[]):
@@ -1759,7 +1771,7 @@ class CSScan(CScan):
                     raise
                 except:
                     macro.warning("Error executing general pre-scan hook. Scan continues")
-                    
+
 
         if hasattr(macro, 'getHooks'):
             for hook in macro.getHooks('pre-scan'):
@@ -1874,7 +1886,7 @@ class CSScan(CScan):
                                 raise
                             except:
                                 macro.warning("Error executing general post-acq hook. Scan continues")
-                        
+
 
                     #post-acq hooks
                     for hook in step.get('post-acq-hooks',()):
@@ -1920,7 +1932,7 @@ class CSScan(CScan):
                     macro.execMacro(cmd)
                 except:
                     macro.warning("Error executing general post-scan hook. Scan continues")
-                            
+
 
         if hasattr(macro, 'getHooks'):
             for hook in macro.getHooks('post-scan'):
