@@ -368,7 +368,8 @@ class Door(SardanaDevice):
             throw_sardana_exception(mse)
 
         attr.set_value(*data)
-    
+        self.__buf_data = data
+
     def read_MacroStatus(self, attr):
         attr.set_value('', '')
     
