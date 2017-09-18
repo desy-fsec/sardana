@@ -24,7 +24,7 @@
 """This is the standard macro module"""
 
 __all__ = ["ct", "mstate", "mv", "mvr", "pwa", "pwm", "set_lim",
-           "logmacro_off", "logmacro_on", "logmacro_restart",
+           "logmacro_off", "logmacro_on",
            "adjust_lim", "adjust_lim_single", "set_lim_pool",
            "set_pos", "settimer", "uct", "umv", "umvr", "wa", "wm", "tw",
            "read_unitlimit_attrs"]
@@ -852,11 +852,14 @@ class logmacro_off(Macro):
 class logmacro_on(Macro):
     """ Set on the logging of the spock output """
 
-    def run(self):
+    param_def = [
+       ['mode', Type.Integer, -1, 'Mode: 0 append, 1 new file'],
+    ]
+
+    def run(self, mode):
+        if mode == 1:
+            self.setEnv('LogMacroMode', True)
+        elif mode == 0:
+            self.setEnv('LogMacroMode', False)
+            
         self.setEnv('LogMacroOnOff', True)
-
-class logmacro_restart(Macro):
-    """ Set the flag for restarting spock logging file """
-
-    def run(self):
-        self.setEnv('LogMacroMode', True)
