@@ -7,21 +7,169 @@ This file follows the formats and conventions from [keepachangelog.com]
 ## [Unreleased]
 
 ### Added
+- Report real moveable's position (read on the software trigger) in
+  ascanct & co. (#590)
+- addctrlib, relctrllib, relctrlcls macros usefull when developing
+  controller classes (#541)
+- Reintroduce intermediate events for counter/timer channels while
+  software acquisition is in progress (#625)
+- TaurusCounterTimerController - that can connect to different data
+  sources e.g. EPICS by using Taurus schemes (#628)
+- Allow deleting multiple measurement groups and multiple controllers
+  with udefmeas and udefctrl macros respectivelly (#361, #547)
+- Improve exception hangling in ascanct & co. (#600)
+- Allow to hide Taurus 4 related deprecation warnings
+  (`TAURUS_MAX_DEPRECATION_COUNTS` sardana custom setting) (#550)
+- Optional data extrapolation for the very first records in ascanct & co.
+  (`ApplyExtrapolation` environment variable) (#588)
+- Present available pools at the macroserver creation moment in the
+  alphabetical order (#585, #586)
+- Present available doors at the spock profile creation moment in the
+  alphabetical order (#221, #558)
+- Some backwards compatibility for element names in PQDN - recently
+  Taurus started using only FQDN (#625, #627)
+- Improve DumbRecorder (example of a custom file recorder) to write to
+  a file.
+
+### Fixed
+- Spock waits until macro stopping is finished after Ctrl+C (#34. #596)
+- Acquisition start sequence which in case of starting disabled channels
+  could unintentionally change the measurement group's configuration (#607,
+  #615)
+- Make the information about the element's instrument fully dynamic and
+  remove it from the serialized information (#122, #619)
+- uct macro (#319, #627)
+- Allow to stop macro when it was previously paused (#348, #548)
+- Bug in theoretical motor position in ascanct & co. (#591)
+- Counter/timer TaurusValue widget when used with Taurus 4 - correctly show
+  the element's name (#617)
+- Icons in macroexecution widgets when used with Taurus 4 (#578)
+- Spurious errors when reading RecordData attribute, normally triggered
+  on event subscription e.g. macrogui (#447, #598)
+- Possible too early acquisition triggering by trigger/gate due to the
+  wrong order ot starting trigger/gate and software synchronizer in the
+  synchronization action (#597)
+- Validation of motor positions agains their limits in ascanct & co. (#595)
+- Generation of theoretical timestamps in ascanct & co. (#602)
+- Number of repetitions (always pass 1) passed to experimental channel
+  controllers in case software synchronization is in use (#594)
+- Dummy counter/timer now returns partial value when its acquisition was
+  aborted (#626)
+
+### Changed
+- Rename edctrl to edctrlcls macro (#541)
+
+## [2.3.2] - 2017-08-11
+For a full log of commits between versions run (in your git repo):
+`git log 2.3.1..2.3.2`
+
+### Fixed
+- Provides metadatab in setup.py to be complient with PyPI
+
+## [2.3.1] - 2017-08-11
+For a full log of commits between versions run (in your git repo):
+`git log 2.3.0..2.3.1`
+
+### Fixed
+- Appveyor build for Python 2.7 64 bits
+
+## [2.3.0] - 2017-08-11
+For a full log of commits between versions run (in your git repo):
+`git log 2.2.3..2.3.0`
+
+### Added
+- Generic continuous scans - `ascanct` & co. (SEP6)
+  - TriggerGate element and its controller to plug in hardware with
+    the synchronization capabilities
+  - Software synchronizer that emulate hardware TriggerGate elements
+  - Possibility to execute multiple, synchronized by hardware or software, 
+    in time or position domain (also non equidistant) acquisitions with the
+    Measurement Group
+  - CTExpChannel can report acquired and indexed values in chunks in
+    continuous acquisition
+  - `synchronizer` parameter to the Measurement Group configuration
+  - `latency_time` parameter to the experimental channel controllers
+  - `ApplyInterpolation` environment variable, applicable to `ascanct` & co.
+  - "How to write a counter/timer controller" documentation
+  - "How to write a trigger/gate controller" documentation
+- 0DExpChannel may report acquired and indexed values in chunks in
+  continuous acquisition (#469)
+- PseudoCounter may return calculated (from the buffered physical
+  channels values) and indexed values in chunks in continuous acquisition
+  (#469)
+- `timescan` macro to run equidistant time scans and `TScan` class to
+  develop custom time scans (#104, #485)
+- New recorder for NXscan that does not use the nxs module (NAPI) but h5py
+  instead (#460)
 - New spock syntax based on the square brackets to use repeat parameters
   without limitations (#405)
+- Possibility to specify the IORegister value attribute data type between
+  `int`, `float` or `bool` even in the same controller (#459, #458)
+- Possibility to duplicate repeats of the repeat parameters in macroexecutor
+  and sequencer (#426)
 - Tooltip with parameters description in the macro execution widgets:
   MacroExecutor and Sequencer (#302)
 - Generic main to the macrobutton widget that allows to execute "any" macro
+- Overview of Pool elements documentation.
+- API fo Pool elements documentation.
+- Flake8 check-on-push for CI (#451)
+- Continuous integration service for Windows platform - AppVeyor (#383, #497)
+
+### Changed
+- `ascanct` & co. macro parameters to more resemble parameters of step scans
+  (SEP6)
+- `trigger_type` was renamed to `synchronization` in Measurement Group
+  configuration and as the experimental channel controller parameter (SEP6)
+- make the new NXscanH5_FileRecorder the default one for .h5 files (#460) 
+- A part of the 0D's core API was changed in order to be more consistent with
+  the new concept of value buffer (#469):
+  - `BaseAccumulation.append_value` -> `BaseAccumulation.append`
+  - `Value.get_value_buffer` -> `Value.get_accumulation_buffer`
+  - `Value.append_value` -> `Value.append_buffer`
+  - `PoolZeoDExpChannel.get_value_buffer` -> `PoolZeoDExpChannel.get_accumulation_buffer`
+  - `PoolZeoDExpChannel.value_buffer` -> `PoolZeoDExpChannel.accumulation_buffer`
+- `nr_of_points` attribute of `aNscan` class was renamed to `nr_points` (#469)
+- IORegister value attribute default data type from `int` to `float` and as a
+  consequence its Tango attribute data type from `DevLong` to `DevDouble` and
+  the `write_ioreg` and `read_ioreg` macro parameter and result type respectively
+  (#459, #458)
+- Use of ordereddict module. Now it is used from the standard library (Python >= 2.7)
+  instead of `taurus.external`. For Python 2.6 users this means a new dependency
+  `ordereddict` from PyPI (#482)
+- Applied AutoPEP8 to whole project (#446)
+
+### Deprecated
+- `LoadOne` API had changed - `repetitions` was added as a mandatory argument
+  and the old API is deprecated (SEP6)
+- OD's `ValueBuffer` Tango attribute is deprecated in favor of the
+  `AccumulationBuffer` attribute (#469)
+
+### Removed
+- intermediate events being emitted by the CTExpChannel Value attribute while
+  acquiring with the count updates - temporarily removed (SEP6)
+- units level from the Measurement Group configuration (#218)
 
 ### Fixed
-- Macro execution widgets connecting to the MacroServer in a Tango database
-  different than the default one e.g. using `--tango-host` option
+- Spurious errors when hangling macros stop/abort e.g. dscan returning to initial
+  position, restoring velocitues after continuous scan, etc. due to the lack of
+  synchronization between stopping/aborting macro reserved objects and execution of
+  on_stop/on_abort methods (#8, #503)
+- Hangs and segmentation faults during the MacroServer shutdown process (#273, #494,
+  #505. #510)
 - macrobutton widget working with the string parameters containing white spaces
   (#423)
+- Restoring macros from the list of favorites in the macroexecutor (#441, #495)
+- Macro execution widgets connecting to the MacroServer in a Tango database
+  different than the default one e.g. using `--tango-host` option
+- Logging of the macro result composed from more than one item in Spock (#366, #496)
+- MacroServer start and instance creation when using it as standalone server
+  i.e. without any Pool (#493)
+- One of the custom recorder examples - DumbRecorder (#511)
+
 
 ## [2.2.3] - 2017-01-12
 For a full log of commits between versions run (in your git repo):
-`git log 2.2.3..2.2.3`
+`git log 2.2.2..2.2.3`
 
 ### Fixed
 - Avoid to run sardana.tango.pool tests in sardana_unitsuite (related to #402)
@@ -178,7 +326,10 @@ Main improvements since sardana 1.5.0 (aka Jan15):
 
 
 [keepachangelog.com]: http://keepachangelog.com
-[Unreleased]: https://github.com/sardana-org/sardana/compare/2.2.0...HEAD
+[Unreleased]: https://github.com/sardana-org/sardana/compare/2.3.2...HEAD
+[2.3.2]: https://github.com/sardana-org/sardana/compare/2.3.1...2.3.2
+[2.3.1]: https://github.com/sardana-org/sardana/compare/2.3.0...2.3.1
+[2.3.0]: https://github.com/sardana-org/sardana/compare/2.2.3...2.3.0
 [2.2.3]: https://github.com/sardana-org/sardana/compare/2.2.2...2.2.3
 [2.2.2]: https://github.com/sardana-org/sardana/compare/2.2.1...2.2.2
 [2.2.1]: https://github.com/sardana-org/sardana/compare/2.2.0...2.2.1

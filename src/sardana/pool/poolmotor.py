@@ -2,24 +2,24 @@
 
 ##############################################################################
 ##
-## This file is part of Sardana
+# This file is part of Sardana
 ##
-## http://www.sardana-controls.org/
+# http://www.sardana-controls.org/
 ##
-## Copyright 2011 CELLS / ALBA Synchrotron, Bellaterra, Spain
+# Copyright 2011 CELLS / ALBA Synchrotron, Bellaterra, Spain
 ##
-## Sardana is free software: you can redistribute it and/or modify
-## it under the terms of the GNU Lesser General Public License as published by
-## the Free Software Foundation, either version 3 of the License, or
-## (at your option) any later version.
+# Sardana is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 ##
-## Sardana is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU Lesser General Public License for more details.
+# Sardana is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
 ##
-## You should have received a copy of the GNU Lesser General Public License
-## along with Sardana.  If not, see <http://www.gnu.org/licenses/>.
+# You should have received a copy of the GNU Lesser General Public License
+# along with Sardana.  If not, see <http://www.gnu.org/licenses/>.
 ##
 ##############################################################################
 
@@ -38,7 +38,7 @@ from sardana.sardanaattribute import SardanaAttribute, ScalarNumberAttribute, \
     SardanaSoftwareAttribute
 from sardana.sardanaevent import EventType
 from sardana.sardanautils import assert_type, is_number
-from sardana.pool.poolelement import PoolElement
+from sardana.pool.poolbasemoveable import PoolBaseMoveable
 from sardana.pool.poolmotion import PoolMotion, MotionState
 
 
@@ -98,13 +98,13 @@ class Position(SardanaAttribute):
     def calc_position(self, dial=None):
         """Returns the computed position from last the dial position from the
         given parameter or (if None), the last dial position obtained from
-        hardware read. 
-        
+        hardware read.
+
         :param dial: the new dial position [default: None, meaning use the
                      current dial position.
         :return: the computed user position
         :rtype: obj
-        
+
         :raises:
             :exc:`Exception` if dial_position is None and no read value has
             been set yet"""
@@ -122,7 +122,7 @@ class Position(SardanaAttribute):
     def calc_dial_position(self, position=None):
         """Returns the dial position for the  given position. If position is
         not given (or is None) it uses this object's *write* value.
-        
+
         :param position:
             the position to be converted to dial [default: None meaning use the
             this attribute's *write* value
@@ -203,14 +203,14 @@ class Sign(SardanaSoftwareAttribute):
     pass
 
 
-class PoolMotor(PoolElement):
+class PoolMotor(PoolBaseMoveable):
     """An internal Motor object. **NOT** part of the official API. Accessing
     this object from a controller plug-in may lead to undetermined behavior
     like infinite recursion."""
 
     def __init__(self, **kwargs):
         kwargs['elem_type'] = ElementType.Motor
-        PoolElement.__init__(self, **kwargs)
+        PoolBaseMoveable.__init__(self, **kwargs)
         on_change = self.on_change
         self._offset = Offset(self, initial_value=0, listeners=on_change)
         self._sign = Sign(self, initial_value=1, listeners=on_change)
@@ -229,14 +229,6 @@ class PoolMotor(PoolElement):
         self._in_start_move = False
         motion_name = "%s.Motion" % self._name
         self.set_action_cache(PoolMotion(self, motion_name))
-
-    # --------------------------------------------------------------------------
-    # Event forwarding
-    # --------------------------------------------------------------------------
-
-    def on_change(self, evt_src, evt_type, evt_value):
-        # forward all events coming from attributes to the listeners
-        self.fire_event(evt_type, evt_value)
 
     # --------------------------------------------------------------------------
     # state information
@@ -263,7 +255,7 @@ class PoolMotor(PoolElement):
         return state, status, ls
 
     def _set_state_info(self, state_info, propagate=1):
-        PoolElement._set_state_info(self, state_info, propagate=propagate)
+        PoolBaseMoveable._set_state_info(self, state_info, propagate=propagate)
         ls = state_info[-1]
         if self._sign.value < 0:
             ls = ls[0], ls[2], ls[1]
@@ -274,6 +266,7 @@ class PoolMotor(PoolElement):
     # --------------------------------------------------------------------------
 
     _STD_STATUS = "{name} is {state}{limit_switches}{ctrl_status}"
+
     def calculate_state_info(self, state_info=None):
         if state_info is None:
             state = self._state
@@ -392,7 +385,8 @@ class PoolMotor(PoolElement):
     def set_backlash(self, backlash, propagate=1):
         self._backlash = backlash
         if propagate > 0:
-            self.fire_event(EventType("backlash", priority=propagate), backlash)
+            self.fire_event(
+                EventType("backlash", priority=propagate), backlash)
 
     backlash = property(get_backlash, set_backlash, doc="motor backlash")
 
@@ -424,7 +418,8 @@ class PoolMotor(PoolElement):
     def set_sign(self, sign, propagate=1):
         old_sign = self._sign.value
         self._sign.set_value(sign, propagate=propagate)
-        # invert lower with upper limit switches and send event in case of change
+        # invert lower with upper limit switches and send event in case of
+        # change
         ls = self._limit_switches
         if old_sign != sign and ls.has_value():
             value = ls.value
@@ -452,12 +447,14 @@ class PoolMotor(PoolElement):
     def _set_step_per_unit(self, step_per_unit, propagate=1):
         self._step_per_unit = step_per_unit
         if propagate:
-            self.fire_event(EventType("step_per_unit", priority=propagate), step_per_unit)
+            self.fire_event(EventType("step_per_unit",
+                                      priority=propagate), step_per_unit)
             # force ask controller for new position to send priority event
             self.get_position(cache=False, propagate=2)
 
     def read_step_per_unit(self):
-        step_per_unit = self.controller.get_axis_par(self.axis, "step_per_unit")
+        step_per_unit = self.controller.get_axis_par(
+            self.axis, "step_per_unit")
         assert_type(float, step_per_unit)
         return step_per_unit
 
@@ -482,7 +479,8 @@ class PoolMotor(PoolElement):
         self._acceleration = acceleration
         if not propagate:
             return
-        self.fire_event(EventType("acceleration", priority=propagate), acceleration)
+        self.fire_event(
+            EventType("acceleration", priority=propagate), acceleration)
 
     def read_acceleration(self):
         acceleration = self.controller.get_axis_par(self.axis, "acceleration")
@@ -510,7 +508,8 @@ class PoolMotor(PoolElement):
         self._deceleration = deceleration
         if not propagate:
             return
-        self.fire_event(EventType("deceleration", priority=propagate), deceleration)
+        self.fire_event(
+            EventType("deceleration", priority=propagate), deceleration)
 
     def read_deceleration(self):
         deceleration = self.controller.get_axis_par(self.axis, "deceleration")
@@ -587,7 +586,7 @@ class PoolMotor(PoolElement):
 
     def get_position_attribute(self):
         """Returns the position attribute object for this motor
-        
+
         :return: the position attribute
         :rtype: :class:`~sardana.sardanaattribute.SardanaAttribute`"""
         return self._position
@@ -662,7 +661,7 @@ class PoolMotor(PoolElement):
 
     def get_dial_position_attribute(self):
         """Returns the dial position attribute object for this motor
-        
+
         :return: the dial position attribute
         :rtype: :class:`~sardana.sardanaattribute.SardanaAttribute`"""
         return self._dial_position
@@ -777,7 +776,8 @@ class PoolMotor(PoolElement):
 
             timestamp = time.time()
             # update the write position
-            self.set_write_position(items[self][0], timestamp=timestamp, propagate=0)
+            self.set_write_position(
+                items[self][0], timestamp=timestamp, propagate=0)
 
             # move!
             self.motion.run(items=items)
