@@ -1280,9 +1280,9 @@ class MacroExecutor(Logger):
             # sending result only if we are the top most macro
             if macro_obj.hasResult() and macro_obj.getParentMacro() is None:
                 result_repr = self.__preprocessResult(result)
-                logging_onoff = macro_obj.getEnv("LogMacroOnOff")
+                logging_onoff = macro_obj.logging_onoff
                 if logging_onoff:
-                    logging_path = macro_obj.getEnv("LogMacroPath")
+                    logging_path = macro_obj.logging_path
                     msg = "Result: %s" % (result_repr)
                     Logger.loggingtofile(self, msg, logging_path)
                 door.debug("sending result %s", result_repr)
@@ -1334,9 +1334,9 @@ class MacroExecutor(Logger):
                        (macro_exp.__class__.__name__, name))
             if isinstance(macro_exp, MacroServerException) and macro_obj.parent_macro is None:
                 door.debug(macro_exp.traceback)
-                logging_onoff = macro_obj.getEnv("LogMacroOnOff")
+                logging_onoff = macro_obj.logging_onoff
                 if logging_onoff:
-                    logging_path = macro_obj.getEnv("LogMacroPath")
+                    logging_path = macro_obj.logging_path
                     msg = "An error occurred while running %s:\n%s" % (macro_obj.description, macro_exp.msg)
                     Logger.loggingtofile(self, msg, logging_path)
                 door.error("An error occurred while running %s:\n%s" %
