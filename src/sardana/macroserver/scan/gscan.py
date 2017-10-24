@@ -1049,6 +1049,8 @@ class SScan(GScan):
         self._sum_motion_time = 0
         self._sum_acq_time = 0
 
+        self.point_id = 0
+
         for i, step in self.steps:
             # allow scan to be stopped between points
             macro.checkPoint()
@@ -1104,7 +1106,8 @@ class SScan(GScan):
         except InterruptException:
             raise
         except:
-            self.dump_information(n, step)
+            #self.dump_information(n, step)
+            self.dump_information(self.point_id, step)
             raise
         self.debug("[ END ] motion")
 
@@ -1243,6 +1246,9 @@ class SScan(GScan):
                     ic = 0
             else:
                 ic = 0
+
+            self.point_id = self.point_id + 1
+
 
     def dump_information(self, n, step):
         moveables = self.motion.moveable_list
