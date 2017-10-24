@@ -38,6 +38,7 @@ from sardana.macroserver.macro import *
 
 from lxml import etree
 
+import re
 
 def reprValue(v, max=74):
     # cut long strings
