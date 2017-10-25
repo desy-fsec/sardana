@@ -117,11 +117,18 @@ class FIO_FileRecorder(BaseFileRecorder):
                 self.ctNames.append(e.name)
         #
         # we need the aliases for the column description
+        # mca: tango://haspp08mono:10000/p08/mythen2/exp.01/Data
         #
         self.mcaAliases = []
         for mca in self.mcaNames:
             lst = mca.split("/")
-            self.mcaAliases.append(self.db.get_alias("/".join(lst[1:])))
+            #
+            # 25.10.2017: try-except because haspp08, mca directly from Tango, no Pool alias
+            #
+            try:
+                self.mcaAliases.append( self.db.get_alias( "/".join( lst[1:])))
+            except:
+                self.mcaAliases.append( mca)
 
         env = self.macro.getAllEnv()
         # self.names = [ e.name for e in envRec['datadesc'] ]
