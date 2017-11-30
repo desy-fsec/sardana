@@ -103,7 +103,9 @@ def split_MGConfigurations(mg_cfg_in):
         for ctrl_info in ctrls.values():
             element = ctrl_info[role]
             element_idx = ctrl_info["channels"][element]["index"]
-            if element_idx < master_idx:
+            element_enabled = ctrl_info["channels"][element]["enabled"]
+            # Find master only if is enabled
+            if element_idx < master_idx and element_enabled:
                 master = element
                 master_idx = element_idx
         return master
@@ -222,16 +224,12 @@ class PoolAcquisition(PoolAction):
         swname = name + ".SoftwareAcquisition"
         synchname = name + ".Synchronization"
 
-        self._moveables = None
         self._sw_acq_config = None
         self._0d_config = None
         self._0d_acq = Pool0DAcquisition(main_element, name=zerodname)
         self._sw_acq = PoolAcquisitionSoftware(main_element, name=swname)
         self._hw_acq = PoolAcquisitionHardware(main_element, name=hwname)
         self._synch = PoolSynchronization(main_element, name=synchname)
-
-    def set_moveables(self, moveables):
-        self._moveables = moveables
 
     def set_sw_config(self, config):
         self._sw_acq_config = config
@@ -282,8 +280,6 @@ class PoolAcquisition(PoolAction):
                     self._0d_acq._stopped = False
                     self._0d_acq._aborted = False
                     get_thread_pool().add(self._0d_acq.run, *args, **kwargs)
-            self.read_moveables(value)
-
         elif name == "passive":
             if self._0d_config and (self._0d_acq._is_started() or
                                     self._0d_acq.is_running()):
@@ -313,8 +309,6 @@ class PoolAcquisition(PoolAction):
                 pseudo_elem.clear_value_buffer()
         config = kwargs['config']
         synchronization = kwargs["synchronization"]
-        moveables = kwargs["moveables"]
-        self.set_moveables(moveables)
         integ_time = extract_integ_time(synchronization)
         repetitions = extract_repetitions(synchronization)
         # TODO: this code splits the global mg configuration into
@@ -329,9 +323,7 @@ class PoolAcquisition(PoolAction):
             cont_acq_kwargs['integ_time'] = integ_time
             cont_acq_kwargs['repetitions'] = repetitions
             self._hw_acq.run(*args, **cont_acq_kwargs)
-        if (len(sw_acq_cfg['controllers']) or
-                len(zerod_acq_cfg['controllers']) or
-                len(moveables)):
+        if len(sw_acq_cfg['controllers']) or len(zerod_acq_cfg['controllers']):
             self._synch.add_listener(self)
             if len(sw_acq_cfg['controllers']):
                 sw_acq_kwargs = dict(kwargs)
@@ -440,11 +432,6 @@ class PoolAcquisition(PoolAction):
         ret.update(self._0d_acq.read_value(ret=ret, serial=serial))
         return ret
 
-    def read_moveables(self, idx):
-        for moveable in self._moveables:
-            pos = moveable.position.value
-            moveable.append_position_buffer(pos, idx)
-
 
 class Channel(PoolActionItem):
 
@@ -538,6 +525,11 @@ class PoolAcquisitionBase(PoolAction):
             master_key = 'monitor'
             master_value = -mon_count
         master = cfg[master_key]
+        if master is None:
+            self.main_element.set_state(State.Fault, propagate=2)
+            msg = "master {0} is unknown (probably disabled)".format(
+                master_key)
+            raise RuntimeError(msg)
         master_ctrl = master.controller
 
         pool_ctrls_dict = dict(cfg['controllers'])
@@ -571,12 +563,6 @@ class PoolAcquisitionBase(PoolAction):
                 # only CT will be read in the loop, 1D and 2D not
                 if ElementType.CTExpChannel in ctrl.get_ctrl_types():
                     _pool_ctrl_dict_loop[ctrl] = pool_ctrl_data
-            # ctrl that contains the master timer/monitor can not be disabled
-            elif ctrl is master_ctrl:
-                self.main_element.set_state(State.Fault, propagate=2)
-                msg = "master timer/monitor ({0}) is disabled".format(
-                    master.name)
-                raise RuntimeError(msg)
 
         # timer/monitor channels can not be disabled
         for pool_ctrl in pool_ctrls:
@@ -831,9 +817,7 @@ class PoolAcquisitionSoftware(PoolAcquisitionBase):
                 if is_value_error(value):
                     self.error("Loop final read value error for: %s" %
                                acquirable.name)
-                    acquirable.put_value(value)
-                else:
-                    acquirable.append_value_buffer(value, self.index)
+                acquirable.append_value_buffer(value, self.index)
             with acquirable:
                 acquirable.clear_operation()
                 state_info = acquirable._from_ctrl_state_info(state_info)

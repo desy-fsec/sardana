@@ -7,10 +7,10 @@ This file follows the formats and conventions from [keepachangelog.com]
 ## [Unreleased]
 
 ### Added
-- Report real moveable's position (read on the software trigger) in
-  ascanct & co. (#590)
 - addctrlib, relctrllib, relctrlcls macros usefull when developing
   controller classes (#541)
+- Timeout/watchdog in continuous scans - especially usefull when
+  triggers may be missed e.g. not precise positioning (#136, #601)
 - Reintroduce intermediate events for counter/timer channels while
   software acquisition is in progress (#625)
 - TaurusCounterTimerController - that can connect to different data
@@ -22,8 +22,13 @@ This file follows the formats and conventions from [keepachangelog.com]
   (`TAURUS_MAX_DEPRECATION_COUNTS` sardana custom setting) (#550)
 - Optional data extrapolation for the very first records in ascanct & co.
   (`ApplyExtrapolation` environment variable) (#588)
+- Inform about an error when reading the sofware synchronized channel so
+  the record can be completed - value for the given trigger will not
+  arrive anymore (#581, #582)
 - `--file` option to sequencer - it allows to load a sequence file
   directly on the application startup moment (#283, #551)
+- Report error line number when loading a sequence from a txt file
+  fails (#114, #552)
 - Present available pools at the macroserver creation moment in the
   alphabetical order (#585, #586)
 - Present available doors at the spock profile creation moment in the
@@ -32,6 +37,8 @@ This file follows the formats and conventions from [keepachangelog.com]
   Taurus started using only FQDN (#625, #627)
 - Improve DumbRecorder (example of a custom file recorder) to write to
   a file.
+- Data in scan Records can now be accessed via dict-like syntax (#644)
+- Example of a macro that uses other macros as hooks #649
 
 ### Fixed
 - Spock waits until macro stopping is finished after Ctrl+C (#34. #596)
@@ -40,6 +47,8 @@ This file follows the formats and conventions from [keepachangelog.com]
   #615)
 - Selection of the master timer/monitor for each of the acquisition
   sub-actions (hardware and software) (#614)
+- Avoid "already involved in motion" errors due to wrong handling of
+  operation context and Tango state machine (#639)
 - Make the information about the element's instrument fully dynamic and
   remove it from the serialized information (#122, #619)
 - uct macro (#319, #627)
@@ -55,13 +64,30 @@ This file follows the formats and conventions from [keepachangelog.com]
   synchronization action (#597)
 - Validation of motor positions agains their limits in ascanct & co. (#595)
 - Generation of theoretical timestamps in ascanct & co. (#602)
+- Maintain macrobutton's text when MacroServer is shut down (#293, #559)
 - Number of repetitions (always pass 1) passed to experimental channel
   controllers in case software synchronization is in use (#594)
+- `Hookable.hooks` proprty setting - now it cleans the previous
+  configuration (#655)
 - Dummy counter/timer now returns partial value when its acquisition was
   aborted (#626)
+- Workaround for #427: make default values for repeat parameters of `wa`,
+  `pwa` and all list macros fully functional - also support execution with
+  `Macro.execMacro` (#654)
 
 ### Changed
 - Rename edctrl to edctrlcls macro (#541)
+- The way how the master timer/monitor for the acquisition actions is selected.
+  Previously the first one for the given synchronization was used, now it is
+  taken into account if it is enabled or disabled (next ones may be used then).
+  (#647, #648)
+- Macrobutton's text to from "<macro_name>" to "Run/Abort <macro_name>"
+  (#322, #554, #658)
+
+### Removed
+- `ElementList` attribute from the Door Tango device - `Element` attribute is
+  available on the MacroServer device (#556, #557, #653)
+
 
 ## [2.3.2] - 2017-08-11
 For a full log of commits between versions run (in your git repo):
