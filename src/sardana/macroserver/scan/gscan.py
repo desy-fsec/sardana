@@ -976,99 +976,12 @@ class SScan(GScan):
         else:
             yield 0.0
 
-        #-----------------------------------------
-        # General condition
-        #-----------------------------------------
-
-        general_condition = macro.getGeneralCondition()
-        self.condition_macro = None
-        if general_condition != None:
-            self.condition_macro, pars = self.macro.createMacro(general_condition)
-
-        #-----------------------------------------
-        # General hooks inside steps
-        #-----------------------------------------
-
-        tmp_hook = macro.getGeneralHooks("pre-move")
-        self.general_hooks_premove = []
-        if tmp_hook != None:
-            for elem in tmp_hook:
-                if isinstance(elem, str):
-                    elem = (elem,)
-                cmd = ""
-                for mem in elem:
-                    cmd = cmd + str(mem) + " "
-                self.general_hooks_premove.append(cmd)
-
-        tmp_hook = macro.getGeneralHooks("post-move")
-        self.general_hooks_postmove = []
-        if tmp_hook != None:
-            for elem in tmp_hook:
-                if isinstance(elem, str):
-                    elem = (elem,)
-                cmd = ""
-                for mem in elem:
-                    cmd = cmd + str(mem) + " "
-                self.general_hooks_postmove.append(cmd)
-
-        tmp_hook = macro.getGeneralHooks("pre-acq")
-        self.general_hooks_preacq = []
-        if tmp_hook != None:
-            for elem in tmp_hook:
-                if isinstance(elem, str):
-                    elem = (elem,)
-                cmd = ""
-                for mem in elem:
-                    cmd = cmd + str(mem) + " "
-                self.general_hooks_preacq.append(cmd)
-
-        tmp_hook = macro.getGeneralHooks("post-acq")
-        self.general_hooks_postacq = []
-        if tmp_hook != None:
-            for elem in tmp_hook:
-                if isinstance(elem, str):
-                    elem = (elem,)
-                cmd = ""
-                for mem in elem:
-                    cmd = cmd + str(mem) + " "
-                self.general_hooks_postacq.append(cmd)
-
-        tmp_hook = macro.getGeneralHooks("post-step")
-        self.general_hooks_poststep = []
-        if tmp_hook != None:
-            for elem in tmp_hook:
-                if isinstance(elem, str):
-                    elem = (elem,)
-                cmd = ""
-                for mem in elem:
-                    cmd = cmd + str(mem) + " "
-                self.general_hooks_poststep.append(cmd)
-
-        #
-        # Start scan
-        #
-
-        tmp_hook = macro.getGeneralHooks("pre-scan")
-        if tmp_hook != None:
-            for elem in tmp_hook:
-                if isinstance(elem, str):
-                    elem = (elem,)
-                cmd = ""
-                for mem in elem:
-                    cmd = cmd + str(mem) + " "
-                try:
-                    macro.execMacro(cmd)
-                except:
-                    macro.warning("Error executing general pre-scan hook. Scan continues")
-
         if hasattr(macro, 'getHooks'):
             for hook in macro.getHooks('pre-scan'):
                 hook()
 
         self._sum_motion_time = 0
         self._sum_acq_time = 0
-
-        self.point_id = 0
 
         for i, step in self.steps:
             # allow scan to be stopped between points
@@ -1077,19 +990,6 @@ class SScan(GScan):
             lstep = step
             if scream:
                 yield ((i + 1) / nr_points) * 100.0
-
-        tmp_hook = macro.getGeneralHooks("post-scan")
-        if tmp_hook != None:
-            for elem in tmp_hook:
-                if isinstance(elem, str):
-                    elem = (elem,)
-                cmd = ""
-                for mem in elem:
-                    cmd = cmd + str(mem) + " "
-                try:
-                    macro.execMacro(cmd)
-                except:
-                    macro.warning("Error executing general post-scan hook. Scan continues")
 
         if hasattr(macro, 'getHooks'):
             for hook in macro.getHooks('post-scan'):
@@ -1124,21 +1024,10 @@ class SScan(GScan):
             self._env['motiontime'] = self._sum_motion_time
         except InterruptException:
             raise
-        except:
-            #self.dump_information(n, step)
-            self.dump_information(self.point_id, step)
+        except Exception:
+            self.dump_information(n, step)
             raise
         self.debug("[ END ] motion")
-
-        for cmd in self.general_hooks_postmove:
-            try:
-                self.macro.execMacro(cmd)
-            except InterruptException:
-                raise
-            except:
-                self.macro.warning("Error executing general post-move hook. Scan continues")
-
-
 
         curr_time = time.time()
         dt = curr_time - startts
@@ -1153,22 +1042,15 @@ class SScan(GScan):
             except Exception:
                 pass
 
-        ic = 1
-        while ic:
-            curr_time = time.time()
-            dt = curr_time - startts
+        # allow scan to be stopped between motion and data acquisition
+        self.macro.checkPoint()
 
-            # allow scan to be stopped between motion and data acquisition
-            self.macro.checkPoint()
+        if state != Ready:
+            self.dump_information(n, step)
+            m = "Scan aborted after problematic motion: " \
+                "Motion ended with %s\n" % str(state)
+            raise ScanException({'msg': m})
 
-<<<<<<< HEAD
-            if state != Ready:
-                #self.dump_information(n, step)
-                self.dump_information(self.point_id, step)
-                m = "Scan aborted after problematic motion: " \
-                    "Motion ended with %s\n" % str(state)
-                raise ScanException({ 'msg' : m })
-=======
         # pre-acq hooks
         for hook in step.get('pre-acq-hooks', ()):
             hook()
@@ -1178,46 +1060,17 @@ class SScan(GScan):
                 raise
             except Exception:
                 pass
->>>>>>> udevelop
 
-            for cmd in self.general_hooks_preacq:
-                try:
-                    self.macro.execMacro(cmd)
-                except InterruptException:
-                    raise
-                except:
-                    self.macro.warning("Error executing general pre-acq hook. Scan continues")
+        integ_time = step['integ_time']
+        # Acquire data
+        self.debug("[START] acquisition")
+        state, data_line = mg.count(integ_time)
+        for ec in self._extra_columns:
+            data_line[ec.getName()] = ec.read()
+        self.debug("[ END ] acquisition")
+        self._sum_acq_time += integ_time
+        self._env['acqtime'] = self._sum_acq_time
 
-<<<<<<< HEAD
-            #pre-acq hooks
-            for hook in step.get('pre-acq-hooks',()):
-                hook()
-                try:
-                    step['extrainfo'].update(hook.getStepExtraInfo())
-                except InterruptException:
-                    raise
-                except: pass
-
-            integ_time = step['integ_time']
-            # Acquire data
-            self.debug("[START] acquisition")
-            state, data_line = mg.count(integ_time)
-            for ec in self._extra_columns:
-                data_line[ec.getName()] = ec.read()
-            self.debug("[ END ] acquisition")
-            self._env['acqtime'] = self._sum_acq_time
-
-            for cmd in self.general_hooks_postacq:
-                try:
-                    self.macro.execMacro(cmd)
-                except InterruptException:
-                    raise
-                except:
-                    self.macro.warning("Error executing general post-acq hook. Scan continues")
-
-        #post-acq hooks
-            for hook in step.get('post-acq-hooks', ()):
-=======
         # post-acq hooks
         for hook in step.get('post-acq-hooks', ()):
             hook()
@@ -1234,7 +1087,6 @@ class SScan(GScan):
                             '"post-acq-hooks" instead of "hooks" in the step '
                             'generator')
             for hook in step.get('hooks', ()):
->>>>>>> udevelop
                 hook()
                 try:
                     step['extrainfo'].update(hook.getStepExtraInfo())
@@ -1243,67 +1095,17 @@ class SScan(GScan):
                 except Exception:
                     pass
 
-        #hooks for backwards compatibility:
-            if step.has_key('hooks'):
-                self.macro.info('Deprecation warning: you should use '
-                                '"post-acq-hooks" instead of "hooks" in the step '
-                                'generator')
-                for hook in step.get('hooks', ()):
-                    hook()
-                    try:
-                        step['extrainfo'].update(hook.getStepExtraInfo())
-                    except InterruptException:
-                        raise
-                    except:
-                        pass
+        # Add final moveable positions
+        data_line['point_nb'] = n
+        data_line['timestamp'] = dt
+        for i, m in enumerate(self.moveables):
+            data_line[m.moveable.getName()] = positions[i]
 
-<<<<<<< HEAD
-            # Add final moveable positions
-            #data_line['point_nb'] = n
-            data_line['point_nb'] = self.point_id
-            data_line['timestamp'] = dt
-            for i, m in enumerate(self.moveables):
-                data_line[m.moveable.getName()] = positions[i]
-=======
         # Add extra data coming in the step['extrainfo'] dictionary
         if 'extrainfo' in step:
             data_line.update(step['extrainfo'])
->>>>>>> udevelop
 
-            #Add extra data coming in the step['extrainfo'] dictionary
-            if step.has_key('extrainfo'): data_line.update(step['extrainfo'])
-
-            self.data.addRecord(data_line)
-
-            for cmd in self.general_hooks_poststep:
-                try:
-                    self.macro.execMacro(cmd)
-                except InterruptException:
-                    raise
-                except:
-                    self.macro.warning("Error executing general post-step hook. Scan continues")
-
-
-            #post-step hooks
-            for hook in step.get('post-step-hooks', ()):
-                hook()
-                try:
-                    step['extrainfo'].update(hook.getStepExtraInfo())
-                except InterruptException:
-                    raise
-                except:
-                    pass
-
-
-            if self.condition_macro != None:
-                try:
-                    ic = self.macro.runMacro(self.condition_macro)
-                except:
-                    ic = 0
-            else:
-                ic = 0
-
-            self.point_id = self.point_id + 1
+        self.data.addRecord(data_line)
 
         # post-step hooks
         for hook in step.get('post-step-hooks', ()):
@@ -1321,7 +1123,6 @@ class SScan(GScan):
         for moveable in moveables:
             msg.append(moveable.information())
         self.macro.info("\n".join(msg))
-
 
 
 class CScan(GScan):
