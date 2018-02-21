@@ -1124,14 +1124,9 @@ class SScan(GScan):
             self._env['motiontime'] = self._sum_motion_time
         except InterruptException:
             raise
-<<<<<<< HEAD
         except:
             #self.dump_information(n, step)
             self.dump_information(self.point_id, step)
-=======
-        except Exception:
-            self.dump_information(n, step)
->>>>>>> udevelop
             raise
         self.debug("[ END ] motion")
 
@@ -1310,8 +1305,6 @@ class SScan(GScan):
 
             self.point_id = self.point_id + 1
 
-<<<<<<< HEAD
-=======
         # post-step hooks
         for hook in step.get('post-step-hooks', ()):
             hook()
@@ -1321,7 +1314,6 @@ class SScan(GScan):
                 raise
             except Exception:
                 pass
->>>>>>> udevelop
 
     def dump_information(self, n, step):
         moveables = self.motion.moveable_list
