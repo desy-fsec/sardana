@@ -149,13 +149,14 @@ class FIO_FileRecorder(BaseFileRecorder):
         fioDict = None
         if env.has_key('FioAdditions'):
             fName = env['FioAdditions']
-            import json
             if not fName is None:
                 if not os.path.exists(fName):
                     self.warning("fioRecorder: %s does not exist" % fName)
                     self.macro.warning("fioRecorder: %s does not exist" % fName)
                 else:
-                    fioAdds = json.loads(os.popen('python %s ' % fName).read())
+                    import imp
+                    a = imp.load_source('', fName)
+                    fioAdds = a.main()
                 #
                 # allowed: list, dict, [list], [dict], [list, dict], [dict, list]
                 #
