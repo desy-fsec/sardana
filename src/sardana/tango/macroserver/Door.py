@@ -378,9 +378,11 @@ class Door(SardanaDevice):
         return self.StopMacro()
 
     def AbortMacro(self):
-        self.debug("Aborting")
+        macro = self.getRunningMacro()
+        if macro is None:
+            return
+        self.debug("aborting %s" % macro._getDescription())
         self.macro_executor.abort()
-        self.debug("Finished aborting")
 
     def is_Abort_allowed(self):
         return True
@@ -399,7 +401,7 @@ class Door(SardanaDevice):
         macro = self.getRunningMacro()
         if macro is None:
             return
-        self.debug("stopping macro %s" % macro._getDescription())
+        self.debug("stopping %s" % macro._getDescription())
         self.macro_executor.stop()
 
     def is_StopMacro_allowed(self):
@@ -411,7 +413,7 @@ class Door(SardanaDevice):
         macro = self.getRunningMacro()
         if macro is None:
             return
-        self.debug("resume macro %s" % macro._getDescription())
+        self.debug("resuming %s" % macro._getDescription())
         self.macro_executor.resume()
 
     def is_ResumeMacro_allowed(self):

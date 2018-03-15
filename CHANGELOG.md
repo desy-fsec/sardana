@@ -3,14 +3,18 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 This file follows the formats and conventions from [keepachangelog.com]
 
-
 ## [Unreleased]
+
+
+## [2.4.0] 2018-03-14
 
 ### Added
 - General hooks - hooks that can be configured with `defgh`, `udefgh` and `lsgh`
   macros instead of attaching them programatically (#200, #646)
 - New API to `Stoppable` interface of pool controllers that allows synchronized
-multiaxes stop/abort (#157, #592)
+  multiaxes stop/abort (#157, #592)
+- Macro execution logs can be saved to a file. Controlled with `logmacro` macro and
+  `LogMacroDir`, `LogMacroFormat` environment variables (#102, #480)
 - `addctrlib`, `relctrllib`, `relctrlcls` macros usefull when developing
   controller classes (#541)
 - `meshct` macro - mesh composed from row scans executed in the continuous
@@ -57,6 +61,12 @@ multiaxes stop/abort (#157, #592)
 
 ### Fixed
 - Spock waits until macro stopping is finished after Ctrl+C (#34. #596)
+- Limits of the underneeth motors are checked if we move a pseudo motor
+  (#36, #663, #704)
+- Limits of the underneeth motors are checked if we move a motor group
+  (#259, #560)
+- Eliminate a possibility of deadlock when aborting a macro (#693, #695,
+  #708)
 - Acquisition start sequence which in case of starting disabled channels
   could unintentionally change the measurement group's configuration (#607,
   #615)
@@ -101,6 +111,7 @@ multiaxes stop/abort (#157, #592)
 - Improved MacroServer creation wizard (#676)
 
 ### Changed
+- FQDN are now used internally by sardana in its identifiers (#668, partially)
 - Make explicit file descriptor buffer synchronization (force effective write to
   the file system) in SPEC and FIO recorders (#651)
 - Rename edctrl to edctrlcls macro (#541)
@@ -110,6 +121,7 @@ multiaxes stop/abort (#157, #592)
   (#647, #648)
 - Macrobutton's text to from "<macro_name>" to "Run/Abort <macro_name>"
   (#322, #554, #658)
+- Color policy in spock for IPython >= 5 from Linux to Neutral (#706 and #712)
 
 ### Removed
 - `ElementList` attribute from the Door Tango device - `Element` attribute is
@@ -387,6 +399,7 @@ Main improvements since sardana 1.5.0 (aka Jan15):
 
 [keepachangelog.com]: http://keepachangelog.com
 [Unreleased]: https://github.com/sardana-org/sardana/compare/2.3.2...HEAD
+[2.4.0]: https://github.com/sardana-org/sardana/compare/2.3.2...2.4.0
 [2.3.2]: https://github.com/sardana-org/sardana/compare/2.3.1...2.3.2
 [2.3.1]: https://github.com/sardana-org/sardana/compare/2.3.0...2.3.1
 [2.3.0]: https://github.com/sardana-org/sardana/compare/2.2.3...2.3.0
