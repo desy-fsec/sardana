@@ -335,27 +335,6 @@ class Door(SardanaDevice):
         #    Add your own code here
         attr.set_value(self._last_result)
 
-    def read_RunningMacros(self, attr):
-
-        running_macros = []
-        nb_macros = 0
-        macro = self.getRunningMacro()
-        if macro != None and macro._getMacroStatus()['state'] not in ['finish','stop'] :
-            running_macros.append(macro._getDescription().replace("Macro '", "").replace("-> [<built-in function id>]'", "").replace("'", ""))
-            nb_macros = 1
-            ploop = 1
-            smacro = macro
-            while ploop:
-                pm = smacro.parent_macro
-                if pm != None:
-                    smacro = pm
-                    running_macros.append(pm._getDescription().replace("Macro '", "").replace("-> [<built-in function id>]'", "").replace("'", ""))
-                    nb_macros = nb_macros + 1
-                else:
-                    ploop = 0
-
-        attr.set_value(running_macros, nb_macros)
-
     def read_RecordData(self, attr):
         try:
             macro_data = self.door.get_macro_data()
@@ -533,8 +512,6 @@ class DoorClass(SardanaDeviceClass):
                    {'label': 'Macro output message', }],
         'Input': [[DevString, SCALAR, READ_WRITE],
                   {'label': 'Macro input prompt', }],
-        'RunningMacros': [[DevString, SPECTRUM, READ, 10],
-                          {'label': 'Running Macros', }],
         'RecordData': [[DevEncoded, SCALAR, READ],
                        {'label': 'Record Data', }],
         'MacroStatus': [[DevEncoded, SCALAR, READ],
