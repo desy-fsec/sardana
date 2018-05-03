@@ -2610,26 +2610,6 @@ class Macro(Logger):
         setattr(self, name, f)
         return f
 
-    def getGeneralHooks(self, pos):
-        try:
-            general_hooks = self.getEnv("GeneralHooks")
-            if pos in general_hooks.keys():
-                return general_hooks[pos]
-            else:
-                return None
-        except:
-            return None
-
-    def getGeneralHooksC(self, pos):
-        try:
-            general_hooks = self.getEnv("GeneralHooksC")
-            if pos in general_hooks.keys():
-                return general_hooks[pos]
-            else:
-                return None
-        except:
-            return None
-
     def getGeneralCondition(self):
         try:
             general_condition = self.getEnv("GeneralCondition")
