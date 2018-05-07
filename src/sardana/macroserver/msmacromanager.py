@@ -885,7 +885,7 @@ class FileHandlerFilter(logging.Filter):
                 allow = False
         return allow
 
-    
+
 class LogMacroManager(object):
     """Manage user-oriented macro logging to a file. It is configurable with
     LogMacro, LogMacroMode, LogMacroFormat and LogMacroDir environment
