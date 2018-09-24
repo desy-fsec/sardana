@@ -1012,7 +1012,6 @@ class SScan(GScan):
         else:
             yield 0.0
 
-<<<<<<< HEAD
         #-----------------------------------------
         # General condition
         #-----------------------------------------
@@ -1027,8 +1026,6 @@ class SScan(GScan):
             for hook in macro.getHooks('pre-scan'):
                 hook()
 
-=======
->>>>>>> udevelop
         self._sum_motion_time = 0
         self._sum_acq_time = 0
 

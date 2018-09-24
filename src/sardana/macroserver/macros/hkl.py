@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 ##############################################################################
 ##
 # This file is part of Sardana
@@ -22,7 +20,6 @@
 # along with Sardana.  If not, see <http://www.gnu.org/licenses/>.
 ##
 ##############################################################################
->>>>>>> udevelop
 
 """
     Macro library containning diffractometer related macros for the macros
@@ -110,18 +107,6 @@ class _diffrac:
                 self.angle_names.append("delta")
 
         if self.nb_motors == 4:
-<<<<<<< HEAD
-            self.labelmotor = {'Omega': self.angle_names[0], 'Chi': self.angle_names[1],
-                               'Phi': self.angle_names[2], 'Tth': self.angle_names[3]}
-        elif self.nb_motors == 6:
-            self.labelmotor = {'Mu': self.angle_names[0], 'Theta': self.angle_names[1],
-                               'Chi': self.angle_names[2], 'Phi': self.angle_names[3],
-                               'Gamma': self.angle_names[4], 'Delta': self.angle_names[5]}
-        elif self.nb_motors == 7:
-            self.labelmotor = {'Omega_t': self.angle_names[0], 'Mu': self.angle_names[1],
-                               'Omega': self.angle_names[2], 'Chi': self.angle_names[3],
-                               'Phi': self.angle_names[4], 'Gamma': self.angle_names[5],
-=======
             self.labelmotor = {'Omega': self.angle_names[0],
                                'Chi': self.angle_names[1],
                                'Phi': self.angle_names[2],
@@ -140,7 +125,6 @@ class _diffrac:
                                'Chi': self.angle_names[3],
                                'Phi': self.angle_names[4],
                                'Gamma': self.angle_names[5],
->>>>>>> udevelop
                                'Delta': self.angle_names[6]}
 
         prop = self.diffrac.get_property(['DiffractometerType'])
@@ -655,18 +639,9 @@ class wh(Macro, _diffrac):
             str_pos6 = "%7.5f" % self.getDevice(
                 self.angle_device_names[self.labelmotor["Gamma"]]).Position
             self.output("%10s %11s %12s %11s %10s %11s" %
-<<<<<<< HEAD
-                        (self.labelmotor["Delta"],
-                         self.labelmotor["Theta"],
-                         self.labelmotor["Chi"],
-                         self.labelmotor["Phi"],
-                         self.labelmotor["Mu"],
-                         self.labelmotor["Gamma"]))
-=======
                         (self.labelmotor["Delta"], self.labelmotor["Theta"],
                          self.labelmotor["Chi"], self.labelmotor["Phi"],
                          self.labelmotor["Mu"], self.labelmotor["Gamma"]))
->>>>>>> udevelop
             self.output("%10s %11s %12s %11s %10s %11s" %
                         (str_pos1, str_pos2, str_pos3, str_pos4, str_pos5,
                          str_pos6))
@@ -680,15 +655,8 @@ class wh(Macro, _diffrac):
             str_pos4 = "%7.5f" % self.getDevice(
                 self.angle_device_names[self.labelmotor["Phi"]]).Position
             self.output("%10s %11s %12s %11s" %
-<<<<<<< HEAD
-                        (self.labelmotor["Tth"],
-                         self.labelmotor["Omega"],
-                         self.labelmotor["Chi"],
-                         self.labelmotor["Phi"]))
-=======
                         (self.labelmotor["Tth"], self.labelmotor["Omega"],
                          self.labelmotor["Chi"], self.labelmotor["Phi"]))
->>>>>>> udevelop
             self.output("%10s %11s %12s %11s" %
                         (str_pos1, str_pos2, str_pos3, str_pos4))
         elif self.nb_motors == 7:
@@ -707,18 +675,9 @@ class wh(Macro, _diffrac):
             str_pos7 = "%7.5f" % self.getDevice(
                 self.angle_device_names[self.labelmotor["Delta"]]).Position
             self.output("%10s %11s %12s %11s %10s %11s %11s" %
-<<<<<<< HEAD
-                        (self.labelmotor["Omega_t"],
-                         self.labelmotor["Mu"],
-                         self.labelmotor["Omega"],
-                         self.labelmotor["Chi"],
-                         self.labelmotor["Phi"],
-                         self.labelmotor["Gamma"],
-=======
                         (self.labelmotor["Omega_t"], self.labelmotor["Mu"],
                          self.labelmotor["Omega"], self.labelmotor["Chi"],
                          self.labelmotor["Phi"], self.labelmotor["Gamma"],
->>>>>>> udevelop
                          self.labelmotor["Delta"]))
             self.output("%10s %11s %12s %11s %10s %11s %11s" %
                         (str_pos1, str_pos2, str_pos3, str_pos4, str_pos5,

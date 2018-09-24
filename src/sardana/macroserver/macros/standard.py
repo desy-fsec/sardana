@@ -44,11 +44,8 @@ from PyTango import DeviceProxy
 from sardana.macroserver.macro import Macro, macro, Type, ParamRepeat, \
     ViewOption, iMacro, Hookable
 from sardana.macroserver.msexception import StopException
-<<<<<<< HEAD
-=======
 from sardana.macroserver.scan.scandata import Record
 from sardana.macroserver.macro import Optional
->>>>>>> udevelop
 
 ##########################################################################
 #
