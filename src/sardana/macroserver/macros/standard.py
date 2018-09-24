@@ -44,6 +44,11 @@ from PyTango import DeviceProxy
 from sardana.macroserver.macro import Macro, macro, Type, ParamRepeat, \
     ViewOption, iMacro, Hookable
 from sardana.macroserver.msexception import StopException
+<<<<<<< HEAD
+=======
+from sardana.macroserver.scan.scandata import Record
+from sardana.macroserver.macro import Optional
+>>>>>>> udevelop
 
 ##########################################################################
 #
@@ -736,17 +741,25 @@ class ct(Macro, Hookable):
     env = ('ActiveMntGrp',)
     hints = {'allowsHooks': ('pre-acq', 'post-acq')}
     param_def = [
-        ['integ_time', Type.Float, 1.0, 'Integration time']
+        ['integ_time', Type.Float, 1.0, 'Integration time'],
+        ['mnt_grp', Type.MeasurementGroup, Optional, 'Measurement Group to '
+                                                     'use']
+
     ]
 
-    def prepare(self, integ_time, **opts):
-        mnt_grp_name = self.getEnv('ActiveMntGrp')
-        self.mnt_grp = self.getObj(
-            mnt_grp_name, type_class=Type.MeasurementGroup)
+    def prepare(self, integ_time, mnt_grp, **opts):
+        if mnt_grp is None:
+            self.mnt_grp_name = self.getEnv('ActiveMntGrp')
+            self.mnt_grp = self.getObj(self.mnt_grp_name,
+                                       type_class=Type.MeasurementGroup)
+        else:
+            self.mnt_grp_name = mnt_grp.name
+            self.mnt_grp = mnt_grp
 
-    def run(self, integ_time):
+    def run(self, integ_time, mnt_grp):
         if self.mnt_grp is None:
-            self.error('ActiveMntGrp is not defined or has invalid value')
+            self.error('The MntGrp {} is not defined or has invalid '
+                       'value'.format(self.mnt_grp_name))
             return
         # integration time has to be accessible from with in the hooks
         # so declare it also instance attribute
@@ -787,16 +800,23 @@ class uct(Macro):
     env = ('ActiveMntGrp',)
 
     param_def = [
-        ['integ_time', Type.Float, 1.0, 'Integration time']
+        ['integ_time', Type.Float, 1.0, 'Integration time'],
+        ['mnt_grp', Type.MeasurementGroup, Optional, 'Measurement Group to '
+                                                     'use']
+
     ]
 
-    def prepare(self, integ_time, **opts):
+    def prepare(self, integ_time, mnt_grp, **opts):
 
         self.print_value = False
 
-        mnt_grp_name = self.getEnv('ActiveMntGrp')
-        self.mnt_grp = self.getObj(
-            mnt_grp_name, type_class=Type.MeasurementGroup)
+        if mnt_grp is None:
+            self.mnt_grp_name = self.getEnv('ActiveMntGrp')
+            self.mnt_grp = self.getObj(self.mnt_grp_name,
+                                       type_class=Type.MeasurementGroup)
+        else:
+            self.mnt_grp_name = mnt_grp.name
+            self.mnt_grp = mnt_grp
 
         if self.mnt_grp is None:
             return
@@ -814,9 +834,10 @@ class uct(Macro):
             valueObj = channel.getValueObj_()
             valueObj.subscribeEvent(self.counterChanged, channel)
 
-    def run(self, integ_time):
+    def run(self, integ_time, mnt_grp):
         if self.mnt_grp is None:
-            self.error('ActiveMntGrp is not defined or has invalid value')
+            self.error('The MntGrp {} is not defined or has invalid '
+                       'value'.format(self.mnt_grp_name))
             return
 
         self.print_value = True
@@ -905,6 +926,7 @@ class logmacro(Macro):
             self.setEnv('LogMacro', True)
         else:
             self.setEnv('LogMacro', False)
+
 
 class repeat(Hookable, Macro):
     """This macro executes as many repetitions of a set of macros as
