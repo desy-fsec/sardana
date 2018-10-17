@@ -1021,11 +1021,6 @@ class SScan(GScan):
         if general_condition != None:
             self.condition_macro, pars = self.macro.createMacro(general_condition)
             
-
-        if hasattr(macro, 'getHooks'):
-            for hook in macro.getHooks('pre-scan'):
-                hook()
-
         self._sum_motion_time = 0
         self._sum_acq_time = 0
 
