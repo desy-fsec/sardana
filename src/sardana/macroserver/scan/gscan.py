@@ -1165,19 +1165,19 @@ class SScan(GScan):
         self._sum_acq_time += integ_time
         self._env['acqtime'] = self._sum_acq_time
 
-            # hooks for backwards compatibility:
-            if 'hooks' in step:
-                self.macro.info('Deprecation warning: you should use '
-                                '"post-acq-hooks" instead of "hooks" in the step '
-                                'generator')
-                for hook in step.get('hooks', ()):
-                    hook()
-                    try:
-                        step['extrainfo'].update(hook.getStepExtraInfo())
-                    except InterruptException:
-                        raise
-                    except Exception:
-                        pass
+        # hooks for backwards compatibility:
+        if 'hooks' in step:
+            self.macro.info('Deprecation warning: you should use '
+                            '"post-acq-hooks" instead of "hooks" in the step '
+                            'generator')
+            for hook in step.get('hooks', ()):
+                hook()
+                try:
+                    step['extrainfo'].update(hook.getStepExtraInfo())
+                except InterruptException:
+                    raise
+                except Exception:
+                    pass
 
             # Add final moveable positions
             #data_line['point_nb'] = n
