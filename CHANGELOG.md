@@ -5,10 +5,12 @@ This file follows the formats and conventions from [keepachangelog.com]
 
 ## [Unreleased]
 
+## [2.7.0] 2019-03-11
+
 ### Added
 
 * Possibility to directly acquire an experimental channel (without the need to define
-  a measurement group) (#185, #997, #1048)
+  a measurement group) (#185, #997, #1048, #1061)
   * `IntegrationTime` (Tango) and `integration_time` (core) attributes to all experimental
     channels
   * `Timer` (Tango) and `timer` (core) attribute to all timerable experimental channels
@@ -29,6 +31,7 @@ This file follows the formats and conventions from [keepachangelog.com]
   in the core (#1001)
 * Compatibility of measurement group plotting configurations created with
   sardana < 2.4.0 and taurus < 4.3.0 (#1017, #1022)
+* General Hook tests (#1062)
  
 ## [2.6.1] 2019-02-04
 
@@ -594,7 +597,8 @@ Main improvements since sardana 1.5.0 (aka Jan15):
 
 
 [keepachangelog.com]: http://keepachangelog.com
-[Unreleased]: https://github.com/sardana-org/sardana/compare/2.6.1...HEAD
+[Unreleased]: https://github.com/sardana-org/sardana/compare/2.7.0...HEAD
+[2.7.0]: https://github.com/sardana-org/sardana/compare/2.6.1...2.7.0
 [2.6.1]: https://github.com/sardana-org/sardana/compare/2.6.0...2.6.1
 [2.6.0]: https://github.com/sardana-org/sardana/compare/2.5.0...2.6.0
 [2.5.0]: https://github.com/sardana-org/sardana/compare/2.4.0...2.5.0
