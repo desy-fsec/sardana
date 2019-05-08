@@ -1156,25 +1156,20 @@ class SScan(GScan):
                 except Exception:
                     pass
 
-        integ_time = step['integ_time']
-        # Acquire data
-        self.debug("[START] acquisition")
-        if self._deterministic_scan:
-            state, data_line = mg.count_raw()
-        else:
-            state, data_line = mg.count(integ_time)
-        for ec in self._extra_columns:
-            data_line[ec.getName()] = ec.read()
-        self.debug("[ END ] acquisition")
-        self._sum_acq_time += integ_time
-        self._env['acqtime'] = self._sum_acq_time
-
-        # hooks for backwards compatibility:
-        if 'hooks' in step:
-            self.macro.info('Deprecation warning: you should use '
-                            '"post-acq-hooks" instead of "hooks" in the step '
-                            'generator')
-            for hook in step.get('hooks', ()):
+            integ_time = step['integ_time']
+            # Acquire data
+            self.debug("[START] acquisition")
+            if self._deterministic_scan:
+                state, data_line = mg.count_raw()
+            else:
+                state, data_line = mg.count(integ_time)
+            for ec in self._extra_columns:
+                data_line[ec.getName()] = ec.read()
+            self.debug("[ END ] acquisition")
+            self._sum_acq_time += integ_time
+            self._env['acqtime'] = self._sum_acq_time
+            # post-acq hooks
+            for hook in step.get('post-acq-hooks', ()):
                 hook()
                 try:
                     step['extrainfo'].update(hook.getStepExtraInfo())
@@ -1182,6 +1177,20 @@ class SScan(GScan):
                     raise
                 except Exception:
                     pass
+
+            # hooks for backwards compatibility:
+            if 'hooks' in step:
+                self.macro.info('Deprecation warning: you should use '
+                                '"post-acq-hooks" instead of "hooks" in the step '
+                                'generator')
+                for hook in step.get('hooks', ()):
+                    hook()
+                    try:
+                        step['extrainfo'].update(hook.getStepExtraInfo())
+                    except InterruptException:
+                        raise
+                    except Exception:
+                        pass
 
             # Add final moveable positions
             #data_line['point_nb'] = n
@@ -1216,7 +1225,7 @@ class SScan(GScan):
                 ic = 0
 
             self.point_id = self.point_id + 1
-                
+
 
     def dump_information(self, n, step):
         moveables = self.motion.moveable_list

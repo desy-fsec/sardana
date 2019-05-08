@@ -809,7 +809,7 @@ class ct(Macro, Hookable):
             value = channel.getValue()
             counts.append(_value_to_repr(value))
             data = {channel.full_name: value}
-        self.setData(Record(data))
+
         table = Table([counts], row_head_str=names, row_head_fmt='%*s',
                       col_sep='  =  ')
         for line in table.genOutput():
@@ -876,8 +876,6 @@ class uct(Macro):
         self.print_value = True
         try:
             self.mnt_grp.count(integ_time)
-            _, data = self.countable_elem.count(integ_time)
-            self.setData(Record(data))
         finally:
             self.finish()
 
