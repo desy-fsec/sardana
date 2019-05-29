@@ -34,6 +34,7 @@ import time
 import itertools
 import re
 import io
+import weakref
 
 import numpy
 
@@ -55,8 +56,7 @@ class FIO_FileRecorder(BaseFileRecorder):
     def __init__(self, filename=None, macro=None, **pars):
         BaseFileRecorder.__init__(self)
         self.base_filename = filename
-        if macro:
-            self.macro = macro
+        self.macro = weakref.ref(macro) if macro else None
         self.db = PyTango.Database()
         if filename:
             self.setFileName(self.base_filename)
@@ -122,6 +122,8 @@ class FIO_FileRecorder(BaseFileRecorder):
         #
         self.mcaAliases = []
         for mca in self.mcaNames:
+            if mca.startswith("tango://"):
+                mca = mca[8:]
             lst = mca.split("/")
             #
             # 25.10.2017: try-except because haspp08, mca directly from Tango, no Pool alias
@@ -131,7 +133,7 @@ class FIO_FileRecorder(BaseFileRecorder):
             except:
                 self.mcaAliases.append( mca)
 
-        env = self.macro.getAllEnv()
+        env = self.macro().getAllEnv()
         # self.names = [ e.name for e in envRec['datadesc'] ]
         self.fd = open(self.filename, 'w')
         #
@@ -153,7 +155,7 @@ class FIO_FileRecorder(BaseFileRecorder):
             if not fName is None:
                 if not os.path.exists(fName):
                     self.warning("fioRecorder: %s does not exist" % fName)
-                    self.macro.warning("fioRecorder: %s does not exist" % fName)
+                    self.macro().warning("fioRecorder: %s does not exist" % fName)
                 else:
                     import imp
                     a = imp.load_source('', fName)
@@ -177,17 +179,17 @@ class FIO_FileRecorder(BaseFileRecorder):
                         if type(fioAdds[0]) is list:
                             fioList = fioAdds[0]
                             if not fioAdds[1] is dict:
-                                self.macro.output("fio-recorder: bad output from %s (1)" % fName)
+                                self.macro().output("fio-recorder: bad output from %s (1)" % fName)
                             fioDict = fioAdds[1]
                         elif type(fioAdds[0]) is dict:
                             fioDict = fioAdds[0]
                             if not type(fioAdds[1]) is list:
-                                self.macro.output("fio-recorder: bad output from %s (2)" % fName)
+                                self.macro().output("fio-recorder: bad output from %s (2)" % fName)
                             fioList = fioAdds[1]
                         else:
                             fioList = fioAdds
                 else:
-                    self.macro.output("fio-recorder: bad output from %s (3)" % fName)
+                    self.macro().output("fio-recorder: bad output from %s (3)" % fName)
 
                 if not fioList is None:
                     for elm in fioList:
@@ -205,7 +207,7 @@ class FIO_FileRecorder(BaseFileRecorder):
                 self.fd.write("%s = %s\n" % (str(k), str(fioDict[k])))
 
         if env.has_key('FlagFioWriteMotorPositions') and env['FlagFioWriteMotorPositions'] == True:
-            all_motors = self.macro.findObjs('.*', type_class=Type.Motor)
+            all_motors = self.macro().findObjs('.*', type_class=Type.Motor)
             all_motors.sort()
             for mot in all_motors:
                 pos = mot.getPosition(force=True)
