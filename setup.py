@@ -70,6 +70,9 @@ install_requires = [
     'lxml>=2.1'
 ]
 
+test_require = [
+    'mock; python_version<"3.3"'
+]
 
 console_scripts = [
     "MacroServer = sardana.tango.macroserver:main",
@@ -129,5 +132,6 @@ setup(name='sardana',
       provides=provides,
       requires=requires,
       install_requires=install_requires,
+      test_require=test_require,
       test_suite='sardana.test.testsuite.get_sardana_unitsuite',
       )
