@@ -89,6 +89,8 @@ class setvo(Macro):
     - **ShowCtrlAxis**: used by macro wm, pwm and wa. Default value ``False``
     - **PosFormat**: used by macro wm, pwm and wa. Default value ``-1``
     - **OutputBlock**: used by scan macros. Default value ``False``
+    - **DescriptionLength**: used by lsdef. Default value ``60``
+
 
     """
 
@@ -114,6 +116,7 @@ class usetvo(Macro):
     - **ShowCtrlAxis**: used by macro wm, pwm and wa. Default value ``False``
     - **PosFormat**: used by macro wm, pwm and wa. Default value ``-1``
     - **OutputBlock**: used by scan macros. Default value ``False``
+    - **DescriptionLength**: used by lsdef. Default value ``60``
 
     """
 

@@ -205,10 +205,10 @@ class FIO_FileRecorder(BaseFileRecorder):
             for k in sorted(fioDict.keys()):
                 # self.macro().info("dict: %s = %s" % (str(k), str(fioDict[k])))
                 self.fd.write("%s = %s\n" % (str(k), str(fioDict[k])))
-
-        if env.has_key('FlagFioWriteMotorPositions') and env['FlagFioWriteMotorPositions'] == True:
-            all_motors = self.macro().findObjs('.*', type_class=Type.Motor)
-            all_motors.sort()
+        if 'FlagFioWriteMotorPositions' in env \
+           and env['FlagFioWriteMotorPositions'] is True:
+            all_motors = sorted(
+                self.macro().findObjs('.*', type_class=Type.Motor))
             for mot in all_motors:
                 pos = mot.getPosition(force=True)
                 if pos is None:

@@ -20,6 +20,7 @@
 ##
 # You should have received a copy of the GNU Lesser General Public License
 # along with Sardana.  If not, see <http://www.gnu.org/licenses/>.
+# along with Sardana.  If not, see <http://www.gnu.org/licenses/>.
 ##
 ##############################################################################
 
@@ -29,7 +30,7 @@ __all__ = ["ExpDescriptionEditor"]
 
 
 import json
-from taurus.external.qt import Qt, QtCore, QtGui
+from taurus.external.qt import Qt, QtCore, QtGui, compat
 import copy
 import taurus
 import taurus.core
@@ -173,7 +174,7 @@ class ExpDescriptionEditor(Qt.QWidget, TaurusBaseWidget):
     '''
 
     createExpConfChangedDialog = Qt.pyqtSignal()
-    experimentConfigurationChanged = Qt.pyqtSignal(object)
+    experimentConfigurationChanged = Qt.pyqtSignal(compat.PY_OBJECT)
 
     def __init__(self, parent=None, door=None, plotsButton=True,
                  autoUpdate=False):
@@ -411,7 +412,8 @@ class ExpDescriptionEditor(Qt.QWidget, TaurusBaseWidget):
     def onDialogButtonClicked(self, button):
         role = self.ui.buttonBox.buttonRole(button)
         if role == Qt.QDialogButtonBox.ApplyRole:
-            self.writeExperimentConfiguration(ask=False)
+            if not self.writeExperimentConfiguration(ask=False):
+                self._reloadConf(force=True)
         elif role == Qt.QDialogButtonBox.ResetRole:
             self._reloadConf()
 
@@ -556,7 +558,12 @@ class ExpDescriptionEditor(Qt.QWidget, TaurusBaseWidget):
             self._dirtyMntGrps.add(self._localConfig['ActiveMntGrp'])
 
         door = self.getModelObj()
-        door.setExperimentConfiguration(conf, mnt_grps=self._dirtyMntGrps)
+        try:
+            door.setExperimentConfiguration(conf, mnt_grps=self._dirtyMntGrps)
+        except Exception as e:
+            Qt.QMessageBox.critical(self, 'Wrong configuration',
+                                    '{0}'.format(e))
+            return False
         self._originalConfiguration = copy.deepcopy(conf)
         self._dirtyMntGrps = set()
         self.ui.channelEditor.getQModel().setDataChanged(False)
@@ -693,11 +700,7 @@ class ExpDescriptionEditor(Qt.QWidget, TaurusBaseWidget):
                 DynamicPlotManager
             self.__plotManager = DynamicPlotManager(self)
             self.__plotManager.setModel(self.getModelName())
-            self.experimentConfigurationChanged.connect(
-                self.__plotManager.onExpConfChanged)
         else:
-            self.experimentConfigurationChanged.disconnect(
-                self.__plotManager.onExpConfChanged)
             self.__plotManager.removePanels()
             self.__plotManager.setModel(None)
             self.__plotManager = None

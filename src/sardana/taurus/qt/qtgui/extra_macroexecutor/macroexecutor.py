@@ -32,7 +32,7 @@ from copy import deepcopy
 
 import PyTango
 
-from taurus.external.qt import Qt
+from taurus.external.qt import Qt, compat
 from taurus import Device
 from taurus.qt.qtgui.container import TaurusWidget, TaurusMainWindow, TaurusBaseContainer
 from taurus.qt.qtgui.display import TaurusLed
@@ -265,17 +265,7 @@ class SpockCommandWidget(Qt.QLineEdit, TaurusBaseContainer):
         self.currentIndex = ix
         counter = 1
 
-        # Get the parameters information to check if there are optional
-        # paramters
-        ms_obj = self.getModelObj()
-        macro_obj = ms_obj.getElementInfo(mlist[0])
-        macro_params_info = None
-        if macro_obj is not None:
-            macro_params_info = macro_obj.parameters
-
         while not ix == Qt.QModelIndex():
-            if macro_params_info is None:
-                break
             try:
                 propValue = mlist[counter]
                 try:
@@ -287,17 +277,14 @@ class SpockCommandWidget(Qt.QLineEdit, TaurusBaseContainer):
                     message = "<b>" + txt + "</b> " + e[0]
                     problems.append(message)
             except IndexError:
-                param_info = macro_params_info[counter-1]
-                # Skip validation in case of optional parameters
-                if param_info['default_value'] == Optional:
-                    self.model().setData(self.currentIndex, None)
-                else:
-                    txt = str(ix.sibling(ix.row(), 0).data())
-                    problems.append("<b>" + txt + "</b> is missing!")
+                txt = str(ix.sibling(ix.row(), 0).data())
+                problems.append("<b>" + txt + "</b> is missing!")
 
-                    data = str(ix.data())
-                    if data != 'None':
-                        self.model().setData(self.currentIndex, 'None')
+                data = str(ix.data())
+                if data != 'None':
+                    self.model().setData(self.currentIndex, 'None')
+                else:
+                    self.model().setData(self.currentIndex, None)
             counter += 1
             ix = self.getIndex()
             self.currentIndex = ix
@@ -626,7 +613,7 @@ class TaurusMacroExecutorWidget(TaurusWidget):
     doorChanged = Qt.pyqtSignal('QString')
     macroNameChanged = Qt.pyqtSignal('QString')
     macroStarted = Qt.pyqtSignal('QString')
-    plotablesFilterChanged = Qt.pyqtSignal(object)
+    plotablesFilterChanged = Qt.pyqtSignal(compat.PY_OBJECT)
     shortMessageEmitted = Qt.pyqtSignal('QString')
 
     def __init__(self, parent=None, designMode=False):
