@@ -868,45 +868,6 @@ class MacroManager(MacroServerManager):
             self._macro_executors[door] = me = MacroExecutor(door)
         return me
 
-class FileHandlerFilter(logging.Filter):
-    def __init__(self, param=None):
-        self.param = param
-
-    def filter(self, record):
-        allow = True
-        if record.levelname == "DEBUG":
-            if type(record.msg) != str:
-                allow = False
-                return allow
-            if record.msg.find("[START]") != -1:
-                msg = record.msg
-                start = msg.index("'") + 1
-                end = msg.index("->", start)
-                msg = msg[start:end]
-                msg = msg.replace("("," ").replace(")", "").replace("[", "").replace("]", "")
-                msg = msg.replace(", ", " ")
-                msg = msg.replace(",", " ")
-                msg = msg.replace(".*", "")
-                while msg.find("  ") != -1:
-                    msg = msg.replace("  "," ")
-                if msg[0] == "_":
-                    allow = False
-                else:
-                    msg_split = msg.split(" ")
-                    msg = ""
-                    for i in range(0,len(msg_split)):
-                        if msg_split[i].find(" ") == -1:
-                            msg_split[i] = msg_split[i].replace("'", " ")
-                        msg = msg + " " + str(msg_split[i])
-                    while msg.find("  ") != -1:
-                        msg = msg.replace("  "," ")
-                    record.msg = "\n-- " + time.ctime() + "\n" +  msg
-                    allow = True
-            else:
-                allow = False
-        return allow
-
-
 class LogMacroFilter(logging.Filter):
 
     def __init__(self, param=None):
@@ -1053,8 +1014,7 @@ class LogMacroManager(Logger):
             logging.handlers.RotatingFileHandler(log_file,
                                                  backupCount=bck_counts)
         file_handler.doRollover()
-        file_handler.addFilter(FileHandlerFilter())
-
+        
         filter_class = self.getFilterClass()
         if filter_class is not None:
             try:
