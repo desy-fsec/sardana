@@ -94,7 +94,7 @@ class lsdef(_ls):
         for m in self.getMacros(filter):
             if m.name.startswith("_"):
                 continue
-            out.appendRow([m.name, m.module_name, m.get_brief_description()])
+            out.appendRow([m.name, m.module_name, m.get_brief_description(max_chars=1000)])
 
         for line in out.genOutput():
             self.output(line)
