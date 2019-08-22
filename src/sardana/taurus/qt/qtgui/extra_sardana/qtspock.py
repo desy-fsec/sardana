@@ -120,7 +120,7 @@ class QtSpockWidget(RichJupyterWidget, TaurusBaseWidget):
             kernel='python2',
             **kw):
         RichJupyterWidget.__init__(self, parent=parent, **kw)
-        TaurusBaseWidget.__init__(self)
+        TaurusBaseWidget.__init__(self, name="")
         self.setObjectName(self.__class__.__name__)
         self.setModelInConfig(True)
 
