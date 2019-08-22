@@ -23,7 +23,8 @@ from taurus.qt.qtgui.resource import getThemeIcon
 
 from sardana import release
 from sardana.spock.ipython_01_00.genutils import get_profile_metadata, \
-    get_ipython_dir, from_name_to_tango, get_macroserver_for_door
+    get_ipython_dir, from_name_to_tango, get_macroserver_for_door, \
+    translate_version_str2int
 from sardana.taurus.qt.qtgui.extra_macroexecutor import \
     TaurusMacroConfigurationDialog
 
@@ -43,7 +44,15 @@ def check_spock_profile(profile):
     profile_dir = get_spock_profile_dir(profile)
     if profile_dir:
         profile_version_str, door_name = get_profile_metadata(profile_dir)
-        if profile_version_str == release.version:
+        # convert version from string to numbers
+        spock_lib_ver_str = release.version
+        spock_lib_ver = translate_version_str2int(spock_lib_ver_str)
+        spock_profile_ver = translate_version_str2int(profile_version_str)
+
+        alpha_in_spock_profile = "-alpha" in profile_version_str
+        alpha_in_spock_lib = "-alpha" in spock_lib_ver_str
+        if spock_lib_ver == spock_profile_ver and \
+                alpha_in_spock_profile == alpha_in_spock_lib:
             return True
     return False
 
