@@ -29,13 +29,6 @@ scan"""
 from __future__ import with_statement
 from __future__ import print_function
 
-__all__ = ["OverloadPrint", "PauseEvent", "Hookable", "ExecMacroHook",
-           "MacroFinder", "Macro", "macro", "iMacro", "imacro",
-           "MacroFunc", "Type", "ParamRepeat", "Table", "List", "ViewOption",
-           "LibraryError"]
-
-__docformat__ = 'restructuredtext'
-
 import sys
 import time
 import copy
@@ -47,7 +40,7 @@ import StringIO
 import threading
 import traceback
 
-import socket
+# import socket
 
 from taurus.core.util.log import Logger
 from taurus.core.util.prop import propertx
@@ -63,6 +56,19 @@ from sardana.macroserver.msexception import StopException, AbortException, \
 from sardana.macroserver.msoptions import ViewOption
 
 from sardana.taurus.core.tango.sardana.pool import PoolElement
+
+try:
+    from importlib import reload
+except Exception:
+    pass
+
+__all__ = ["OverloadPrint", "PauseEvent", "Hookable", "ExecMacroHook",
+           "MacroFinder", "Macro", "macro", "iMacro", "imacro",
+           "MacroFunc", "Type", "ParamRepeat", "Table", "List", "ViewOption",
+           "LibraryError"]
+
+__docformat__ = 'restructuredtext'
+
 
 asyncexc = ctypes.pythonapi.PyThreadState_SetAsyncExc
 # first define the async exception function args. This is
@@ -2365,7 +2371,7 @@ class Macro(Logger):
         """**Internal method**. The stop procedure. Calls the user 'on_abort'
         protecting it against exceptions"""
         general_on_stop = self.getGeneralOnStopFunction()
-        if general_on_stop != None:
+        if general_on_stop is not None:
             if self.module_to_import in sys.modules:
                 gs_module = sys.modules[self.module_to_import]
                 reload(gs_module)
@@ -2375,7 +2381,9 @@ class Macro(Logger):
             try:
                 eval(general_on_stop)
             except:
-                Logger.warning(self, "Error in general_on_stop(): %s", traceback.format_exc())
+                Logger.warning(
+                    self,
+                    "Error in general_on_stop(): %s", traceback.format_exc())
                 Logger.debug(self, "Details: ", exc_info=1)
 
         try:
@@ -2490,12 +2498,14 @@ class Macro(Logger):
     def getGeneralOnStopFunction(self):
         try:
             general_on_stop = self.getEnv("GeneralOnStopFunction")
-            if general_on_stop.find("(") == -1 and general_on_stop.find(")") == -1:
+            if general_on_stop.find("(") == -1 and \
+               general_on_stop.find(")") == -1:
                 general_on_stop = general_on_stop + "()"
             elif general_on_stop.find(")") == -1:
                 general_on_stop = general_on_stop + ")"
-            self.module_to_import = general_on_stop.rsplit(".",1)[0]
-            general_on_stop = general_on_stop.replace(self.module_to_import, "gs_module")
+            self.module_to_import = general_on_stop.rsplit(".", 1)[0]
+            general_on_stop = general_on_stop.replace(
+                self.module_to_import, "gs_module")
             return general_on_stop
         except:
             return None

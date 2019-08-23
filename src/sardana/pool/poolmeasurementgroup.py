@@ -419,10 +419,10 @@ class PoolMeasurementGroup(PoolGroupElement):
         config = {}
         user_elements = self.get_user_elements()
         pool = self.pool
-        timer_name = cfg.get('timer', user_elements[0].full_name \
-                                 if user_elements else None)
-        monitor_name = cfg.get('monitor', user_elements[0].full_name \
-                                 if user_elements else None)
+        timer_name = cfg.get('timer', user_elements[0].full_name
+                             if user_elements else None)
+        monitor_name = cfg.get('monitor', user_elements[0].full_name
+                               if user_elements else None)
         if to_fqdn:
             timer_name = _to_fqdn(timer_name, logger=self)
         config['timer'] = pool.get_element_by_full_name(timer_name)
