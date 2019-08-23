@@ -23,6 +23,14 @@
 
 """Environment related macros"""
 
+from taurus.console.list import List
+from sardana.macroserver.macro import Macro, Type, ParamRepeat
+from sardana.macroserver.msexception import UnknownEnv
+
+from lxml import etree
+
+import re
+
 __all__ = ["dumpenv", "load_env", "lsenv", "senv", "usenv",
            "lsenvmacro",
            "lsvo", "setvo", "usetvo",
@@ -30,19 +38,12 @@ __all__ = ["dumpenv", "load_env", "lsenv", "senv", "usenv",
 
 __docformat__ = 'restructuredtext'
 
-from taurus.console.list import List
-from sardana.macroserver.macro import Macro, Type, ParamRepeat
-from sardana.macroserver.msexception import UnknownEnv
-
 ##########################################################################
 #
 # Environment related macros
 #
 ##########################################################################
 
-from lxml import etree
-
-import re
 
 def reprValue(v, max=74):
     # cut long strings
@@ -137,8 +138,8 @@ class lsenv(Macro):
 
     def run(self, filter_str):
         macro = None
-        if filter_str.find("\.") != -1:
-            macro_name, filter = filter_str.split("\.")
+        if filter_str.find(".") != -1:
+            macro_name, filter = filter_str.split(".")
             macro = self.getObj(macro_name)
         else:
             filter = filter_str
@@ -146,7 +147,7 @@ class lsenv(Macro):
         expr = re.compile(filter, re.IGNORECASE)
 
         # list the environment for the current door
-        if macro == None:
+        if macro is None:
             # list All the environment for the current door
             out = List(['Name', 'Value', 'Type'])
             env = self.getAllDoorEnv()
@@ -177,7 +178,8 @@ class lsenv(Macro):
     def reprValue(self, v, max=54):
         # cut long strings
         v = str(v)
-        if len(v) > max: v = '%s [...]' % v[:max]
+        if len(v) > max:
+            v = '%s [...]' % v[:max]
         return v
 
 

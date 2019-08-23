@@ -35,12 +35,6 @@
 # using getDevice. However this getter seems to accept only the elements names
 # and not the full names.
 
-__all__ = ["addreflection", "affine", "br", "ca", "caa", "ci", "computeub",
-           "freeze", "getmode", "hklscan", "hscan", "kscan", "latticecal",
-           "loadcrystal", "lscan", "newcrystal", "or0", "or1", "orswap",
-           "pa", "savecrystal", "setaz", "setlat", "setmode", "setor0",
-           "setor1", "setorn", "th2th", "ubr", "wh"]
-
 import time
 import math
 import os
@@ -52,6 +46,13 @@ from sardana.macroserver.macros.scan import aNscan
 from sardana.macroserver.msexception import UnknownEnv
 
 from taurus.core.util.log import Logger
+
+__all__ = ["addreflection", "affine", "br", "ca", "caa", "ci", "computeub",
+           "freeze", "getmode", "hklscan", "hscan", "kscan", "latticecal",
+           "loadcrystal", "lscan", "newcrystal", "or0", "or1", "orswap",
+           "pa", "savecrystal", "setaz", "setlat", "setmode", "setor0",
+           "setor1", "setorn", "th2th", "ubr", "wh"]
+
 
 logger = Logger.getLogger("MacroManager")
 
@@ -495,7 +496,8 @@ class pa(Macro, _diffrac):
                     sf = self.suffix[3]
                 self.output("  %d%s Reflection (index %d): " %
                             (nb_ref + 1, sf, ref[0]))
-                #self.output("    Affinement, Relevance : %d %d" % (ref[4], ref[5]))
+                # self.output(
+                #  "    Affinement, Relevance : %d %d" % (ref[4], ref[5]))
                 if len(ref) > 10 and len(self.angle_names) == 6:
                     self.output("    %s %s %s %s %s %s: %s %s %s %s %s %s" %
                                 (self.angle_names[5], self.angle_names[1],
@@ -508,18 +510,19 @@ class pa(Macro, _diffrac):
                                  _diffrac.fl(self, str(ref[10])),
                                  _diffrac.fl(self, str(ref[6]))))
                 elif len(ref) > 10 and len(self.angle_names) == 7:
-                    self.output("    %s %s %s %s %s %s %s: %s %s %s %s %s %s %s" %
-                                (self.angle_names[0], self.angle_names[1],
-                                 self.angle_names[2], self.angle_names[3],
-                                 self.angle_names[4], self.angle_names[5],
-                                 self.angle_names[6],
-                                 _diffrac.fl(self, str(ref[6])),
-                                 _diffrac.fl(self, str(ref[7])),
-                                 _diffrac.fl(self, str(ref[8])),
-                                 _diffrac.fl(self, str(ref[9])),
-                                 _diffrac.fl(self, str(ref[10])),
-                                 _diffrac.fl(self, str(ref[11])),
-                                 _diffrac.fl(self, str(ref[12]))))
+                    self.output(
+                        "    %s %s %s %s %s %s %s: %s %s %s %s %s %s %s" %
+                        (self.angle_names[0], self.angle_names[1],
+                         self.angle_names[2], self.angle_names[3],
+                         self.angle_names[4], self.angle_names[5],
+                         self.angle_names[6],
+                         _diffrac.fl(self, str(ref[6])),
+                         _diffrac.fl(self, str(ref[7])),
+                         _diffrac.fl(self, str(ref[8])),
+                         _diffrac.fl(self, str(ref[9])),
+                         _diffrac.fl(self, str(ref[10])),
+                         _diffrac.fl(self, str(ref[11])),
+                         _diffrac.fl(self, str(ref[12]))))
                 else:
                     self.output("    %s %s %s %s: %s %s %s %s" %
                                 (self.angle_names[0], self.angle_names[1],
@@ -1019,8 +1022,8 @@ class setorn(iMacro, _diffrac):
             return
 
         if ((ang6 == -999 and self.nb_motors == 6)
-                or (ang4 == -999 and self.nb_motors == 4)
-                or (ang7 == -999 and self.nb_motors == 7)):
+            or (ang4 == -999 and self.nb_motors == 4)
+            or (ang7 == -999 and self.nb_motors == 7)):
             reflections = []
             try:
                 reflections = self.diffrac.reflectionlist

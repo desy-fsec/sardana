@@ -1004,15 +1004,15 @@ class SScan(GScan):
         else:
             yield 0.0
 
-        #-----------------------------------------
+        # -----------------------------------------
         # General condition
-        #-----------------------------------------
+        # -----------------------------------------
 
         general_condition = macro.getGeneralCondition()
         self.condition_macro = None
-        if general_condition != None:
-            self.condition_macro, pars = self.macro.createMacro(general_condition)
-            
+        if general_condition is not None:
+            self.condition_macro, pars = \
+                self.macro.createMacro(general_condition)
 
         if hasattr(macro, 'getHooks'):
             for hook in macro.getHooks('pre-scan'):
@@ -1065,7 +1065,7 @@ class SScan(GScan):
         except InterruptException:
             raise
         except Exception:
-            #self.dump_information(n, step)
+            # self.dump_information(n, step)
             self.dump_information(self.point_id, step)
             raise
         self.debug("[ END ] motion")
@@ -1091,7 +1091,7 @@ class SScan(GScan):
             self.macro.checkPoint()
 
             if state != Ready:
-                #self.dump_information(n, step)
+                # self.dump_information(n, step)
                 self.dump_information(self.point_id, step)
                 m = "Scan aborted after problematic motion: " \
                     "Motion ended with %s\n" % str(state)
@@ -1129,9 +1129,10 @@ class SScan(GScan):
 
             # hooks for backwards compatibility:
             if 'hooks' in step:
-                self.macro.info('Deprecation warning: you should use '
-                                '"post-acq-hooks" instead of "hooks" in the step '
-                                'generator')
+                self.macro.info(
+                    'Deprecation warning: you should use '
+                    '"post-acq-hooks" instead of "hooks" in the step '
+                    'generator')
                 for hook in step.get('hooks', ()):
                     hook()
                     try:
@@ -1142,7 +1143,7 @@ class SScan(GScan):
                         pass
 
             # Add final moveable positions
-            #data_line['point_nb'] = n
+            # data_line['point_nb'] = n
             data_line['point_nb'] = self.point_id
             data_line['timestamp'] = dt
             for i, m in enumerate(self.moveables):
@@ -1164,17 +1165,15 @@ class SScan(GScan):
                 except Exception:
                     pass
 
-
-            if self.condition_macro != None:
+            if self.condition_macro is not None:
                 try:
                     ic = self.macro.runMacro(self.condition_macro)
-                except:
+                except Exception:
                     ic = 0
             else:
                 ic = 0
 
             self.point_id = self.point_id + 1
-                
 
     def dump_information(self, n, step):
         moveables = self.motion.moveable_list

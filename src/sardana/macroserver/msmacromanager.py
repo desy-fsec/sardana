@@ -850,7 +850,7 @@ class MacroManager(MacroServerManager):
             self._macro_executors[door] = me = MacroExecutor(door)
         return me
 
-    
+
 class LogMacroFilter(logging.Filter):
 
     def __init__(self, param=None):

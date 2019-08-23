@@ -17,9 +17,9 @@ env:
 
   matrix:
   - TEST="flake8"
-  - TEST="testsuite" DOCKER_IMG=reszelaz/sardana-test
-  - TEST="testsuite" DOCKER_IMG=reszelaz/sardana-test:taurus-support-3.x
-  - TEST="doc" DOCKER_IMG=reszelaz/sardana-test
+  - TEST="testsuite" DOCKER_IMG=jkotan/sardana-test
+  - TEST="doc" DOCKER_IMG=jkotan/sardana-test
+  # - TEST="testsuite" DOCKER_IMG=reszelaz/sardana-test:taurus-support-3.x
 
 
 before_install:
