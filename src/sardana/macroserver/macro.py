@@ -1957,7 +1957,7 @@ class Macro(Logger):
         try:
             vo = self.getEnv('_ViewOptions')
             if len(vo.keys()) < len(ViewOption.get_view_options_keys()):
-                import msoptions
+                # import msoptions
                 iop = ViewOption.init_options(dict())
                 for key in iop.keys():
                     if key not in vo.keys():
@@ -2380,7 +2380,7 @@ class Macro(Logger):
 
             try:
                 eval(general_on_stop)
-            except:
+            except Exception:
                 Logger.warning(
                     self,
                     "Error in general_on_stop(): %s", traceback.format_exc())
@@ -2492,7 +2492,7 @@ class Macro(Logger):
         try:
             general_condition = self.getEnv("GeneralCondition")
             return general_condition
-        except:
+        except Exception:
             return None
 
     def getGeneralOnStopFunction(self):
@@ -2507,7 +2507,7 @@ class Macro(Logger):
             general_on_stop = general_on_stop.replace(
                 self.module_to_import, "gs_module")
             return general_on_stop
-        except:
+        except Exception:
             return None
 
 class iMacro(Macro):

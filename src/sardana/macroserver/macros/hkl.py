@@ -1021,9 +1021,9 @@ class setorn(iMacro, _diffrac):
                 self.output(el)
             return
 
-        if ((ang6 == -999 and self.nb_motors == 6) or
-                (ang4 == -999 and self.nb_motors == 4) or
-                (ang7 == -999 and self.nb_motors == 7)):
+        if ((ang6 == -999 and self.nb_motors == 6)
+            or (ang4 == -999 and self.nb_motors == 4)
+            or (ang7 == -999 and self.nb_motors == 7)):
             reflections = []
             try:
                 reflections = self.diffrac.reflectionlist

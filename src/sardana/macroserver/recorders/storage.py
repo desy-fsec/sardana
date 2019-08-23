@@ -71,7 +71,7 @@ class FIO_FileRecorder(BaseFileRecorder):
         if not os.path.isdir(dirname):
             try:
                 os.makedirs(dirname)
-            except:
+            except Exception:
                 self.filename = None
                 return
         self.currentlist = None
@@ -86,7 +86,7 @@ class FIO_FileRecorder(BaseFileRecorder):
             # in case we have MCAs, prepare the dir name
             #
             self.mcaDirName = "%s_%05d" % (tpl[0], serial)
-        except:
+        except Exception:
             self.filename = "%s_%s.%s" % (tpl[0], "[ScanId]", tpl[2])
 
     def getFormat(self):
@@ -132,7 +132,7 @@ class FIO_FileRecorder(BaseFileRecorder):
             #
             try:
                 self.mcaAliases.append(self.db.get_alias("/".join(lst[1:])))
-            except:
+            except Exception:
                 self.mcaAliases.append(mca)
 
         env = self.macro().getAllEnv()
@@ -278,7 +278,7 @@ class FIO_FileRecorder(BaseFileRecorder):
                     outstr += ' ' + str(data[0])
                 else:
                     outstr += ' ' + str(data)
-            except:
+            except Exception:
                 outstr += ' ' + str(data)
         #
         # 11.9.2012 timestamp to the end
@@ -310,7 +310,7 @@ class FIO_FileRecorder(BaseFileRecorder):
         if not os.path.isdir(self.mcaDirName):
             try:
                 os.makedirs(self.mcaDirName)
-            except:
+            except Exception:
                 self.mcaDirName = None
                 return
         currDir = os.getcwd()
@@ -394,7 +394,7 @@ class SPEC_FileRecorder(BaseFileRecorder):
         if not os.path.isdir(dirname):
             try:
                 os.makedirs(dirname)
-            except:
+            except Exception:
                 self.filename = None
                 return
         self.filename = filename
@@ -580,7 +580,7 @@ class SPEC_FileRecorder(BaseFileRecorder):
                     d.append(str(data[0]))
                 else:
                     d.append(str(data))
-            except:
+            except Exception:
                 d.append(str(data))
         outstr = ' '.join(d)
         outstr += '\n'
@@ -626,7 +626,7 @@ class SPEC_FileRecorder(BaseFileRecorder):
         if fileWasClosed:
             try:
                 self.fd = open(self.filename, 'a')
-            except:
+            except Exception:
                 self.info(
                     'Custom data "%s" will not be stored in SPEC file. Reason: cannot open file', name)
                 return
@@ -822,7 +822,7 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
                 shape = [1] + list(npshape(data))
                 try:
                     fd.putslab(data, slab_offset, shape)
-                except:
+                except Exception:
                     warning("Could not write <%s> with shape %s", data, shape)
                     raise
 
@@ -960,7 +960,7 @@ class NXscan_FileRecorder(BaseNAPI_FileRecorder):
                 dst = "/%s:NXentry/%s:NXdata" % (self.entryname, groupname)
                 try:
                     self._nxln(src, dst)
-                except:
+                except Exception:
                     self.warning("cannot create link for '%s'. Skipping", axis)
 
     def _addCustomData(self, value, name, nxpath=None, dtype=None, **kwargs):

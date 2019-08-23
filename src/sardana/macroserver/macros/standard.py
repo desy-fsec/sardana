@@ -102,7 +102,7 @@ class _wm(Macro):
                             value = float('NaN')
                         data[name].append(value)
                     req2delete.append(name)
-                except PyTango.AsynReplyNotArrived as e:
+                except PyTango.AsynReplyNotArrived:
                     continue
                 except PyTango.DevFailed:
                     data[name].append(float('NaN'))
@@ -157,7 +157,8 @@ class _wum(Macro):
         self.table_opts = {}
 
     def run(self, motor_list):
-        show_dial = self.getViewOption(ViewOption.ShowDial)
+        # show_dial =
+        self.getViewOption(ViewOption.ShowDial)
         motor_width = 9
         motor_names = []
         motor_pos = []
@@ -284,7 +285,7 @@ class set_lim(Macro):
         try:
             motor_device.UnitLimitMax = high
             motor_device.UnitLimitMin = low
-        except:
+        except Exception:
             limits_changed = 0
             self.info("UnitLimitMin/UnitLimitMax has not be written. "
                       "They probably only readable (ex. many VmExecutors)")
@@ -333,7 +334,7 @@ class adjust_lim_single(Macro):
             try:
                 motor_device.UnitLimitMax = high
                 motor_device.UnitLimitMin = low
-            except:
+            except Exception:
                 adjust_limits = 0
                 self.info(
                     "Limits for motor %s not adjusted. "
@@ -342,7 +343,7 @@ class adjust_lim_single(Macro):
                 set_lim, pars = self.createMacro(
                     "set_lim_pool", motor, low, high)
                 self.runMacro(set_lim)
-        except:
+        except Exception:
             self.warning(
                 "Limits for motor %s not adjusted. "
                 "Error reading UnitLimitMax/~Min" % name)
@@ -384,7 +385,7 @@ class read_unitlimit_attrs(Macro):
             try:
                 motor_device.read_attribute("UnitLimitMax")
                 motor_device.read_attribute("UnitLimitMin")
-            except:
+            except Exception:
                 pass
 
 
@@ -458,7 +459,7 @@ class wm(Macro):
             try:
                 val1 = fmt % motor.getPosition(force=True)
                 val1 = str_fmt % val1
-            except:
+            except Exception:
                 val1 = str_fmt % motor.getPosition(force=True)
 
             val2 = str_fmt % posObj.getMaxValue()
@@ -475,7 +476,7 @@ class wm(Macro):
                 try:
                     val1 = fmt % motor.getDialPosition(force=True)
                     val1 = str_fmt % val1
-                except:
+                except Exception:
                     val1 = str_fmt % motor.getDialPosition(force=True)
 
                 dPosObj = motor.getDialPositionObj()
@@ -712,7 +713,7 @@ class tw(iMacro):
                     a = "-"
                 else:
                     a = "+"
-            except:
+            except Exception:
                 # convert to the common sign
                 if a == "p":
                     a = "+"

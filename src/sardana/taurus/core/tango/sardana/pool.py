@@ -227,7 +227,7 @@ class TangoAttributeEG(Logger, EventGenerator):
     def read(self, force=False):
         try:
             self.last_val = self._attr.read(cache=not force).value
-        except:
+        except Exception:
             self.error("Read error")
             self.debug("Details:", exc_info=1)
             self.last_val = None
@@ -258,7 +258,7 @@ def reservedOperation(fn):
                 raise AbortException("aborted before calling %s" % fn.__name__)
         try:
             return fn(*args, **kwargs)
-        except:
+        except Exception:
             print("Exception occurred in reserved operation:"
                   " clearing events...")
             self._clearEventWait()
@@ -462,7 +462,7 @@ class PoolElement(BaseElement, TangoDevice):
             self._start(*args, **kwargs)
             ts2 = time.time()
             evt_wait.waitEvent(DevState.MOVING, after=ts1)
-        except:
+        except Exception:
             evt_wait.disconnect()
             raise
         finally:
@@ -553,7 +553,7 @@ class PoolElement(BaseElement, TangoDevice):
             else:
                 e_info = sys.exc_info()[:2]
                 state = traceback.format_exception_only(*e_info)
-        except:
+        except Exception:
             e_info = sys.exc_info()[:2]
             state = traceback.format_exception_only(*e_info)
         try:
@@ -571,7 +571,7 @@ class PoolElement(BaseElement, TangoDevice):
             else:
                 e_info = sys.exc_info()[:2]
                 status = traceback.format_exception_only(*e_info)
-        except:
+        except Exception:
             e_info = sys.exc_info()[:2]
             status = traceback.format_exception_only(*e_info)
         msg.append(tab + "  Status: " + status)
@@ -935,7 +935,7 @@ class Motor(PoolElement, Moveable):
             else:
                 e_info = sys.exc_info()[:2]
                 pos = traceback.format_exception_only(*e_info)
-        except:
+        except Exception:
             e_info = sys.exc_info()[:2]
             pos = traceback.format_exception_only(*e_info)
 
@@ -986,7 +986,7 @@ class PseudoMotor(PoolElement, Moveable):
                     self.warning("%s" % ex)
                     try:
                         self.write_attribute('position', new_pos)
-                    except:
+                    except Exception:
                         try:
                             self.write_attribute('position', new_pos)
                         except Exception as ex2:
@@ -1046,7 +1046,7 @@ class PseudoMotor(PoolElement, Moveable):
             else:
                 e_info = sys.exc_info()[:2]
                 pos = traceback.format_exception_only(*e_info)
-        except:
+        except Exception:
             e_info = sys.exc_info()[:2]
             pos = traceback.format_exception_only(*e_info)
 
@@ -1120,7 +1120,7 @@ class MotorGroup(PoolElement, Moveable):
         try:
             motor_names = map(str.lower, self.getMotorNames())
             return motor_names.index(name.lower())
-        except:
+        except Exception:
             return -1
 
     #
@@ -1140,7 +1140,7 @@ class MotorGroup(PoolElement, Moveable):
             else:
                 e_info = sys.exc_info()[:2]
                 pos = traceback.format_exception_only(*e_info)
-        except:
+        except Exception:
             e_info = sys.exc_info()[:2]
             pos = traceback.format_exception_only(*e_info)
 
@@ -1329,7 +1329,7 @@ class MGConfiguration(object):
                     dev = None
                     try:
                         dev = DeviceProxy(dev_name)
-                    except:
+                    except Exception:
                         self.tango_dev_channels_in_error += 1
                     tg_dev_chs[dev_name] = dev_data = [dev, CaselessDict()]
                 dev, attr_data = dev_data
@@ -1343,7 +1343,7 @@ class MGConfiguration(object):
                     try:
                         tg_attr_info = dev.get_attribute_config_ex(attr_name)[
                             0]
-                    except:
+                    except Exception:
                         tg_attr_info = \
                             self._build_empty_tango_attr_info(channel_data)
                         self.tango_channels_info_in_error += 1
@@ -1369,7 +1369,7 @@ class MGConfiguration(object):
                     try:
                         dev_data[0] = DeviceProxy(dev_name)
                         self.tango_dev_channels_in_error -= 1
-                    except:
+                    except Exception:
                         pass
 
         # prepare missing tango attribute configuration
@@ -1385,7 +1385,7 @@ class MGConfiguration(object):
                     tg_attr_info = dev.get_attribute_config_ex(attr_name)[0]
                     attr_info.set_info(tg_attr_info)
                     self.tango_channels_info_in_error -= 1
-                except:
+                except Exception:
                     pass
 
     def getChannels(self):
@@ -1394,7 +1394,7 @@ class MGConfiguration(object):
     def getChannelInfo(self, channel_name):
         try:
             return self.tango_channels_info[channel_name]
-        except:
+        except Exception:
             channel_name = channel_name.lower()
             for d_name, a_name, ch_info in self.tango_channels_info.values():
                 if ch_info.name.lower() == channel_name:
@@ -1492,7 +1492,7 @@ class MGConfiguration(object):
             try:
                 dev_replies[dev] = dev.read_attributes_asynch(
                     attrs.keys()), attrs
-            except:
+            except Exception:
                 dev_replies[dev] = None, attrs
 
         # gather all replies
@@ -1507,7 +1507,7 @@ class MGConfiguration(object):
                     else:
                         value = data_item.value
                     ret[channel_data['full_name']] = value
-            except:
+            except Exception:
                 for _, channel_data in attrs.items():
                     ret[channel_data['full_name']] = None
 
@@ -1528,7 +1528,7 @@ class MGConfiguration(object):
                     else:
                         value = data_item.value
                     ret[channel_data['full_name']] = value
-            except:
+            except Exception:
                 for _, channel_data in attrs.items():
                     ret[channel_data['full_name']] = None
         return ret
@@ -1976,7 +1976,7 @@ class Pool(TangoDevice, MoveableSource):
             return
         try:
             elems = CodecFactory().decode(evt_value.value, ensure_ascii=True)
-        except:
+        except Exception:
             self.error("Could not decode element info")
             self.info("value: '%s'", evt_value.value)
             self.debug("Details:", exc_info=1)
@@ -1990,7 +1990,7 @@ class Pool(TangoDevice, MoveableSource):
             element = self.getElementInfo(element_data['full_name'])
             try:
                 elements.removeElement(element)
-            except:
+            except Exception:
                 self.warning("Failed to remove %s", element_data)
         for element_data in elems.get('change', ()):
             # TODO: element is assigned but not used!! (check)

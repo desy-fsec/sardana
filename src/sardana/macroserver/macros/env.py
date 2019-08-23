@@ -138,8 +138,8 @@ class lsenv(Macro):
 
     def run(self, filter_str):
         macro = None
-        if filter_str.find("\.") != -1:
-            macro_name, filter = filter_str.split("\.")
+        if filter_str.find(".") != -1:
+            macro_name, filter = filter_str.split(".")
             macro = self.getObj(macro_name)
         else:
             filter = filter_str
