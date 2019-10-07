@@ -29,10 +29,9 @@ historyviewer.py:
 import copy
 
 from taurus.external.qt import Qt, compat
-from taurus.qt.qtgui.resource import getIcon
 from taurus.qt.qtgui.container import TaurusWidget
 from taurus.qt.qtcore.configuration import BaseConfigurableClass
-from model import MacrosListModel
+from .model import MacrosListModel
 
 
 class HistoryMacrosViewer(TaurusWidget):
@@ -120,7 +119,7 @@ class HistoryMacrosList(Qt.QListView, BaseConfigurableClass):
         Qt.QListView.__init__(self, parent)
         self.setSelectionMode(Qt.QListView.SingleSelection)
 
-        self.removeAllAction = Qt.QAction(getIcon(":/places/user-trash.svg"),
+        self.removeAllAction = Qt.QAction(Qt.QIcon("places:user-trash.svg"),
                                           "Remove all from history", self)
         self.removeAllAction.triggered.connect(self.removeAllMacros)
         self.removeAllAction.setToolTip(

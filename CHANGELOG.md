@@ -5,11 +5,48 @@ This file follows the formats and conventions from [keepachangelog.com]
 
 ## [Unreleased]
 
+### Added
+
+* Support to Python >= 3.5 (#1089, #1173, 1201)
+* Pre-scan snapshot macros: `lssnap`, `defsnap` and `udefsnap` (#1199)
+* Instruments creation and configuration in sar_demo (#1198)
+
 ### Fixed
 
-* Fix default macro parameter values in macroexecutor (#1153)
+* Default macro parameter values in macroexecutor (#1153)
+* Setting of environment variables in Python 3.7 (#1195)
 * Use `taurus.external.qt.compat.PY_OBJECT` in singal signatures instead of `object`
   to avoid problems when using `builtins` from `future` (#1082)
+* Remove Taurus deprecated code what reduces deprecation warnings (#1206)
+
+### Changed
+
+* requirements are no longer checked when importing sardana (#1185)
+
+### Removed
+
+* Support to Python < 3.5 (#1089, #1173, 1201)
+* `sardana.requirements` (#1185)
+
+## [2.8.3] 2019-09-16
+
+### Fixed
+
+* Removing latencytime from detect_evt (as propossed in #1190)
+
+## [2.8.2] 2019-09-13
+
+### Fixed
+
+* Hangs of MacroServer when PyTango `AttributeProxy` and `DeviceProxy` objects
+  were garbage collected (#1080, #1190, #1193)
+
+## [2.8.1] 2019-07-22
+
+### Fixed
+
+* Remove uncompleted optimization when applying measurement group
+  configuration (#1171, #1174)
 
 ## [2.8.0] 2019-07-01
 
@@ -709,7 +746,10 @@ Main improvements since sardana 1.5.0 (aka Jan15):
 
 
 [keepachangelog.com]: http://keepachangelog.com
-[Unreleased]: https://github.com/sardana-org/sardana/compare/2.8.0...HEAD
+[Unreleased]: https://github.com/sardana-org/sardana/compare/2.8.3...HEAD
+[2.8.3]: https://github.com/sardana-org/sardana/compare/2.8.3...2.8.2
+[2.8.2]: https://github.com/sardana-org/sardana/compare/2.8.2...2.8.1
+[2.8.1]: https://github.com/sardana-org/sardana/compare/2.8.1...2.8.0
 [2.8.0]: https://github.com/sardana-org/sardana/compare/2.8.0...2.7.2
 [2.7.2]: https://github.com/sardana-org/sardana/compare/2.7.1...2.7.2
 [2.7.1]: https://github.com/sardana-org/sardana/compare/2.7.0...2.7.1
