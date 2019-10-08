@@ -126,12 +126,13 @@ class FIO_FileRecorder(BaseFileRecorder):
                 mca = mca[8:]
             lst = mca.split("/")
             #
-            # 25.10.2017: try-except because haspp08, mca directly from Tango, no Pool alias
+            # 25.10.2017: try-except because haspp08, mca directly from Tango,
+            #             no Pool alias
             #
             try:
-                self.mcaAliases.append( self.db.get_alias( "/".join( lst[1:])))
+                self.mcaAliases.append(self.db.get_alias("/".join(lst[1:])))
             except:
-                self.mcaAliases.append( mca)
+                self.mcaAliases.append(mca)
 
         env = self.macro().getAllEnv()
         # self.names = [ e.name for e in envRec['datadesc'] ]
@@ -150,18 +151,20 @@ class FIO_FileRecorder(BaseFileRecorder):
         fioAdds = None
         fioList = None
         fioDict = None
-        if env.has_key('FioAdditions'):
+        if 'FioAdditions' in env.keys():
             fName = env['FioAdditions']
-            if not fName is None:
+            if fName is not None:
                 if not os.path.exists(fName):
                     self.warning("fioRecorder: %s does not exist" % fName)
-                    self.macro().warning("fioRecorder: %s does not exist" % fName)
+                    self.macro().warning(
+                        "fioRecorder: %s does not exist" % fName)
                 else:
                     import imp
                     a = imp.load_source('', fName)
                     fioAdds = a.main()
                 #
-                # allowed: list, dict, [list], [dict], [list, dict], [dict, list]
+                # allowed: list, dict, [list], [dict], [list, dict],
+                #                      [dict, list]
                 #
                 if type(fioAdds) is dict:
                     fioDict = fioAdds
@@ -179,17 +182,22 @@ class FIO_FileRecorder(BaseFileRecorder):
                         if type(fioAdds[0]) is list:
                             fioList = fioAdds[0]
                             if not fioAdds[1] is dict:
-                                self.macro().output("fio-recorder: bad output from %s (1)" % fName)
+                                self.macro().output(
+                                    "fio-recorder: bad output from %s (1)" %
+                                    fName)
                             fioDict = fioAdds[1]
                         elif type(fioAdds[0]) is dict:
                             fioDict = fioAdds[0]
                             if not type(fioAdds[1]) is list:
-                                self.macro().output("fio-recorder: bad output from %s (2)" % fName)
+                                self.macro().output(
+                                    "fio-recorder: bad output from %s (2)" %
+                                    fName)
                             fioList = fioAdds[1]
                         else:
                             fioList = fioAdds
                 else:
-                    self.macro().output("fio-recorder: bad output from %s (3)" % fName)
+                    self.macro().output(
+                        "fio-recorder: bad output from %s (3)" % fName)
 
                 if not fioList is None:
                     for elm in fioList:

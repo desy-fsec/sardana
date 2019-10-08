@@ -998,7 +998,7 @@ class LogMacroManager(Logger):
             logging.handlers.RotatingFileHandler(log_file,
                                                  backupCount=bck_counts)
         file_handler.doRollover()
-        
+
         filter_class = self.getFilterClass()
         if filter_class is not None:
             try:

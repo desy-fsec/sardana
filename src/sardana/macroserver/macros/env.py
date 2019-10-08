@@ -30,6 +30,7 @@ __all__ = ["dumpenv", "load_env", "lsenv", "senv", "usenv",
 
 __docformat__ = 'restructuredtext'
 
+import re
 import taurus
 from taurus.console.list import List
 from sardana.macroserver.macro import Macro, Type, ParamRepeat
@@ -43,7 +44,6 @@ from sardana.macroserver.msexception import UnknownEnv
 
 from lxml import etree
 
-import re
 
 def reprValue(v, max=74):
     # cut long strings
@@ -150,7 +150,7 @@ class lsenv(Macro):
         expr = re.compile(filter, re.IGNORECASE)
 
         # list the environment for the current door
-        if macro == None:
+        if macro is None:
             # list All the environment for the current door
             out = List(['Name', 'Value', 'Type'])
             env = self.getAllDoorEnv()
@@ -181,7 +181,8 @@ class lsenv(Macro):
     def reprValue(self, v, max=54):
         # cut long strings
         v = str(v)
-        if len(v) > max: v = '%s [...]' % v[:max]
+        if len(v) > max:
+            v = '%s [...]' % v[:max]
         return v
 
 

@@ -1139,8 +1139,9 @@ class PseudoMotor(PoolElement, Moveable):
                         try:
                             self.write_attribute('position', new_pos)
                         except Exception as ex2:
-                            self.warning("The last call of write_attribute(...)"
-                                         "in %s failed" % self)
+                            self.warning(
+                                "The last call of write_attribute(...)"
+                                "in %s failed" % self)
                             self.warning("%s" % ex2)
         except DevFailed as df:
             for err in df.args:

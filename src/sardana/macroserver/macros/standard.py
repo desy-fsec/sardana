@@ -23,15 +23,6 @@
 
 """This is the standard macro module"""
 
-__all__ = ["ct", "mstate", "mv", "mvr", "pwa", "pwm", "repeat", "set_lim",
-           "set_lim_pool",
-           "adjust_lim", "adjust_lim_single",
-           "read_unitlimit_attrs",
-           "set_pos", "settimer", "uct", "umv", "umvr", "wa", "wm",
-           "tw", "logmacro", "newfile"]
-
-__docformat__ = 'restructuredtext'
-
 import datetime
 import os
 
@@ -47,6 +38,15 @@ from sardana.macroserver.macro import Macro, macro, Type, ParamRepeat, \
 from sardana.macroserver.msexception import StopException, UnknownEnv
 from sardana.macroserver.scan.scandata import Record
 from sardana.macroserver.macro import Optional
+
+__all__ = ["ct", "mstate", "mv", "mvr", "pwa", "pwm", "repeat", "set_lim",
+           "set_lim_pool",
+           "adjust_lim", "adjust_lim_single",
+           "read_unitlimit_attrs",
+           "set_pos", "settimer", "uct", "umv", "umvr", "wa", "wm",
+           "tw", "logmacro", "newfile"]
+
+__docformat__ = 'restructuredtext'
 
 ##########################################################################
 #
@@ -104,7 +104,7 @@ class _wm(Macro):
                             value = float('NaN')
                         data[name].append(value)
                     req2delete.append(name)
-                except PyTango.AsynReplyNotArrived, e:
+                except PyTango.AsynReplyNotArrived as e:
                     continue
                 except PyTango.DevFailed:
                     data[name].append(float('NaN'))
@@ -159,7 +159,8 @@ class _wum(Macro):
         self.table_opts = {}
 
     def run(self, motor_list):
-        show_dial = self.getViewOption(ViewOption.ShowDial)
+        # show_dial =
+        self.getViewOption(ViewOption.ShowDial)
         motor_width = 9
         motor_names = []
         motor_pos = []
@@ -272,7 +273,6 @@ class set_lim_pool(Macro):
                     (name, low, high))
 
 
-
 class set_lim(Macro):
     """Sets the software limits on the specified motor"""
     param_def = [
@@ -292,11 +292,12 @@ class set_lim(Macro):
             motor_device.UnitLimitMin = low
         except:
             limits_changed = 0
-            self.info("UnitLimitMin/UnitLimitMax has not be written. They probably only readable (ex. many VmExecutors)")
+            self.info("UnitLimitMin/UnitLimitMax has not be written. "
+                      "They probably only readable (ex. many VmExecutors)")
             self.info("Limits not changed")
 
         if limits_changed == 1:
-            set_lim, pars= self.createMacro("set_lim_pool", motor, low, high)
+            set_lim, pars = self.createMacro("set_lim_pool", motor, low, high)
             self.runMacro(set_lim)
 
 
@@ -313,12 +314,13 @@ class adjust_lim(Macro):
             return
 
         for motor in self.all_motors:
-            adjust_lim, pars= self.createMacro("adjust_lim_single", motor)
+            adjust_lim, pars = self.createMacro("adjust_lim_single", motor)
             self.runMacro(adjust_lim)
 
 
 class adjust_lim_single(Macro):
-    """Sets Pool motor limits to the values in the Tango Device for a single motor"""
+    """Sets Pool motor limits to the values in the Tango Device
+       for a single motor"""
 
     param_def = [
         ['motor', Type.Moveable, None, 'Motor name']
@@ -329,18 +331,22 @@ class adjust_lim_single(Macro):
         motor_device = DeviceProxy(name)
         try:
             high = motor_device.UnitLimitMax
-            low  = motor_device.UnitLimitMin
+            low = motor_device.UnitLimitMin
 
-            # do not set attribute configuration limits if UnitLimitMax/~Min can not be written
+            # do not set attribute configuration limits
+            # if UnitLimitMax/~Min can not be written
             adjust_limits = 1
             try:
                 motor_device.UnitLimitMax = high
                 motor_device.UnitLimitMin = low
             except:
                 adjust_limits = 0
-                self.info("Limits for motor %s not adjusted. UnitLimitMax/~Min only readable" % name)
+                self.info(
+                    "Limits for motor %s not adjusted. "
+                    "UnitLimitMax/~Min only readable" % name)
             if adjust_limits == 1:
-                set_lim, pars= self.createMacro("set_lim_pool", motor, low, high)
+                set_lim, pars = self.createMacro(
+                    "set_lim_pool", motor, low, high)
                 self.runMacro(set_lim)
         except:
             self.warning("Limits for motor %s not adjusted. Error reading UnitLimitMax/~Min" % name)
@@ -359,10 +365,11 @@ class set_pos(Macro):
         old_pos = motor.getPosition(force=True)
         motor.definePosition(pos)
         self.output("%s reset from %.4f to %.4f" % (name, old_pos, pos))
-        adjust_lim, pars= self.createMacro("adjust_lim_single", motor)
+        adjust_lim, pars = self.createMacro("adjust_lim_single", motor)
         self.runMacro(adjust_lim)
         new_pos = motor.getPosition(force=True)
         self.execMacro('mv', motor.getName(), new_pos)
+
 
 class read_unitlimit_attrs(Macro):
     """Read UnitLimitMin and UnitLimitMax for adjusting limits"""
@@ -385,8 +392,9 @@ class read_unitlimit_attrs(Macro):
                 pass
 
 
-#class set_user_pos(Macro):
-#    """Sets the USER position of the motor to the specified value (by changing OFFSET and keeping DIAL)"""
+# class set_user_pos(Macro):
+#    """Sets the USER position of the motor to the specified value
+#       (by changing OFFSET and keeping DIAL)"""
 
 #    param_def = [
 #        ['motor', Type.Motor, None, 'Motor name'],
@@ -400,7 +408,8 @@ class read_unitlimit_attrs(Macro):
 #        old_offset = offset_attr.read().value
 #        new_offset = pos - (old_pos - old_offset)
 #        offset_attr.write(new_offset)
-#        self.output("%s reset from %.4f (offset %.4f) to %.4f (offset %.4f)" % (name, old_pos, old_offset, pos, new_offset))
+#        self.output("%s reset from %.4f (offset %.4f) to %.4f (offset %.4f)"
+#            % (name, old_pos, old_offset, pos, new_offset))
 
 
 class wm(Macro):

@@ -30,13 +30,6 @@ scan"""
 import collections
 import numbers
 
-__all__ = ["OverloadPrint", "PauseEvent", "Hookable", "ExecMacroHook",
-           "MacroFinder", "Macro", "macro", "iMacro", "imacro",
-           "MacroFunc", "Type", "ParamRepeat", "Table", "List", "ViewOption",
-           "LibraryError", "Optional"]
-
-__docformat__ = 'restructuredtext'
-
 import sys
 import time
 import copy
@@ -49,6 +42,8 @@ import threading
 import traceback
 
 import socket
+from importlib import reload
+
 
 from taurus.core.util.log import Logger
 from taurus.core.util.prop import propertx
@@ -65,6 +60,14 @@ from sardana.macroserver.msexception import StopException, AbortException, \
 from sardana.macroserver.msoptions import ViewOption
 
 from sardana.taurus.core.tango.sardana.pool import PoolElement
+
+__all__ = ["OverloadPrint", "PauseEvent", "Hookable", "ExecMacroHook",
+           "MacroFinder", "Macro", "macro", "iMacro", "imacro",
+           "MacroFunc", "Type", "ParamRepeat", "Table", "List", "ViewOption",
+           "LibraryError", "Optional"]
+
+__docformat__ = 'restructuredtext'
+
 
 asyncexc = ctypes.pythonapi.PyThreadState_SetAsyncExc
 # first define the async exception function args. This is
@@ -1969,7 +1972,7 @@ class Macro(Logger):
         try:
             vo = self.getEnv('_ViewOptions')
             if len(vo.keys()) < len(ViewOption.get_view_options_keys()):
-                import msoptions
+                # import msoptions
                 iop = ViewOption.init_options(dict())
                 for key in iop.keys():
                     if key not in vo.keys():
@@ -2383,7 +2386,7 @@ class Macro(Logger):
         """**Internal method**. The stop procedure. Calls the user 'on_abort'
         protecting it against exceptions"""
         general_on_stop = self.getGeneralOnStopFunction()
-        if general_on_stop != None:
+        if general_on_stop is not None:
             if self.module_to_import in sys.modules:
                 gs_module = sys.modules[self.module_to_import]
                 reload(gs_module)
@@ -2508,12 +2511,14 @@ class Macro(Logger):
     def getGeneralOnStopFunction(self):
         try:
             general_on_stop = self.getEnv("GeneralOnStopFunction")
-            if general_on_stop.find("(") == -1 and general_on_stop.find(")") == -1:
+            if general_on_stop.find("(") == -1 and \
+               general_on_stop.find(")") == -1:
                 general_on_stop = general_on_stop + "()"
             elif general_on_stop.find(")") == -1:
                 general_on_stop = general_on_stop + ")"
-            self.module_to_import = general_on_stop.rsplit(".",1)[0]
-            general_on_stop = general_on_stop.replace(self.module_to_import, "gs_module")
+            self.module_to_import = general_on_stop.rsplit(".", 1)[0]
+            general_on_stop = general_on_stop.replace(
+                self.module_to_import, "gs_module")
             return general_on_stop
         except:
             return None
