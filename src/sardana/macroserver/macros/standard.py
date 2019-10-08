@@ -104,7 +104,7 @@ class _wm(Macro):
                             value = float('NaN')
                         data[name].append(value)
                     req2delete.append(name)
-                except PyTango.AsynReplyNotArrived as e:
+                except PyTango.AsynReplyNotArrived:
                     continue
                 except PyTango.DevFailed:
                     data[name].append(float('NaN'))
@@ -290,7 +290,7 @@ class set_lim(Macro):
         try:
             motor_device.UnitLimitMax = high
             motor_device.UnitLimitMin = low
-        except:
+        except Exception:
             limits_changed = 0
             self.info("UnitLimitMin/UnitLimitMax has not be written. "
                       "They probably only readable (ex. many VmExecutors)")
@@ -339,7 +339,7 @@ class adjust_lim_single(Macro):
             try:
                 motor_device.UnitLimitMax = high
                 motor_device.UnitLimitMin = low
-            except:
+            except Exception:
                 adjust_limits = 0
                 self.info(
                     "Limits for motor %s not adjusted. "
@@ -348,8 +348,9 @@ class adjust_lim_single(Macro):
                 set_lim, pars = self.createMacro(
                     "set_lim_pool", motor, low, high)
                 self.runMacro(set_lim)
-        except:
-            self.warning("Limits for motor %s not adjusted. Error reading UnitLimitMax/~Min" % name)
+        except Exception:
+            self.warning("Limits for motor %s not adjusted. "
+                         "Error reading UnitLimitMax/~Min" % name)
 
 
 class set_pos(Macro):
@@ -388,7 +389,7 @@ class read_unitlimit_attrs(Macro):
             try:
                 motor_device.read_attribute("UnitLimitMax")
                 motor_device.read_attribute("UnitLimitMin")
-            except:
+            except Exception:
                 pass
 
 
@@ -932,10 +933,14 @@ class settimer(Macro):
         except Exception as e:
             self.output(str(e))
             self.output(
-                "%s is not a valid channel in the active measurement group" % timer)
+                "%s is not a valid channel in the active measurement group"
+                % timer)
 
 
-@macro([['message', ParamRepeat(['message_item', Type.String, None, 'message item to be reported']), None, 'message to be reported']])
+@macro([['message',
+         ParamRepeat(['message_item', Type.String, None,
+                      'message item to be reported']),
+         None, 'message to be reported']])
 def report(self, message):
     """Logs a new record into the message report system (if active)"""
     self.report(' '.join(message))

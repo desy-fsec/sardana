@@ -131,7 +131,7 @@ class FIO_FileRecorder(BaseFileRecorder):
             #
             try:
                 self.mcaAliases.append(self.db.get_alias("/".join(lst[1:])))
-            except:
+            except Exception:
                 self.mcaAliases.append(mca)
 
         env = self.macro().getAllEnv()
@@ -140,8 +140,9 @@ class FIO_FileRecorder(BaseFileRecorder):
         #
         # write the comment section of the header
         #
-        self.fd.write("!\n! Comments\n!\n%%c\n%s\nuser %s Acquisition started at %s\n" %
-                      (envRec['title'], envRec['user'], start_time.ctime()))
+        self.fd.write(
+            "!\n! Comments\n!\n%%c\n%s\nuser %s Acquisition started at %s\n" %
+            (envRec['title'], envRec['user'], start_time.ctime()))
         #
         # FioAdditions points to a .py file which produces
         # a json encoded list or dictionary.
@@ -199,7 +200,7 @@ class FIO_FileRecorder(BaseFileRecorder):
                     self.macro().output(
                         "fio-recorder: bad output from %s (3)" % fName)
 
-                if not fioList is None:
+                if ioList is not None:
                     for elm in fioList:
                         # self.macro().info("list: %s" % (str(elm)))
                         self.fd.write("%s\n" % (str(elm)))
@@ -211,7 +212,8 @@ class FIO_FileRecorder(BaseFileRecorder):
         self.fd.flush()
         if not fioDict is None:
             for k in sorted(fioDict.keys()):
-                # self.macro().info("dict: %s = %s" % (str(k), str(fioDict[k])))
+                # self.macro().info("dict: %s = %s" %
+                #     (str(k), str(fioDict[k])))
                 self.fd.write("%s = %s\n" % (str(k), str(fioDict[k])))
         env = self.macro().getAllEnv()
         if ('FlagFioWriteMotorPositions' in env
@@ -239,7 +241,8 @@ class FIO_FileRecorder(BaseFileRecorder):
             if col.name == 'timestamp':
                 continue
             #
-            # OneD and TwoD must not appear in the data, they have len(col.shape) == 1 or 2
+            # OneD and TwoD must not appear in the data,
+            #      they have len(col.shape) == 1 or 2
             #
             if len(col.shape) != 0:
                 continue
@@ -269,13 +272,14 @@ class FIO_FileRecorder(BaseFileRecorder):
                 continue
             data = record.data.get(c, nan)
             data_len = None
-            try: # We are sure we get the 1d even with different types
-                data_len =  len(data)
+            # We are sure we get the 1d even with different types
+            try:
+                data_len = len(data)
                 if data_len > 0:
                     outstr += ' ' + str(data[0])
                 else:
                     outstr += ' ' + str(data)
-            except:
+            except Exception:
                 outstr += ' ' + str(data)
         #
         # 11.9.2012 timestamp to the end
@@ -334,12 +338,14 @@ class FIO_FileRecorder(BaseFileRecorder):
             fd.write(" Col %d %s FLOAT \n" % (col, mca))
             col = col + 1
 
-        if not record.data[self.mcaNames[0]] is None:
+        if record.data[self.mcaNames[0]] is not None:
             # print "+++storage.py, recordno", record.recordno
             # print "+++storage.py, record.data", record.data
-            # print "+++storage.py, len %d,  %s" % (len(record.data[ self.mcaNames[0]]), self.mcaNames[0])
+            # print "+++storage.py, len %d,  %s" %
+            #    (len(record.data[ self.mcaNames[0]]), self.mcaNames[0])
             #
-            # the MCA arrays me be of different size. the short ones are extended by zeros.
+            # the MCA arrays me be of different size.
+            #    the short ones are extended by zeros.
             #
             lMax = len(record.data[self.mcaNames[0]])
             for mca in self.mcaNames:
@@ -569,13 +575,14 @@ class SPEC_FileRecorder(BaseFileRecorder):
             if data is None:
                 data = nan
             data_len = None
-            try: # We are sure we get the 1d even with different types
-                data_len =  len(data)
+            # We are sure we get the 1d even with different types
+            try:
+                data_len = len(data)
                 if data_len > 0:
                     d.append(str(data[0]))
                 else:
                     d.append(str(data))
-            except:
+            except Exception:
                 d.append(str(data))
         outstr = ' '.join(d)
         outstr += '\n'

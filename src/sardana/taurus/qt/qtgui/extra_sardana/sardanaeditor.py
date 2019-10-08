@@ -44,7 +44,7 @@ from taurus.qt.qtgui.dialog import ProtectTaurusMessageBox
 # consider adding an utility in taurusedirot to create actions
 try:
     from spyder.utils.qthelpers import create_action
-except:
+except Exception:
     from spyderlib.utils.qthelpers import create_action
 
 from .macrotree import MacroSelectionDialog

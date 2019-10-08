@@ -1229,7 +1229,7 @@ class SScan(GScan):
             if self.condition_macro is not None:
                 try:
                     ic = self.macro.runMacro(self.condition_macro)
-                except:
+                except Exception:
                     ic = 0
             else:
                 ic = 0

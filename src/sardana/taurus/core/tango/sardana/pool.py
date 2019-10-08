@@ -1135,7 +1135,7 @@ class PseudoMotor(PoolElement, Moveable):
                     self.warning("%s" % ex)
                     try:
                         self.write_attribute('position', new_pos)
-                    except:
+                    except Exception:
                         try:
                             self.write_attribute('position', new_pos)
                         except Exception as ex2:

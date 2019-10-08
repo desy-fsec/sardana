@@ -41,7 +41,6 @@ import io
 import threading
 import traceback
 
-import socket
 from importlib import reload
 
 
@@ -542,7 +541,7 @@ class Macro(Logger):
         log_parent = self.parent_macro or self.door
         Logger.__init__(self, "Macro[%s]" % self._name, log_parent)
         self._reserveObjs(args)
-        
+
     # @name Official Macro API
     #  This list contains the set of methods that are part of the official macro
     #  API. This means that they can be safely used inside any macro.
@@ -952,7 +951,6 @@ class Macro(Logger):
         :type msg: :obj:`str`
         :param args: list of arguments
         :param kwargs: list of keyword arguments"""
-        
         return Logger.log(self, level, msg, *args, **kwargs)
 
     @mAPI
@@ -2395,8 +2393,9 @@ class Macro(Logger):
 
             try:
                 eval(general_on_stop)
-            except:
-                Logger.warning(self, "Error in general_on_stop(): %s", traceback.format_exc())
+            except Exception:
+                Logger.warning(self, "Error in general_on_stop(): %s",
+                               traceback.format_exc())
                 Logger.debug(self, "Details: ", exc_info=1)
 
         try:
@@ -2505,7 +2504,7 @@ class Macro(Logger):
         try:
             general_condition = self.getEnv("GeneralCondition")
             return general_condition
-        except:
+        except Exception:
             return None
 
     def getGeneralOnStopFunction(self):
@@ -2520,7 +2519,7 @@ class Macro(Logger):
             general_on_stop = general_on_stop.replace(
                 self.module_to_import, "gs_module")
             return general_on_stop
-        except:
+        except Exception:
             return None
 
 class iMacro(Macro):
