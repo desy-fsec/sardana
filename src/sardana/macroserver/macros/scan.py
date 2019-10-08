@@ -27,7 +27,7 @@
 """
 
 __all__ = ["a2scan", "a3scan", "a4scan", "amultiscan", "aNscan", "ascan",
-           "aNscanCondition",
+           # "aNscanCondition",
            "d2scan", "d3scan", "d4scan", "dmultiscan", "dNscan", "dscan",
            "fscan", "mesh", "timescan",
            "a2scanc", "a3scanc", "a4scanc", "ascanc",
