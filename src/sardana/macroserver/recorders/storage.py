@@ -200,7 +200,7 @@ class FIO_FileRecorder(BaseFileRecorder):
                     self.macro().output(
                         "fio-recorder: bad output from %s (3)" % fName)
 
-                if ioList is not None:
+                if fioList is not None:
                     for elm in fioList:
                         # self.macro().info("list: %s" % (str(elm)))
                         self.fd.write("%s\n" % (str(elm)))
@@ -210,7 +210,7 @@ class FIO_FileRecorder(BaseFileRecorder):
         #
         self.fd.write("!\n! Parameter\n!\n%p\n")
         self.fd.flush()
-        if not fioDict is None:
+        if fioDict is not None:
             for k in sorted(fioDict.keys()):
                 # self.macro().info("dict: %s = %s" %
                 #     (str(k), str(fioDict[k])))
