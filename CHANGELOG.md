@@ -10,14 +10,24 @@ This file follows the formats and conventions from [keepachangelog.com]
 * Support to Python >= 3.5 (#1089, #1173, 1201)
 * Pre-scan snapshot macros: `lssnap`, `defsnap` and `udefsnap` (#1199)
 * Instruments creation and configuration in sar_demo (#1198)
+* Documentation to Taurus Extensions of Sardana Devices: MacroServer part
+  and the whole Sardana part of the Qt Taurus Extensions (#1228, #1233)
 
 ### Fixed
 
 * Default macro parameter values in macroexecutor (#1153)
+* fscan macro that was broken 2.6.0 (#1218, #1220)
+* Executing RunMacro Door's command with string parameters containing spaces (#1240)
 * Setting of environment variables in Python 3.7 (#1195)
 * Use `taurus.external.qt.compat.PY_OBJECT` in singal signatures instead of `object`
   to avoid problems when using `builtins` from `future` (#1082)
 * Remove Taurus deprecated code what reduces deprecation warnings (#1206)
+* Use of env and hints in `macro` function decorator (#1239)
+
+### Deprecated
+
+* `nr_points` attribute of scan macros e.g., aNscan family of scans, `fscan` etc.
+  (#1218, #1220)
 
 ### Changed
 
