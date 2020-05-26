@@ -1131,7 +1131,8 @@ class SScan(GScan):
             raise
         except Exception:
             # self.dump_information(n, step, self.motion.moveable_list)
-            self.dump_information(self.point_id, step, self.motion.moveable_list)
+            self.dump_information(
+                self.point_id, step, self.motion.moveable_list)
             raise
         self.debug("[ END ] motion")
 
@@ -1156,7 +1157,8 @@ class SScan(GScan):
             self.macro.checkPoint()
 
             if state != Ready:
-                self.dump_information(self.point_id, step, self.motion.moveable_list)
+                self.dump_information(
+                    self.point_id, step, self.motion.moveable_list)
                 m = "Scan aborted after problematic motion: " \
                     "Motion ended with %s\n" % str(state)
                 raise ScanException({'msg': m})
