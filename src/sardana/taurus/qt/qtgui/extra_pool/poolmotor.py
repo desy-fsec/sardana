@@ -23,6 +23,9 @@
 ##
 ##############################################################################
 
+import operator
+from enum import IntEnum
+
 import PyTango
 
 from taurus.external.qt import Qt, compat
@@ -62,6 +65,91 @@ class LimitsListener(Qt.QObject):
             return
         limits = evt_value.value
         self.updateLimits.emit(limits.tolist())
+
+
+class Limit(IntEnum):
+    Home = 0
+    Positive = 1
+    Negative = 2
+
+
+class LimitInfo:
+
+    def __init__(self, exist=False, active=False, status=""):
+        # for software limit True when defined
+        # for hardware limit True when physical motor, False when pseudo
+        self.exist = exist
+        self.active = active
+        self.status = status
+
+
+def eval_hw_limit(limit, value):
+    """Evaluate hardware limit information
+
+    :param limit: which limit (negative or positive)
+    :type limit: `Limit`
+    :param value: limit value, `None` means no hardware limit (pseudo motor)
+    :type value: `bool` or `None`
+    :return: limit information
+    :rtype: `LimitInfo`
+    """
+    if limit is Limit.Positive:
+        status = "Positive "
+    elif limit is Limit.Negative:
+        status = "Negative "
+    else:
+        raise ValueError("{} wrong limit".format(limit))
+    exist = True
+    active = False
+    status += "hardware limit "
+    if value is None:
+        exist = False
+        status += "does not exist."
+    elif value:
+        active = True
+        status += "is active."
+    else:
+        status += "is not active."
+    return LimitInfo(exist, active, status)
+
+
+def eval_sw_limit(limit, position_attr):
+    """Evaluate software limit information
+
+    :param limit: which limit (negative or positive)
+    :type limit: `Limit`
+    :param position_attr: position attribute
+    :type position_attr: `taurus.core.tango.TangoAttribute`
+    :return: limit information
+    :rtype: `LimitInfo`
+    """
+    if limit == Limit.Positive:
+        getter_name = "getMaxRange"
+        comparator = operator.ge
+        not_defined = float("inf")
+        status = "Positive "
+    elif limit == Limit.Negative:
+        getter_name = "getMinRange"
+        comparator = operator.le
+        not_defined = float("-inf")
+        status = "Negative "
+    else:
+        raise ValueError("{} wrong limit".format(limit))
+    active = False
+    exist = False
+    lim_value = getattr(position_attr, getter_name)().magnitude
+    status += "software limit is "
+    if lim_value == not_defined:
+        status += "not defined."
+    else:
+        exist = True
+        position = position_attr.read().rvalue.magnitude
+        if comparator(position, lim_value):
+            status += "active."
+            active = True
+        else:
+            status += "defined."
+    return LimitInfo(exist, active, status)
 
 
 class PoolMotorClient():
@@ -159,7 +247,7 @@ class PoolMotorConfigurationForm(TaurusAttrForm):
     def getMotorControllerType(self):
         modelObj = self.getModelObj()
         modelNormalName = modelObj.getNormalName()
-        poolDsId = modelObj.getHWObj().info().server_id
+        poolDsId = modelObj.getDeviceProxy().info().server_id
         db = taurus.Database()
         pool_devices = tuple(db.get_device_class_list(poolDsId).value_string)
         pool_dev_name = pool_devices[pool_devices.index('Pool') - 1]
@@ -729,9 +817,9 @@ class PoolMotorSlim(TaurusWidget, PoolMotorClient):
                 self.updateLimits)
             limits_visible = False
             if self.has_limits:
-                limits_attribute = self.motor_dev.getAttribute(
+                self._limits_switches = self.motor_dev.getAttribute(
                     'Limit_switches')
-                limits_attribute.addListener(self.limits_listener)
+                self._limits_switches.addListener(self.limits_listener)
                 # self.updateLimits(limits_attribute.read().rvalue)
                 limits_visible = True
             self.ui.btnMin.setVisible(limits_visible)
@@ -808,7 +896,11 @@ class TaurusAttributeListener(Qt.QObject):
     def eventReceived(self, evt_src, evt_type, evt_value):
         if evt_type not in [TaurusEventType.Change, TaurusEventType.Periodic]:
             return
-        value = evt_value.rvalue
+        try:
+            value = evt_value.rvalue.magnitude
+        except AttributeError:
+            # spectrum/images or str attribute values are not Quantities
+            value = evt_value.rvalue
         self.eventReceivedSignal.emit(value)
 
 
@@ -979,19 +1071,19 @@ class PoolMotorTVReadWidget(TaurusWidget):
         limits_layout.setContentsMargins(0, 0, 0, 0)
         limits_layout.setSpacing(0)
 
-        self.btn_lim_neg = Qt.QPushButton()
-        self.btn_lim_neg.setToolTip('Negative Limit')
-        # self.btn_lim_neg.setEnabled(False)
-        self.prepare_button(self.btn_lim_neg)
-        self.btn_lim_neg.setIcon(Qt.QIcon("actions:list-remove.svg"))
-        limits_layout.addWidget(self.btn_lim_neg)
+        self.lim_neg = Qt.QLabel()
+        self.prepare_limit(self.lim_neg)
+        self._config_limit(Limit.Negative,
+                           hw_lim=LimitInfo(),
+                           sw_lim=LimitInfo())
+        limits_layout.addWidget(self.lim_neg)
 
-        self.btn_lim_pos = Qt.QPushButton()
-        self.btn_lim_pos.setToolTip('Positive Limit')
-        # self.btn_lim_pos.setEnabled(False)
-        self.prepare_button(self.btn_lim_pos)
-        self.btn_lim_pos.setIcon(Qt.QIcon("actions:list-add.svg"))
-        limits_layout.addWidget(self.btn_lim_pos)
+        self.lim_pos = Qt.QLabel()
+        self.prepare_limit(self.lim_pos)
+        self._config_limit(Limit.Positive,
+                           hw_lim=LimitInfo(),
+                           sw_lim=LimitInfo())
+        limits_layout.addWidget(self.lim_pos)
 
         self.layout().addLayout(limits_layout, 0, 0)
 
@@ -1018,14 +1110,8 @@ class PoolMotorTVReadWidget(TaurusWidget):
         # self.cb_expertRead.addItems(['Enc'])
         #self.layout().addWidget(self.cb_expertRead, 1, 0)
 
-        self.lbl_enc = Qt.QLabel('Encoder')
-        self.layout().addWidget(self.lbl_enc, 1, 0)
-
-        self.lbl_enc_read = TaurusLabel()
-        self.lbl_enc_read.setBgRole('none')
-        self.lbl_enc_read.setSizePolicy(Qt.QSizePolicy(
-            Qt.QSizePolicy.Expanding, Qt.QSizePolicy.Fixed))
-        self.layout().addWidget(self.lbl_enc_read, 1, 1)
+        self.lbl_enc = None
+        self.lbl_enc_read = None
 
         # Align everything on top
         self.layout().addItem(Qt.QSpacerItem(
@@ -1036,8 +1122,6 @@ class PoolMotorTVReadWidget(TaurusWidget):
         # SO WE ASSUME 'expertview is FALSE' AND WE HAVE TO AVOID self.setExpertView :-(
         # WOULD BE NICE THAT THE taurusValueBuddy COULD EMIT THE PROPER
         # SIGNAL...
-        self.lbl_enc.setVisible(False)
-        self.lbl_enc_read.setVisible(False)
 
     def eventFilter(self, obj, event):
         if event.type() == Qt.QEvent.MouseButtonDblClick:
@@ -1060,13 +1144,10 @@ class PoolMotorTVReadWidget(TaurusWidget):
             motor_dev.abort()
 
     def setExpertView(self, expertView):
+        if self.lbl_enc_read is None:
+            return
         self.lbl_enc.setVisible(False)
         self.lbl_enc_read.setVisible(False)
-        if self.taurusValueBuddy().motor_dev is not None:
-            hw_limits = self.taurusValueBuddy().hasHwLimits()
-            self.btn_lim_neg.setEnabled(hw_limits)
-            self.btn_lim_pos.setEnabled(hw_limits)
-
         if expertView and self.taurusValueBuddy().motor_dev is not None:
             encoder = self.taurusValueBuddy().hasEncoder()
             self.lbl_enc.setVisible(encoder)
@@ -1081,6 +1162,65 @@ class PoolMotorTVReadWidget(TaurusWidget):
         btn.setMaximumSize(25, 25)
         btn.setText('')
 
+    def prepare_limit(self, lbl):
+        lbl_policy = Qt.QSizePolicy(Qt.QSizePolicy.Fixed, Qt.QSizePolicy.Fixed)
+        lbl_policy.setHorizontalStretch(0)
+        lbl_policy.setVerticalStretch(0)
+        lbl.setSizePolicy(lbl_policy)
+        lbl.setText('')
+
+    def _config_limit(self, limit, hw_lim, sw_lim):
+        """Configure sub-widgets according to limit information
+
+        :param limit: which limit (negative or positive)
+        :type limit: `Limit`
+        :param hw_lim: hardware limit information
+        :type hw_lim: `LimitInfo`
+        :param hw_lim: software limit information
+        :type hw_lim: `LimitInfo`
+        """
+        if limit == Limit.Negative:
+            widget = self.lim_neg
+            icon = Qt.QIcon("designer:minus.png")
+        elif limit == Limit.Positive:
+            widget = self.lim_pos
+            icon = Qt.QIcon("designer:plus.png")
+        else:
+            raise ValueError("{} wrong limit".format(limit))
+        widget.setStyleSheet('')
+        if hw_lim.exist or sw_lim.exist:
+            pixmap = Qt.QPixmap(icon.pixmap(Qt.QSize(32, 32),
+                                            Qt.QIcon.Active))
+            if hw_lim.active or sw_lim.active:
+                colour = DEVICE_STATE_PALETTE.qtStyleSheet(
+                    PyTango.DevState.ALARM)
+                widget.setStyleSheet(colour)
+        else:
+            pixmap = Qt.QPixmap(icon.pixmap(Qt.QSize(32, 32),
+                                            Qt.QIcon.Disabled))
+        tool_tip = hw_lim.status + " " + sw_lim.status
+        widget.setToolTip(tool_tip)
+        widget.setPixmap(pixmap)
+
+    def _create_encoder(self):
+        if self.taurusValueBuddy().hasEncoder() and self.lbl_enc_read is None:
+            self.lbl_enc = Qt.QLabel('Encoder')
+            self.layout().addWidget(self.lbl_enc, 1, 0)
+
+            self.lbl_enc_read = TaurusLabel()
+            self.lbl_enc_read.setBgRole('none')
+            self.lbl_enc_read.setSizePolicy(Qt.QSizePolicy(
+                Qt.QSizePolicy.Expanding, Qt.QSizePolicy.Fixed))
+            self.layout().addWidget(self.lbl_enc_read, 1, 1)
+
+            # Align everything on top
+            self.layout().addItem(Qt.QSpacerItem(
+                1, 1, Qt.QSizePolicy.Minimum,
+                Qt.QSizePolicy.Expanding), 2, 0, 1, 2)
+
+            self.lbl_enc.setVisible(False)
+            self.lbl_enc_read.setVisible(False)
+
     def setModel(self, model):
         if hasattr(self, 'taurusValueBuddy'):
             try:
@@ -1091,11 +1231,15 @@ class PoolMotorTVReadWidget(TaurusWidget):
         if model in (None, ''):
             TaurusWidget.setModel(self, model)
             self.lbl_read.setModel(model)
-            self.lbl_enc_read.setModel(model)
+            if self.lbl_enc_read is not None:
+                self.lbl_enc_read.setModel(model)
             return
         TaurusWidget.setModel(self, model + '/Position')
         self.lbl_read.setModel(model + '/Position')
-        self.lbl_enc_read.setModel(model + '/Encoder')
+        if (self.taurusValueBuddy().hasEncoder()
+                and self.lbl_enc_read is None):
+            self._create_encoder()
+            self.lbl_enc_read.setModel(model + '/Encoder')
         # Handle User/Expert view
         self.setExpertView(self.taurusValueBuddy()._expertView)
         self.taurusValueBuddy().expertViewChanged.connect(
@@ -1162,7 +1306,9 @@ class PoolMotorTVWriteWidget(TaurusWidget):
             self.cbAbsoluteRelativeChanged)
         self.cbAbsoluteRelative.addItems(['Abs', 'Rel'])
         self.layout().addWidget(self.cbAbsoluteRelative, 0, 1)
-
+        self.registerConfigProperty(
+            self.cbAbsoluteRelative.currentIndex,
+            self.cbAbsoluteRelative.setCurrentIndex, 'AbsRelIndex')
         # WITH THE COMPACCT VIEW FEATURE, BETTER TO HAVE IT IN THE READ WIDGET
         # WOULD BE BETTER AS AN 'EXTRA WIDGET' (SOME DAY...)
         #self.btn_stop = Qt.QPushButton()
@@ -1275,6 +1421,8 @@ class PoolMotorTVWriteWidget(TaurusWidget):
     def cbAbsoluteRelativeChanged(self, abs_rel_option):
         abs_visible = abs_rel_option == 'Abs'
         rel_visible = abs_rel_option == 'Rel'
+        if rel_visible:
+            self.resetPendingOperations()
         self.le_write_absolute.setVisible(abs_visible)
         self.qw_write_relative.setVisible(rel_visible)
 
@@ -1291,7 +1439,8 @@ class PoolMotorTVWriteWidget(TaurusWidget):
         motor_dev = self.taurusValueBuddy().motor_dev
         if motor_dev is not None:
             increment = direction * float(self.cb_step.currentText())
-            position = float(motor_dev.getAttribute('Position').read().rvalue)
+            position = float(
+                motor_dev.getAttribute('Position').read().rvalue.magnitude)
             target_position = position + increment
             motor_dev.getAttribute('Position').write(target_position)
 
@@ -1357,7 +1506,7 @@ class PoolMotorTVWriteWidget(TaurusWidget):
             self.le_write_absolute.setModel(model)
             return
         TaurusWidget.setModel(self, model + '/Position')
-        self.le_write_absolute.setModel(model + '/Position')
+        self.le_write_absolute.setModel(model + '/Position#wvalue.magnitude')
 
         # Handle User/Expert View
         self.setExpertView(self.taurusValueBuddy()._expertView)
@@ -1373,6 +1522,37 @@ class PoolMotorTVWriteWidget(TaurusWidget):
     @Qt.pyqtSlot()
     def emitEditingFinished(self):
         self.applied.emit()
+
+    def _config_limit(self, limit, hw_lim, sw_lim):
+        """Configure sub-widgets according to limit information
+
+        :param limit: which limit (negative or positive)
+        :type limit: `Limit`
+        :param hw_lim: hardware limit information
+        :type hw_lim: `LimitInfo`
+        :param hw_lim: software limit information
+        :type hw_lim: `LimitInfo`
+        """
+        if limit == Limit.Negative:
+            step_widget = self.btn_step_down
+            to_widget = self.btn_to_neg
+            to_press_widget = self.btn_to_neg_press
+        elif limit == Limit.Positive:
+            step_widget = self.btn_step_up
+            to_widget = self.btn_to_pos
+            to_press_widget = self.btn_to_pos_press
+        else:
+            raise ValueError("{} wrong limit".format(limit))
+        active = hw_lim.active or sw_lim.active
+        style_sheet = ""
+        if active:
+            style_sheet = 'QPushButton{{{}}}'.format(
+                DEVICE_STATE_PALETTE.qtStyleSheet(PyTango.DevState.ALARM))
+        step_widget.setEnabled(not active)
+        allow_to = not active and sw_lim.exist
+        to_widget.setEnabled(allow_to)
+        to_press_widget.setEnabled(allow_to)
+        step_widget.setStyleSheet(style_sheet)
 
 
 ##################################################
@@ -1416,6 +1596,8 @@ class PoolMotorTV(TaurusValue):
         self.setUnitsWidgetClass(PoolMotorTVUnitsWidget)
         self.motor_dev = None
         self._expertView = False
+        self.registerConfigProperty(
+            self.getExpertView, self.setExpertView, 'ExpertView')
         self.limits_listener = None
         self.poweron_listener = None
         self.status_listener = None
@@ -1425,6 +1607,9 @@ class PoolMotorTV(TaurusValue):
     def setExpertView(self, expertView):
         self._expertView = expertView
         self.expertViewChanged.emit(expertView)
+
+    def getExpertView(self):
+        return self._expertView
 
     def minimumHeight(self):
         return None  # @todo: UGLY HACK to avoid subwidgets being forced to minimumheight=20
@@ -1484,8 +1669,9 @@ class PoolMotorTV(TaurusValue):
             if self.hasHwLimits():
                 self.limits_listener.eventReceivedSignal.connect(
                     self.updateLimits)
-                self.motor_dev.getAttribute(
-                    'Limit_Switches').addListener(self.limits_listener)
+                self._limit_switches = self.motor_dev.getAttribute(
+                    'Limit_Switches')
+                self._limit_switches.addListener(self.limits_listener)
 
             # CONFIGURE AN EVENT RECEIVER IN ORDER TO PROVIDE POWERON <-
             # True/False EXPERT OPERATION
@@ -1493,23 +1679,23 @@ class PoolMotorTV(TaurusValue):
             if self.hasPowerOn():
                 self.poweron_listener.eventReceivedSignal.connect(
                     self.updatePowerOn)
-                self.motor_dev.getAttribute(
-                    'PowerOn').addListener(self.poweron_listener)
+                self._poweron = self.motor_dev.getAttribute('PowerOn')
+                self._poweron.addListener(self.poweron_listener)
 
             # CONFIGURE AN EVENT RECEIVER IN ORDER TO UPDATED STATUS TOOLTIP
             self.status_listener = TaurusAttributeListener()
             self.status_listener.eventReceivedSignal.connect(
                 self.updateStatus)
-            self.motor_dev.getAttribute(
-                'Status').addListener(self.status_listener)
+            self._status = self.motor_dev.getAttribute('Status')
+            self._status.addListener(self.status_listener)
 
             # CONFIGURE AN EVENT RECEIVER IN ORDER TO ACTIVATE LIMIT BUTTONS ON
             # SOFTWARE LIMITS
             self.position_listener = TaurusAttributeListener()
             self.position_listener.eventReceivedSignal.connect(
                 self.updatePosition)
-            self.motor_dev.getAttribute(
-                'Position').addListener(self.position_listener)
+            self._position = self.motor_dev.getAttribute('Position')
+            self._position.addListener(self.position_listener)
             self.motor_dev.getAttribute('Position').enablePolling(force=True)
 
             self.setExpertView(self._expertView)
@@ -1533,67 +1719,20 @@ class PoolMotorTV(TaurusValue):
     def updateLimits(self, limits, position=None):
         if isinstance(limits, dict):
             limits = limits["limits"]
-        limits = list(limits)
-        HOME = 0
-        POS = 1
-        NEG = 2
 
-        # Check also if the software limit is 'active'
-        if self.motor_dev is not None:
-            position_attribute = self.motor_dev.getAttribute('Position')
-            if position is None:
-                position = position_attribute.read().rvalue
-            max_value_str = position_attribute.max_value
-            min_value_str = position_attribute.min_value
-            try:
-                max_value = float(max_value_str)
-                limits[POS] = limits[POS] or (position >= max_value)
-            except:
-                pass
-            try:
-                min_value = float(min_value_str)
-                limits[NEG] = limits[NEG] or (position <= min_value)
-            except:
-                pass
+        pos_hw_lim = eval_hw_limit(Limit.Positive, limits[Limit.Positive])
+        neg_hw_lim = eval_hw_limit(Limit.Negative, limits[Limit.Negative])
+        position_attr = self.motor_dev.getAttribute('Position')
+        pos_sw_lim = eval_sw_limit(Limit.Positive, position_attr)
+        neg_sw_lim = eval_sw_limit(Limit.Negative, position_attr)
 
-        pos_lim = limits[POS]
+        read_widget = self.readWidget(followCompact=True)
+        read_widget._config_limit(Limit.Positive, pos_hw_lim, pos_sw_lim)
+        read_widget._config_limit(Limit.Negative, neg_hw_lim, neg_sw_lim)
 
-        pos_btnstylesheet = ''
-        enabled = True
-        if pos_lim:
-            pos_btnstylesheet = 'QPushButton{%s}' % DEVICE_STATE_PALETTE.qtStyleSheet(
-                PyTango.DevState.ALARM)
-            enabled = False
-        self.readWidget(followCompact=True).btn_lim_pos.setStyleSheet(
-            pos_btnstylesheet)
-
-        self.writeWidget(followCompact=True).btn_step_up.setEnabled(enabled)
-        self.writeWidget(followCompact=True).btn_step_up.setStyleSheet(
-            pos_btnstylesheet)
-        enabled = enabled and self.motor_dev.getAttribute(
-            'Position').max_value.lower() != 'not specified'
-        self.writeWidget(followCompact=True).btn_to_pos.setEnabled(enabled)
-        self.writeWidget(
-            followCompact=True).btn_to_pos_press.setEnabled(enabled)
-
-        neg_lim = limits[NEG]
-        neg_btnstylesheet = ''
-        enabled = True
-        if neg_lim:
-            neg_btnstylesheet = 'QPushButton{%s}' % DEVICE_STATE_PALETTE.qtStyleSheet(
-                PyTango.DevState.ALARM)
-            enabled = False
-        self.readWidget(followCompact=True).btn_lim_neg.setStyleSheet(
-            neg_btnstylesheet)
-
-        self.writeWidget(followCompact=True).btn_step_down.setEnabled(enabled)
-        self.writeWidget(followCompact=True).btn_step_down.setStyleSheet(
-            neg_btnstylesheet)
-        enabled = enabled and self.motor_dev.getAttribute(
-            'Position').min_value.lower() != 'not specified'
-        self.writeWidget(followCompact=True).btn_to_neg.setEnabled(enabled)
-        self.writeWidget(
-            followCompact=True).btn_to_neg_press.setEnabled(enabled)
+        write_widget = self.writeWidget(followCompact=True)
+        write_widget._config_limit(Limit.Positive, pos_hw_lim, pos_sw_lim)
+        write_widget._config_limit(Limit.Negative, neg_hw_lim, neg_sw_lim)
 
     def updatePowerOn(self, poweron='__no_argument__'):
         if poweron == '__no_argument__':
@@ -1621,7 +1760,7 @@ class PoolMotorTV(TaurusValue):
         # we just want to check if any software limit is 'active'
         # and updateLimits takes care of it
         if self.motor_dev is not None:
-            limit_switches = [False, False, False]
+            limit_switches = [None, None, None]
             if self.hasHwLimits():
                 limit_switches = self.motor_dev.getAttribute(
                     'Limit_switches').read().rvalue

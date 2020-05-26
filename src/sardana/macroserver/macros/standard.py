@@ -102,6 +102,8 @@ class _wm(Macro):
                         value = attr.value
                         if value is None:
                             value = float('NaN')
+                            if attr.name == 'dialposition':
+                                value = motor.getDialPosition()
                         data[name].append(value)
                     req2delete.append(name)
                 except PyTango.AsynReplyNotArrived:
@@ -396,21 +398,22 @@ class read_unitlimit_attrs(Macro):
 # class set_user_pos(Macro):
 #    """Sets the USER position of the motor to the specified value
 #       (by changing OFFSET and keeping DIAL)"""
-
+#
 #    param_def = [
 #        ['motor', Type.Motor, None, 'Motor name'],
 #        ['pos',   Type.Float, None, 'Position to move to']
 #    ]
-
+#
 #    def run(self, motor, pos):
 #        name = motor.getName()
 #        old_pos = motor.getPosition(force=True)
 #        offset_attr = motor.getAttribute('Offset')
-#        old_offset = offset_attr.read().value
+#        old_offset = offset_attr.read().rvalue.magnitude
 #        new_offset = pos - (old_pos - old_offset)
 #        offset_attr.write(new_offset)
-#        self.output("%s reset from %.4f (offset %.4f) to %.4f (offset %.4f)"
-#            % (name, old_pos, old_offset, pos, new_offset))
+#        msg = "%s reset from %.4f (offset %.4f) to %.4f (offset %.4f)" % (
+#            name, old_pos, old_offset, pos, new_offset)
+#        self.output(msg)
 
 
 class wm(Macro):
@@ -466,8 +469,8 @@ class wm(Macro):
             except:
                 val1 = str_fmt % motor.getPosition(force=True)
 
-            val2 = str_fmt % posObj.getMaxValue()
-            val3 = str_fmt % posObj.getMinValue()
+            val2 = str_fmt % posObj.getMaxRange().magnitude
+            val3 = str_fmt % posObj.getMinRange().magnitude
 
             if show_ctrlaxis:
                 valctrl = str_fmt % (ctrl_name)
@@ -481,12 +484,12 @@ class wm(Macro):
                 try:
                     val1 = fmt % motor.getDialPosition(force=True)
                     val1 = str_fmt % val1
-                except:
+                except Exception:
                     val1 = str_fmt % motor.getDialPosition(force=True)
 
                 dPosObj = motor.getDialPositionObj()
-                val2 = str_fmt % dPosObj.getMaxValue()
-                val3 = str_fmt % dPosObj.getMinValue()
+                val2 = str_fmt % dPosObj.getMaxRange().magnitude
+                val3 = str_fmt % dPosObj.getMinRange().magnitude
 
                 dpos = list(map(str, [val2, val1, val3]))
                 pos_data += [''] + dpos
@@ -529,8 +532,9 @@ class wum(Macro):
             name = motor.getName()
             motor_names.append([name])
             posObj = motor.getPositionObj()
-            upos = list(map(str, [posObj.getMaxValue(), motor.getPosition(
-                force=True), posObj.getMinValue()]))
+            upos = list(map(str, [posObj.getMaxRange().magnitude,
+                                  motor.getPosition(force=True),
+                                  posObj.getMinRange().magnitude]))
             pos_data = [''] + upos
 
             motor_pos.append(pos_data)
@@ -589,7 +593,7 @@ class mstate(Macro):
     param_def = [['motor', Type.Moveable, None, 'Motor to check state']]
 
     def run(self, motor):
-        self.info("Motor %s" % str(motor.getState()))
+        self.info("Motor %s" % str(motor.stateObj.read().rvalue))
 
 
 class umv(Macro):
@@ -750,13 +754,22 @@ class tw(iMacro):
 def _value_to_repr(data):
     if data is None:
         return "<nodata>"
-    elif np.rank(data) > 0:
+    elif np.ndim(data) > 0:
         return list(np.shape(data))
     else:
         return data
 
 
-class ct(Macro, Hookable):
+class _ct:
+
+    def dump_information(self, elements):
+        msg = ["Elements ended acquisition with:"]
+        for element in elements:
+            msg.append(element.information())
+        self.info("\n".join(msg))
+
+
+class ct(Macro, Hookable, _ct):
     """Count for the specified time on the measurement group
        or experimental channel given as second argument
        (if not given the active measurement group is used)"""
@@ -798,7 +811,20 @@ class ct(Macro, Hookable):
         for preAcqHook in self.getHooks('pre-acq'):
             preAcqHook()
 
-        state, data = self.countable_elem.count(integ_time)
+        try:
+            state, data = self.countable_elem.count(integ_time)
+        except Exception:
+            if self.countable_elem.type == Type.MeasurementGroup:
+                names = self.countable_elem.ElementList
+                elements = [self.getObj(name) for name in names]
+                self.dump_information(elements)
+            raise
+        if state != DevState.ON:
+            if self.countable_elem.type == Type.MeasurementGroup:
+                names = self.countable_elem.ElementList
+                elements = [self.getObj(name) for name in names]
+                self.dump_information(elements)
+                raise ValueError("Acquisition ended with {}".format(state))
 
         for postAcqHook in self.getHooks('post-acq'):
             postAcqHook()
@@ -823,7 +849,7 @@ class ct(Macro, Hookable):
             self.output(line)
 
 
-class uct(Macro):
+class uct(Macro, _ct):
     """Count on the active measurement group and update"""
 
     param_def = [
@@ -882,13 +908,27 @@ class uct(Macro):
 
         self.print_value = True
         try:
-            self.mnt_grp.count(integ_time)
+            # self.mnt_grp.count(integ_time)
+            state, data = self.countable_elem.count(integ_time)
+        except Exception:
+            if self.countable_elem.type == Type.MeasurementGroup:
+                names = self.countable_elem.ElementList
+                elements = [self.getObj(name) for name in names]
+                self.dump_information(elements)
+            raise
         finally:
             self.finish()
+        if state != DevState.ON:
+            if self.countable_elem.type == Type.MeasurementGroup:
+                names = self.countable_elem.ElementList
+                elements = [self.getObj(name) for name in names]
+                self.dump_information(elements)
+                raise ValueError("Acquisition ended with {}".format(state))
+        self.setData(Record(data))
+        self.printAllValues()
 
     def finish(self):
         self._clean()
-        self.printAllValues()
 
     def _clean(self):
         for channel in self.channels:
@@ -929,7 +969,7 @@ class settimer(Macro):
             return
 
         try:
-            mnt_grp.setTimer(timer.getName())
+            mnt_grp.getConfiguration().setTimer(timer.getName())
         except Exception as e:
             self.output(str(e))
             self.output(
