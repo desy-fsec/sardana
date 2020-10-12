@@ -1193,10 +1193,7 @@ class SScan(GScan):
                 except InterruptException:
                     raise
                 except Exception:
-                    names = mg.ElementList
-                    elements = [self.macro.getObj(name) for name in names]
-                    self.dump_information(n, step, elements)
-                    raise
+                    pass
                 for ec in self._extra_columns:
                     data_line[ec.getName()] = ec.read()
                 self.debug("[ END ] acquisition")
