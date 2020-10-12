@@ -299,7 +299,7 @@ intersphinx_mapping = {
     'taurus': ('http://taurus-scada.org', None),
     'pyqt': ('https://www.riverbankcomputing.com/static/Docs/PyQt5/', None),
     'matplotlib': ('https://matplotlib.org/', None),
-    'guiqwt': ('https://pythonhosted.org/guiqwt/', None),
+    # 'guiqwt': ('https://pythonhosted.org/guiqwt/', None),
 }
 
 
