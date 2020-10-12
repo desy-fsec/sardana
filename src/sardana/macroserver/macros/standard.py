@@ -35,7 +35,6 @@ from PyTango import DeviceProxy
 
 from sardana.macroserver.macro import Macro, macro, Type, ViewOption, \
     iMacro, Hookable
-from sardana.macroserver.macro import ParamRepeat
 from sardana.macroserver.msexception import StopException, UnknownEnv
 from sardana.macroserver.scan.scandata import Record
 from sardana.macroserver.macro import Optional
@@ -380,7 +379,7 @@ class read_unitlimit_attrs(Macro):
 
     param_def = [
         ['motor_list',
-         ParamRepeat(['motor', Type.Moveable, None, 'Motor to read']),
+         [['motor', Type.Moveable, None, 'Motor to read']],
          None, 'List of motors to read'],
     ]
 
