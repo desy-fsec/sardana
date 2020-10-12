@@ -477,9 +477,13 @@ class PoolElement(BaseElement, TangoDevice):
     def start(self, *args, **kwargs):
         evt_wait = self._getEventWait()
         evt_wait.connect(self.getAttribute("state"))
-        evt_wait.lock()
         try:
             evt_wait.waitEvent(DevState.MOVING, equal=False)
+            # Clear event set to not confuse the value coming from the
+            # connection with the event of of end of the operation
+            # in the next wait event. This was observed on Windows where
+            # the time stamp resolution is very poor.
+            evt_wait.clearEventSet()
             self.__go_time = 0
             self.__go_start_time = ts1 = time.time()
             self._start(*args, **kwargs)
@@ -488,8 +492,6 @@ class PoolElement(BaseElement, TangoDevice):
         except:
             evt_wait.disconnect()
             raise
-        finally:
-            evt_wait.unlock()
         ts2 = evt_wait.getRecordedEvents().get(DevState.MOVING, ts2)
         return (ts2,)
 
@@ -514,14 +516,12 @@ class PoolElement(BaseElement, TangoDevice):
         if id is not None:
             id = id[0]
         evt_wait = self._getEventWait()
-        evt_wait.lock()
         try:
             evt_wait.waitEvent(DevState.MOVING, after=id, equal=False,
                                timeout=timeout, retries=retries)
         finally:
             self.__go_end_time = time.time()
             self.__go_time = self.__go_end_time - self.__go_start_time
-            evt_wait.unlock()
             evt_wait.disconnect()
 
     @reservedOperation
@@ -674,12 +674,6 @@ class Controller(PoolElement):
                 continue
             axes.append(elem.getAxis())
         return sorted(axes)
-
-    def getUsedAxis(self):
-        msg = ("getUsedAxis is deprecated since version 2.5.0. ",
-               "Use getUsedAxes instead.")
-        self.warning(msg)
-        self.getUsedAxes()
 
     def getLastUsedAxis(self):
         """Return the last used axis (the highest axis) in this controller
@@ -1420,6 +1414,34 @@ class MGConfiguration(object):
         self.set_data(data)
 
     def set_data(self, data, force=False):
+        # dict<str, list[DeviceProxy, CaselessDict<str, dict>]>
+        # where key is a device name and value is a list with two elements:
+        #  - A device proxy or None if there was an error building it
+        #  - A dict where keys are attribute names and value is a reference to
+        #    a dict representing channel data as received in raw data
+        self.tango_dev_channels = None
+
+        # Number of elements in tango_dev_channels in error (could not build
+        # DeviceProxy, probably)
+        self.tango_dev_channels_in_error = 0
+
+        # dict<str, tuple<str, str, TangoChannelInfo>>
+        # where key is a channel name and value is a tuple of three elements:
+        #  - device name
+        #  - attribute name
+        #  - attribute information or None if there was an error trying to get
+        #    the information
+        self.tango_channels_info = None
+
+        # Number of elements in tango_channels_info_in_error in error
+        # (could not build attribute info, probably)
+        self.tango_channels_info_in_error = 0
+
+        # dict<str, dict>
+        # where key is a channel name and data is a reference to a dict
+        # representing channel data as received in raw data
+        self.non_tango_channels = None
+
         # object each time
         if isinstance(data, str):
             data = CodecFactory().decode(('json', data))
@@ -1498,35 +1520,6 @@ class MGConfiguration(object):
             ctrl = self._get_ctrl_for_element(channel_name)
             if ctrl not in self.controller_list_name:
                 self.controller_list_name.append(ctrl)
-        # dict<str, list[DeviceProxy, CaselessDict<str, dict>]>
-        # where key is a device name and value is a list with two elements:
-        #  - A device proxy or None if there was an error building it
-        #  - A dict where keys are attribute names and value is a reference to
-        #    a dict representing channel data as received in raw data
-        self.tango_dev_channels = None
-
-        # Number of elements in tango_dev_channels in error (could not build
-        # DeviceProxy, probably)
-        self.tango_dev_channels_in_error = 0
-
-        # dict<str, tuple<str, str, TangoChannelInfo>>
-        # where key is a channel name and value is a tuple of three elements:
-        #  - device name
-        #  - attribute name
-        #  - attribute information or None if there was an error trying to get
-        #    the information
-        self.tango_channels_info = None
-
-        # Number of elements in tango_channels_info_in_error in error
-        # (could not build attribute info, probably)
-        self.tango_channels_info_in_error = 0
-
-        # dict<str, dict>
-        # where key is a channel name and data is a reference to a dict
-        # representing channel data as received in raw data
-        self.non_tango_channels = None
-
-        self.initialized = False
 
     def _build(self):
         # internal channel structure that groups channels by tango device so
@@ -1900,9 +1893,7 @@ class MGConfiguration(object):
                 result[label] = None
                 continue
 
-            if key == 'synchronization':
-                value = AcqSynchType.get(value)
-            elif key in ['timer', 'monitor']:
+            if key in ['timer', 'monitor']:
                 value = self.channels[value]['label']
             elif key == 'synchronizer' and value != 'software':
                 value = DeviceProxy(value).alias()
@@ -2367,7 +2358,7 @@ class MGConfiguration(object):
 
         :param timer: <str> timer name
         """
-        self._mg().warning("setTimer() is deprecated since Jul20. "
+        self._mg().warning("setTimer() is deprecated since 3.0.3. "
                            "Global measurement group timer does not exist")
         result = self._get_ctrl_for_channel([timer], unique=True)
 
@@ -2378,13 +2369,13 @@ class MGConfiguration(object):
 
     def getTimer(self):
         """DEPRECATED"""
-        self._mg().warning("getTimer() is deprecated since Jul20. "
+        self._mg().warning("getTimer() is deprecated since 3.0.3. "
                            "Global measurement group timer does not exist")
         return self._getTimer()
 
     def getMonitor(self):
         """DEPRECATED"""
-        self._mg().warning("getMonitor() is deprecated since Jul20. "
+        self._mg().warning("getMonitor() is deprecated since 3.0.3. "
                            "Global measurement group monitor does not exist")
         return self._getMonitor()
 
@@ -2502,16 +2493,16 @@ class MeasurementGroup(PoolElement):
     def setAcquisitionMode(self, acqMode):
         self.getAcquisitionModeObj().write(acqMode)
 
-    def getSynchronizationObj(self):
-        return self._getAttrEG('Synchronization')
+    def getSynchDescriptionObj(self):
+        return self._getAttrEG('SynchDescription')
 
-    def getSynchronization(self):
-        return self._getAttrValue('Synchronization')
+    def getSynchDescription(self):
+        return self._getAttrValue('SynchDescription')
 
-    def setSynchronization(self, synchronization):
+    def setSynchDescription(self, synch_description):
         codec = CodecFactory().getCodec('json')
-        _, data = codec.encode(('', synchronization))
-        self.getSynchronizationObj().write(data)
+        _, data = codec.encode(('', synch_description))
+        self.getSynchDescriptionObj().write(data)
         self._last_integ_time = None
 
     def _get_channels_for_elements(self, elements):
@@ -2860,7 +2851,7 @@ class MeasurementGroup(PoolElement):
             controllers or channels (default: `False` means return channels)
         :type ret_by_ctrl: bool
         :return: ordered dictionary where keys are **channel** names (or full
-            names if `ret_full_name=True`) and values are their synchronization
+            names if `ret_full_name=True`) and values are their timer
             configurations
         :rtype: dict(str, str)
         """
@@ -2915,7 +2906,7 @@ class MeasurementGroup(PoolElement):
             controllers or channels (default: `False` means return channels)
         :type ret_by_ctrl: bool
         :return: ordered dictionary where keys are **channel** names (or full
-            names if `ret_full_name=True`) and values are their synchronization
+            names if `ret_full_name=True`) and values are their monitor
             configurations
         :rtype: dict(str, str)
         """
@@ -2973,7 +2964,7 @@ class MeasurementGroup(PoolElement):
             controllers or channels (default: `False` means return channels)
         :type ret_by_ctrl: bool
         :return: ordered dictionary where keys are **channel** names (or full
-            names if `ret_full_name=True`) and values are their synchronization
+            names if `ret_full_name=True`) and values are their synchronizer
             configurations
         :rtype: dict(str, str)
         """
@@ -2983,6 +2974,66 @@ class MeasurementGroup(PoolElement):
         config = self.getConfiguration()
         ctrls_sync = config._getCtrlsSynchronizer(ctrls,
                                                   use_fullname=ret_full_name)
+        if ret_by_ctrl:
+            return ctrls_sync
+        else:
+            return self._get_value_per_channel(config, ctrls_sync,
+                                               use_fullname=ret_full_name)
+
+    def setSynchronization(self, synchronization, *elements, apply=True):
+        """Set the synchronization configuration for the given channels or
+        controller.
+
+        .. note:: Currently the controller's synchronization must be unique.
+           Hence this method will set it for the whole controller regardless of
+           the ``elements`` argument.
+
+        :param synchronization: synchronization type e.g. Trigger, Gate or
+          Start
+        :type synchronization: `sardana.pool.AcqSynchType`
+        :param elements: sequence of channels names or full names, no elements
+            means set to all
+        :type elements: list(str)
+        :param apply: `True` - apply on the server, `False` - do not apply yet
+            on the server and keep locally (default: `True`)
+        :type apply: bool
+        """
+        config = self.getConfiguration()
+        # TODO: Implement solution to set the synchronization per channel when
+        #  it is allowed.
+        ctrls = self._get_ctrl_for_elements(elements)
+        config._setCtrlsSynchronization(synchronization, ctrls,
+                                        apply_cfg=apply)
+
+    def getSynchronization(self, *elements, ret_full_name=False,
+                           ret_by_ctrl=False):
+        """Get the synchronization configuration of the given elements.
+
+        Channels and controllers are accepted as elements. Getting the output
+        from the controller means getting it from all channels of this
+        controller present in this measurement group, unless
+        `ret_by_ctrl=True`.
+
+        :param elements: sequence of element names or full names, no elements
+            means get from all
+        :type elements: list(str)
+        :param ret_full_name: whether keys in the returned dictionary are
+            full names or names (default: `False` means return names)
+        :type ret_full_name: bool
+        :param ret_by_ctrl: whether keys in the returned dictionary are
+            controllers or channels (default: `False` means return channels)
+        :type ret_by_ctrl: bool
+        :return: ordered dictionary where keys are **channel** names (or full
+            names if `ret_full_name=True`) and values are their
+            synchronization configurations
+        :rtype: dict<`str`, `sardana.pool.AcqSynchType`>
+        """
+        # TODO: Implement solution to set the synchronization per channel
+        #  when it is allowed.
+        ctrls = self._get_ctrl_for_elements(elements)
+        config = self.getConfiguration()
+        ctrls_sync = \
+            config._getCtrlsSynchronization(ctrls, use_fullname=ret_full_name)
         if ret_by_ctrl:
             return ctrls_sync
         else:
@@ -3054,19 +3105,19 @@ class MeasurementGroup(PoolElement):
 
     def getMonitorName(self):
         """DEPRECATED"""
-        self.warning("getMonitorName() is deprecated since Jul20. "
+        self.warning("getMonitorName() is deprecated since 3.0.3. "
                      "Global measurement group monitor does not exist.")
         return self.getConfiguration()._getMonitorName()
 
     def getTimerName(self):
         """DEPRECATED"""
-        self.warning("getTimerName() is deprecated since Jul20. "
+        self.warning("getTimerName() is deprecated since 3.0.3. "
                      "Global measurement group timer does not exist.")
         return self.getConfiguration()._getTimerName()
 
     def getTimerValue(self):
         """DEPRECATED"""
-        self.warning("getTimerValue() is deprecated since Jul20. "
+        self.warning("getTimerValue() is deprecated since 3.0.3. "
                      "Global measurement group timer does not exist.")
         return self.getConfiguration()._getTimerValue()
 
@@ -3076,7 +3127,7 @@ class MeasurementGroup(PoolElement):
         :param channels: (seq<str>) a sequence of strings indicating
            channel names
         '''
-        self.warning("enableChannels() in deprecated since Jul20. "
+        self.warning("enableChannels() in deprecated since 3.0.3. "
                      "Use setEnabled() instead.")
         self.setEnabled(True, *channels)
 
@@ -3086,7 +3137,7 @@ class MeasurementGroup(PoolElement):
         :param channels: (seq<str>) a sequence of strings indicating
            channel names
         '''
-        self.warning("enableChannels() in deprecated since Jul20. "
+        self.warning("enableChannels() in deprecated since 3.0.3. "
                      "Use setEnabled() instead.")
         self.setEnabled(False, *channels)
 
@@ -3336,14 +3387,19 @@ class MeasurementGroup(PoolElement):
         self.prepare()
         return self.count_raw(start_time)
 
-    def count_continuous(self, synchronization, value_buffer_cb=None):
+    def count_continuous(self, synch_description, value_buffer_cb=None,
+                         value_ref_buffer_cb=None):
         """Execute measurement process according to the given synchronization
         description.
 
-        :param synchronization: synchronization description
-        :type synchronization: list of groups with equidistant synchronizations
+        :param synch_description: synchronization description
+        :type synch_description: list of groups with equidistant
+          synchronizations
         :param value_buffer_cb: callback on value buffer updates
         :type value_buffer_cb: callable
+        :param value_ref_buffer_cb: callback on value reference
+          buffer updates
+        :type value_ref_buffer_cb: callable
         :return: state and eventually value buffers if no callback was passed
         :rtype: tuple<list<DevState>,<list>>
 
@@ -3357,13 +3413,15 @@ class MeasurementGroup(PoolElement):
         start_time = time.time()
         cfg = self.getConfiguration()
         cfg.prepare()
-        self.setSynchronization(synchronization)
+        self.setSynchDescription(synch_description)
         self.prepare()
         self.subscribeValueBuffer(value_buffer_cb)
+        self.subscribeValueRefBuffer(value_ref_buffer_cb)
         try:
             self.count_raw(start_time)
         finally:
             self.unsubscribeValueBuffer(value_buffer_cb)
+            self.unsubscribeValueRefBuffer(value_ref_buffer_cb)
         state = self.getStateEG().readValue()
         if state == Fault:
             msg = "Measurement group ended acquisition with Fault state"

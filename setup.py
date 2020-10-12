@@ -53,14 +53,14 @@ provides = [
 requires = [
     'PyTango (>=9.2.5)',
     'itango (>=0.1.6)',
-    'taurus (> 4.5.5)',
+    'taurus (>= 4.7.0)',
     'lxml (>=2.3)',
 ]
 
 install_requires = [
     'PyTango>=9.2.5',
     'itango>=0.1.6',
-    'taurus>4.5.4',
+    'taurus>=4.7.0',
     'lxml>=2.3',
     'click',
 ]
@@ -130,6 +130,5 @@ setup(name='sardana',
       entry_points=entry_points,
       provides=provides,
       requires=requires,
-      install_requires=install_requires,
-      test_suite='sardana.test.testsuite.get_sardana_unitsuite',
+      install_requires=install_requires
       )
