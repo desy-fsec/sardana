@@ -91,7 +91,6 @@ def synchronization_validator(value):
         raise ValueError("{0} is not a synchronization type".format(in_value))
     return value
 
-
 # if sanitizers and validators evolve to sth too complicated refactor this
 # to use classes
 parameter_map = OrderedDict([

@@ -3,6 +3,17 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 This file follows the formats and conventions from [keepachangelog.com]
 
+## [Unreleased]
+
+### Added
+
+* ...
+
+### Fixed
+
+* Execute per measurement preparation in `mesh` scan macro (#1437)
+* Recorders tests helpers (#1439)
+
 ## [3.0.3] 2020-09-18
 
 ### Added
