@@ -31,7 +31,7 @@ __all__ = ["dumpenv", "load_env", "lsenv", "senv", "usenv", "genv",
 __docformat__ = 'restructuredtext'
 
 import re
-import taurus
+# import taurus
 from taurus.core.tango.tangovalidator import TangoDeviceNameValidator
 from taurus.console.list import List
 from sardana.macroserver.macro import Macro, Type
