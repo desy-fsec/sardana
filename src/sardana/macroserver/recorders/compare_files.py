@@ -4,26 +4,30 @@ import os
 import argparse
 import HasyUtils
 
-REMOTE_DIR = "/usr/lib/python2.7/dist-packages/sardana/sardana-macros" \
-    "/DESY_general"
+REMOTE_DIR = "/usr/lib/python2.7/dist-packages/sardana/macroserver/recorders"
+REMOTE_DIR3 = "/usr/lib/python3/dist-packages/sardana/macroserver/recorders"
 HOST_LIST = "/afs/desy.de/group/hasylab/Tango/HostLists/TangoHosts.lis"
-FILE_LIST = "/home/kracht/Tango/Sardana/sardana-macros.git/DESY_general" \
-    "/Files.lis"
+FILE_LIST = "/home/kracht/Tango/Sardana/sardana/src/sardana/macroserver/recorders/Files.lis"
 
 
 def main(hostName, fileName):
     #
     # if a host is offlines, that's not really bad
     #
-    if not HasyUtils.isHostOnline(hostName):
+    if not HasyUtils.checkHostOnline(hostName):
         if not args.quiet:
             print("  %s is offline" % hostName)
         return True
 
-    if os.system(
-            "scp -q %s:%s/%s tempFile" % (hostName, REMOTE_DIR, fileName)):
-        print("Failed to scp %s from %s" % (fileName, hostName))
-        return False
+
+    if HasyUtils.checkHostDebian10( hostName): 
+        if os.system( "scp -q %s:%s/%s tempFile" % (hostName, REMOTE_DIR3, fileName)):
+            print("Failed to scp %s from %s" % (fileName, hostName))
+            return False
+    else: 
+        if os.system( "scp -q %s:%s/%s tempFile" % (hostName, REMOTE_DIR, fileName)):
+            print("Failed to scp %s from %s" % (fileName, hostName))
+            return False
 
     diff = os.popen("diff %s tempFile" % fileName).read()
 
