@@ -8,7 +8,7 @@ services:
   - docker
 
 python:
-  - "3.6"
+  - "2.7"
 
 env:
   global:
@@ -17,9 +17,9 @@ env:
 
   matrix:
   - TEST="flake8"
-  - TEST="testsuite" DOCKER_IMG=reszelaz/sardana-test
-  - TEST="testsuite" DOCKER_IMG=reszelaz/sardana-test:taurus-support-3.x
-  - TEST="doc" DOCKER_IMG=reszelaz/sardana-test
+  - TEST="testsuite" DOCKER_IMG=jkotan/sardana-test
+  # - TEST="doc" DOCKER_IMG=jkotan/sardana-test
+  # - TEST="testsuite" DOCKER_IMG=reszelaz/sardana-test:taurus-support-3.x
 
 
 before_install:
@@ -50,7 +50,7 @@ script:
   # run flake8 check on all python files in the project
   - if [ $TEST == "flake8" ]; then ci/flake8_diff.sh; fi
   # run the full testsuite
-  - if [ $TEST == "testsuite" ]; then docker exec sardana-test sardanatestsuite; fi
+  - if [ $TEST == "testsuite" ]; then docker exec sardana-test xvfb-run -s '-screen 0 1920x1080x24' sardanatestsuite; fi
   # build docs
   - if [ $TEST == "doc" ]; then
       docker exec -t sardana-test /bin/bash -c "cd /sardana ; sphinx-build -W doc/source/ build/sphinx/html" ;
