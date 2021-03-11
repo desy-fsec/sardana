@@ -42,7 +42,7 @@ def expconf(self, parameter_s=''):
     for the experiments (scans)"""
     try:
         from sardana.taurus.qt.qtgui.extra_sardana import ExpDescriptionEditor
-    except:
+    except Exception:
         print("Error importing ExpDescriptionEditor "
               "(hint: is taurus extra_sardana installed?)")
         return
@@ -86,33 +86,10 @@ def showscan(self, parameter_s=''):
     scan_nb = None
     if len(params) > 0:
         if params[0].lower() == 'online':
-            try:
-                from sardana.taurus.qt.qtgui.extra_sardana import \
-                    ShowScanOnline
-
-            except Exception as e:
-                print("Error importing ShowScanOnline")
-                print(e)
-                return
-
-            doorname = get_door().fullname
-            # ===============================================================
-            # ugly hack to avoid ipython/qt thread problems #e.g. see
-            # https://sourceforge.net/p/sardana/tickets/10/
-            # this hack does not allow inter-process communication and
-            # leaves the widget open after closing spock
-            #
-            # @todo: investigate cause of segfaults when using launching qt
-            #  widgets from ipython
-            #
-
-            # https://sourceforge.net/p/sardana/tickets/10/
             import subprocess
-            import sys
-            fname = sys.modules[ShowScanOnline.__module__].__file__
-            python_executable = which_python_executable()
-            args = [python_executable, fname, doorname,
-                    '--taurus-log-level=error']
+            args = ['showscan',
+                    '--taurus-log-level=error',
+                    get_door().fullname]
             subprocess.Popen(args)
             return
         else:
@@ -192,7 +169,7 @@ def post_mortem(self, parameter_s='', from_www=False):
     if not from_www:
         try:
             msg = "\n".join(logger.read(cache=False).value)
-        except:
+        except Exception:
             from_www = True
 
     if from_www:
@@ -286,7 +263,7 @@ def edmac(self, parameter_s=''):
                 print(MSG_FAILED)
                 print('Reason:', str(e))
             f.close()
-        except:
+        except Exception:
             print('Could not open file \'%s\' for safe transfer to the '
                   'server' % local_fname)
             print('Did you forget to save?')
@@ -301,14 +278,14 @@ def edmac(self, parameter_s=''):
     #            os.remove(bkp)
     try:
         os.remove(local_fname)
-    except:
+    except Exception:
         pass
 
 
 def spock_late_startup_hook(self):
     try:
         get_door().setConsoleReady(True)
-    except:
+    except Exception:
         import traceback
 
         print("Exception in spock_late_startup_hook:")
@@ -318,7 +295,7 @@ def spock_late_startup_hook(self):
 def spock_pre_prompt_hook(self):
     try:
         get_door().pre_prompt_hook(self)
-    except:
+    except Exception:
         import traceback
 
         print("Exception in spock_pre_prompt_hook:")
