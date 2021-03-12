@@ -53,7 +53,7 @@ def _dbm_dumb(filename):
     return dbm.dumb.open(filename, "c")
 
 
-def _dbm_shelve(filename, backend):
+def _create_dbm(filename, backend):
     if backend is None:
         try:
             return _dbm_gnu(filename)
@@ -143,29 +143,29 @@ class EnvironmentManager(MacroServerManager):
                 self.error("Creating environment: %s" % ose.strerror)
                 self.debug("Details:", exc_info=1)
                 raise ose
-        if os.path.exists(f_name) or os.path.exists(f_name + ".dat"):
-            try:
-                self._env = shelve.open(f_name, flag='c', writeback=False)
-            except Exception:
-                self.error("Failed to access environment in %s", f_name)
-                self.debug("Details:", exc_info=1)
-                raise
-        else:
+        if not os.path.exists(f_name) and not os.path.exists(f_name + ".dat"):
             backend = getattr(sardanacustomsettings, "MS_ENV_SHELVE_BACKEND",
                               None)
             try:
-                self._env = shelve.Shelf(_dbm_shelve(f_name, backend))
+                dbm = _create_dbm(f_name, backend)
+                dbm.close()
             except Exception:
                 self.error("Failed to create environment in %s", f_name)
                 self.debug("Details:", exc_info=1)
                 raise
+        try:
+            self._env = shelve.open(f_name, flag='w', writeback=False)
+        except Exception:
+            self.error("Failed to access environment in %s", f_name)
+            self.debug("Details:", exc_info=1)
+            raise
 
         self.info("Environment is being stored in %s", f_name)
 
         # fill the three environment caches
         try:
             self._fillEnvironmentCaches(self._env)
-        except:
+        except Exception:
             self.error("Failed to fill local enviroment cache")
             self.debug("Details:", exc_info=1)
 
@@ -191,7 +191,7 @@ class EnvironmentManager(MacroServerManager):
                 env_dict[key] = v
 
     def hasEnv(self, key, macro_name=None, door_name=None):
-        #<door>.<macro>.<property name> (highest priority)
+        # <door>.<macro>.<property name> (highest priority)
         if macro_name and door_name:
             has = self._hasDoorMacroPropertyEnv((door_name, macro_name, key))
             if has:
@@ -282,22 +282,22 @@ class EnvironmentManager(MacroServerManager):
         if key is None:
             return self._getAllEnv(door_name=door_name, macro_name=macro_name)
 
-        #<door>.<macro>.<property name> (highest priority)
+        # <door>.<macro>.<property name> (highest priority)
         if macro_name and door_name:
             v = self._getDoorMacroPropertyEnv((door_name, macro_name, key))
-            if not v is None:
+            if v is not None:
                 return v
 
         # <macro>.<property name>
         if macro_name:
             v = self._getMacroPropertyEnv((macro_name, key))
-            if not v is None:
+            if v is not None:
                 return v
 
         # <door>.<property name>
         if door_name:
             v = self._getDoorPropertyEnv((door_name, key))
-            if not v is None:
+            if v is not None:
                 return v
 
         # <property name> (less priority)
@@ -311,11 +311,11 @@ class EnvironmentManager(MacroServerManager):
         both are None the the complete environment is returned"""
         if macro_name is None and door_name is None:
             return dict(self._env)
-        elif not door_name is None and macro_name is None:
+        elif door_name is not None and macro_name is None:
             return self.getDoorEnv(door_name)
         elif door_name and macro_name:
             return self.getAllDoorMacroEnv(door_name, macro_name)
-        elif not macro_name is None and door_name is None:
+        elif macro_name is not None and door_name is None:
             return self._macro_env.get(macro_name, {})
 
     def getAllDoorEnv(self, door_name):
@@ -332,12 +332,10 @@ class EnvironmentManager(MacroServerManager):
     def getAllDoorMacroEnv(self, door_name, macro_name):
         """Gets the complete environment for the given macro in a specific
         door.
-
         :param door_name:  the door name (case insensitive)
         :type door_name: :obj:`str`
         :param macro_name: the macro name
         :type macro_name: :obj:`str`
-
         :return: a dictionary with the resulting environment"""
         door_name = door_name.lower()
 
@@ -370,14 +368,12 @@ class EnvironmentManager(MacroServerManager):
     def getDoorMacroEnv(self, door_name, macro_name, keys=None):
         """Gets the environment for the given macro in a specific door for the
         given key(s)
-
         :param door_name: the door name (case insensitive)
         :param macro_name: the macro name (case sensitive)
         :param key: the keys to be retrieved. If None (default) the complete
                     environment is returned (same as getAllDoorMacroEnv)
                     key can be a string or a sequence<string>.
                     keys must NOT contain '.' characters
-
         :return: a dictionary with the resulting environment"""
         if keys is None:
             return self.getAllDoorMacroEnv(door_name, macro_name)
@@ -422,18 +418,17 @@ class EnvironmentManager(MacroServerManager):
             if isinstance(v, str):
                 try:
                     v = eval(v)
-                except:
+                except Exception:
                     v_lower = v.lower()
                     try:
                         v = eval(v_lower.capitalize())
-                    except:
+                    except Exception:
                         pass
             ret[k] = v
         return ret
 
     def _getCacheForKey(self, key):
         """Returns the cache dictionary object for the given key
-
         :param key: a string representing the key
         :return: a tuple pair. The first element is the dictionary and the
                  second is the modified key that is applicable to the
@@ -482,11 +477,8 @@ class EnvironmentManager(MacroServerManager):
         If object is a map then the environmnent is updated.
         Other object types are not supported
         The elements which are strings are 'python evaluated'
-
         @throws TypeError is obj is not a sequence or a map
-
         @param[in] obj object to be added to the environment
-
         @return a dict representing the added environment"""
 
         if isinstance(obj, collections.Sequence) and \
@@ -503,17 +495,14 @@ class EnvironmentManager(MacroServerManager):
     def setEnv(self, key, value):
         """Sets the environment key to the new value and stores it
         persistently.
-
         :param key: the key for the environment
         :param value: the value for the environment
-
         :return: a tuple with the key and value objects stored"""
         ret = self.setEnvObj((key, value))
         return key, ret[key]
 
     def unsetEnv(self, key):
         """Unsets the environment for the given key.
-
         :param key: the key for the environment to be unset
         :return: the sequence of keys which have been removed"""
         if isinstance(key, str):
